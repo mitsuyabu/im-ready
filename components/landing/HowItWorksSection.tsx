@@ -33,7 +33,7 @@ const STEPS = [
  */
 export default function HowItWorksSection() {
   return (
-    <section className="px-4 py-16 sm:px-6 sm:py-20 lg:py-24">
+    <section className="px-4 py-16 md:px-8 md:py-20 lg:px-[60px] lg:py-24">
       <div className="mx-auto flex max-w-5xl flex-col gap-16 sm:gap-20 lg:gap-28">
         {STEPS.map((step, index) => {
           const reversed = index % 2 === 1;

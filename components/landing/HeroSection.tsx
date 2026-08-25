@@ -1,64 +1,54 @@
 import Link from "next/link";
 import Image from "next/image";
-
-/** 共有画像の実寸(px)。CLS防止のため、コンテナのaspect-ratioにそのまま使う。 */
-const HERO_IMAGE_WIDTH = 1672;
-const HERO_IMAGE_HEIGHT = 941;
-const HERO_IMAGE_ASPECT = `${HERO_IMAGE_WIDTH} / ${HERO_IMAGE_HEIGHT}`;
+import LandingHeader from "@/components/landing/LandingHeader";
 
 /**
- * 公開ページ（/）のHero。ロゴはLandingHeader側に既にあるため、ここでは重複表示しない。
+ * 公開ページ（/）のHero。HeaderとHero画像を同じ背景の上で一体化して見せるため、
+ * LandingHeaderをこのsection自身の最初の子として描画する（app/page.tsx側では
+ * 単独で<LandingHeader />を呼ばない。HeaderとHeroを別の白いブロックに分けないため）。
  *
- * Desktop: 共有画像（左に大きなオレンジの余白、右に人物・アーチ・シドニー景観）を背景として
- * 敷き、画像自体の余白部分にcopyを重ねる（「2カラムに分割」ではなく「画像をそのまま活かす」方式）。
- * containerのaspect-ratioを画像の実寸(1672:941)に厳密に一致させているため、object-fit: cover
- * でも実際には一切cropが発生しない（縦横どちらの向きでも画像全体がそのまま表示される）。
- * そのため主要被写体（人物・アーチ・オペラハウス・ハーバーブリッジ・飛行機）は常に完全に表示される。
+ * Desktop: 画像をsection全体（Header込み）の背景として敷く。containerの高さは画像の
+ * aspect ratioに厳密固定せず、min-heightで確保する（実際に画像を検証した結果、被写体
+ * （人物・アーチ・雲）の周囲に安全な余白がほとんど無く、厳密なaspect-ratio追従はfirst view
+ * のバランスと両立しないため）。object-positionは人物・アーチ・ランドマークが集まる右下寄りに
+ * 設定し、トリミングが発生する場合は装飾的な雲・アーチ上部のカーブ側から優先的に削れるようにする。
  *
- * Mobile: 背景オーバーレイにはせず、text→imageの1カラム構成にする（背景化すると被写体が
- * 切れる可能性があるため、指示通りimageは独立したブロックとしてw-fullで下に表示する）。
+ * Mobile: 背景化せず、Header（transparent、白いpage背景の上にそのまま乗る）→copy→CTA→
+ * imageの縦積み（画像は独立したブロックとしてw-fullでaspect ratioを維持したまま表示する）。
  */
 export default function HeroSection() {
   return (
-    <section className="px-4 pt-10 pb-16 sm:px-6 sm:pt-14 sm:pb-24 lg:pb-28">
-      <div className="mx-auto max-w-6xl">
-        {/* Desktop: 画像オーバーレイ */}
-        <div
-          className="relative hidden w-full overflow-hidden rounded-3xl sm:block"
-          style={{ aspectRatio: HERO_IMAGE_ASPECT }}
-        >
-          <Image
-            src="/landing/hero-study-abroad.png"
-            alt=""
-            fill
-            priority
-            sizes="(min-width: 1152px) 1152px, 100vw"
-            className="object-cover object-right"
-          />
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full px-8 lg:px-14">
-              <HeroCopy align="left" variant="onImage" />
-            </div>
+    <section className="relative overflow-hidden">
+      {/* Desktop: 背景image（Header〜Hero copyの後ろ全体に敷く） */}
+      <div className="absolute inset-0 z-0 hidden sm:block">
+        <Image
+          src="/landing/hero-study-abroad.png"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+          style={{ objectPosition: "80% 65%" }}
+        />
+      </div>
+
+      <div className="relative z-10 flex flex-col sm:min-h-[540px] lg:min-h-[640px] xl:min-h-[720px]">
+        <LandingHeader />
+
+        {/* Desktop copy: Header分を除いた残りの高さの中で縦中央寄せ */}
+        <div className="hidden flex-1 items-center px-4 py-10 sm:flex md:px-8 lg:px-[60px]">
+          <div className="w-full max-w-md">
+            <HeroCopy align="left" variant="onImage" />
           </div>
         </div>
+      </div>
 
-        {/* Mobile: text → image の1カラム */}
-        <div className="sm:hidden">
-          <HeroCopy align="center" variant="plain" />
+      {/* Mobile: copy → image の縦積み */}
+      <div className="px-4 py-10 sm:hidden">
+        <HeroCopy align="center" variant="plain" />
 
-          <div
-            className="relative mt-8 w-full overflow-hidden rounded-2xl"
-            style={{ aspectRatio: HERO_IMAGE_ASPECT }}
-          >
-            <Image
-              src="/landing/hero-study-abroad.png"
-              alt=""
-              fill
-              priority
-              sizes="100vw"
-              className="object-cover"
-            />
-          </div>
+        <div className="relative mt-8 w-full" style={{ aspectRatio: "1672 / 941" }}>
+          <Image src="/landing/hero-study-abroad.png" alt="" fill priority sizes="100vw" className="object-cover" />
         </div>
       </div>
     </section>

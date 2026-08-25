@@ -12,7 +12,7 @@ const VALUE_LINES = [
  */
 export default function ValuePropsSection() {
   return (
-    <section className="px-4 py-16 sm:px-6 sm:py-20 lg:py-24">
+    <section className="px-4 py-16 md:px-8 md:py-20 lg:px-[60px] lg:py-24">
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="text-xl font-semibold leading-snug text-worksheet-primary sm:text-2xl">
           留学先を決める前に、

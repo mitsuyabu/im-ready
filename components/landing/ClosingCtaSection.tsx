@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function ClosingCtaSection() {
   return (
-    <section className="border-t border-worksheet-border bg-worksheet-surface-2 px-4 py-16 text-center sm:px-6 sm:py-20">
+    <section className="border-t border-worksheet-border bg-worksheet-surface-2 px-4 py-16 text-center md:px-8 md:py-20 lg:px-[60px]">
       <h2 className="text-2xl font-semibold leading-snug text-worksheet-primary sm:text-3xl">
         行きたい気持ちが、
         <br />
