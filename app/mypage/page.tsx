@@ -5,7 +5,6 @@ import { loadPlanCardSummaries } from "@/lib/planCardSummary";
 import { formatLastUpdated, loadPlanLastActivityMap } from "@/lib/planActivity";
 import PlanCard from "@/components/PlanCard";
 import BrandLogo from "@/components/BrandLogo";
-import BrandTagline from "@/components/BrandTagline";
 import CreatePlanForm from "@/components/CreatePlanForm";
 import NewPlanButton from "@/components/NewPlanButton";
 
@@ -58,10 +57,7 @@ export default async function MyPagePage() {
       </header>
 
       <div className="mx-auto max-w-5xl px-4 pb-10 pt-10 sm:px-6 sm:pb-14 sm:pt-14 lg:pt-12">
-        {/* PCではSidebarで既にブランド名を見せているため、ここは「I'm ready!」というテキストを再表示しない */}
-        <BrandTagline align="left" />
-
-        <div className="mt-6 flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <h1 className="text-[26px] font-semibold leading-snug text-worksheet-primary">
             あなたの留学Plan
           </h1>

@@ -21,7 +21,7 @@ export default async function WidgetPage({ searchParams }: WidgetPageProps) {
     <div className="flex h-dvh flex-1 flex-col bg-white dark:bg-zinc-950">
       <header className="flex items-start justify-between gap-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
         <div>
-          <BrandLogo className="h-5 w-auto sm:h-6" />
+          <BrandLogo className="text-base sm:text-lg" />
           <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
             入力内容はAIによる応答生成のため外部サービスに送信されます。個人を特定する情報の入力は必要な範囲にとどめてください。{" "}
             <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">

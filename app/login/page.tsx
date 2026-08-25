@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import LoginButton from "@/components/LoginButton";
 import BrandLogo from "@/components/BrandLogo";
-import BrandTagline from "@/components/BrandTagline";
 
 export const metadata: Metadata = {
   title: "ログイン",
@@ -23,12 +22,12 @@ export default async function LoginPage() {
     <div className="flex min-h-dvh flex-col items-center justify-center bg-worksheet-surface px-4">
       <div className="w-full max-w-[400px] text-center">
         <div className="mb-8 flex justify-center">
-          <BrandLogo href="/login" />
+          <BrandLogo href="/login" className="text-2xl sm:text-3xl" />
         </div>
 
-        <BrandTagline />
+        <p className="text-sm text-worksheet-secondary">Googleアカウントでログインできます</p>
 
-        <div className="mt-8">
+        <div className="mt-6">
           <LoginButton />
         </div>
       </div>

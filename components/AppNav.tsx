@@ -206,7 +206,7 @@ function Sidebar({
 
   return (
     <aside className="hidden shrink-0 lg:sticky lg:top-0 lg:flex lg:h-dvh lg:w-60 lg:flex-col lg:border-r lg:border-worksheet-border lg:bg-worksheet-surface lg:px-4 lg:py-6">
-      <BrandLogo href="/mypage" className="h-7 w-auto sm:h-8" />
+      <BrandLogo href="/mypage" />
 
       <nav className="mt-8 flex flex-col gap-1">
         <SidebarLink
