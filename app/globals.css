@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  /*
+   * 学校提案カード（リッチ版）のテーマ変数。
+   * 見た目の調整はここだけで完結させる（コンポーネント側に色コードを直接書かない）。
+   * 静かで上質なトーンを意図し、合う/参考の差は色ではなく枠の太さ・余白・文字の大きさで出す。
+   */
+  --proposal-accent: #2563eb;
+  --proposal-accent-soft: #eff6ff;
+  --proposal-reference-border: #d4d4d8;
+  --proposal-reference-bg: #fafafa;
+  --proposal-caveat-bg: #f4f4f5;
+
+  /*
+   * ワークシート（Mindtrip風・黒アクセント）のテーマ変数。
+   * 静かで上質なトーンを意図し、色数を絞る（黒/白＋grayscaleのみ）。
+   */
+  --worksheet-surface: #ffffff;
+  --worksheet-surface-2: #fafafa;
+  --worksheet-border: #e4e4e7;
+  --worksheet-primary: #18181b;
+  --worksheet-secondary: #71717a;
+  --worksheet-accent: #18181b;
+  --worksheet-accent-contrast: #ffffff;
+
+  /*
+   * I'm ready!のアクセントカラー（セージグリーン1色のみ）。
+   * 黒70% / 白・グレー25% / アクセント5%程度を目安に、pill・記入例ボタン・focus・
+   * テーマ一覧hover・アイコン背景など、ごく限られた箇所にだけ使う。文字色・大きなCTA・
+   * ロゴ・見出しには使わない（黒白グレーの基調を崩さない）。
+   */
+  --worksheet-sage: #dde8e1;
+  --worksheet-sage-hover: #c9ddd2;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-proposal-accent: var(--proposal-accent);
+  --color-proposal-accent-soft: var(--proposal-accent-soft);
+  --color-proposal-reference-border: var(--proposal-reference-border);
+  --color-proposal-reference-bg: var(--proposal-reference-bg);
+  --color-proposal-caveat-bg: var(--proposal-caveat-bg);
+  --color-worksheet-surface: var(--worksheet-surface);
+  --color-worksheet-surface-2: var(--worksheet-surface-2);
+  --color-worksheet-border: var(--worksheet-border);
+  --color-worksheet-primary: var(--worksheet-primary);
+  --color-worksheet-secondary: var(--worksheet-secondary);
+  --color-worksheet-accent: var(--worksheet-accent);
+  --color-worksheet-accent-contrast: var(--worksheet-accent-contrast);
+  --color-worksheet-sage: var(--worksheet-sage);
+  --color-worksheet-sage-hover: var(--worksheet-sage-hover);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+
+    --proposal-accent: #60a5fa;
+    --proposal-accent-soft: #1e293b;
+    --proposal-reference-border: #3f3f46;
+    --proposal-reference-bg: #18181b;
+    --proposal-caveat-bg: #27272a;
+
+    /* ダークモードでは黒アクセントをそのまま使うとカード面に埋もれるため、明るい面に反転する */
+    --worksheet-surface: #0a0a0a;
+    --worksheet-surface-2: #18181b;
+    --worksheet-border: #3f3f46;
+    --worksheet-primary: #f4f4f5;
+    --worksheet-secondary: #a1a1aa;
+    --worksheet-accent: #f4f4f5;
+    --worksheet-accent-contrast: #18181b;
+
+    /* 明るいセージをそのまま出すと浮くため、深いグリーンの低opacityに置き換える */
+    --worksheet-sage: rgba(52, 94, 76, 0.28);
+    --worksheet-sage-hover: rgba(52, 94, 76, 0.45);
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

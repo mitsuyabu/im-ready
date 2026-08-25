@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>埋め込みテスト用サンプルサイト</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    max-width: 720px;
+    margin: 40px auto;
+    padding: 0 20px;
+    line-height: 1.7;
+    color: #1f2937;
+  }
+  h1 { font-size: 1.5rem; }
+  code {
+    background: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+  <h1>某留学エージェント（埋め込みテスト用サンプルサイト）</h1>
+  <p>
+    このページは、留学カウンセリングAIウィジェットを
+    <strong>別ドメインのHPに script タグ1行で設置した想定</strong>のテストページです。
+    実際のNext.jsアプリとは別の、単なる静的HTMLです。
+  </p>
+  <p>
+    右下にチャットの起動ボタンが表示されていれば、埋め込みは成功しています。
+  </p>
+  <p>
+    <code>data-key</code> にはこのサイト（テナント）を識別するための任意の文字列を指定します。
+  </p>
+
+  <!-- ここが設置用スクリプト（script タグ1行） -->
+  <script src="http://localhost:3000/embed.js" data-key="test-agent-001" async></script>
+</body>
+</html>
