@@ -13,7 +13,7 @@ export default function LandingHeader() {
   return (
     <header className="sticky top-0 z-20 border-b border-worksheet-border bg-worksheet-surface/95 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
-        <BrandLogo href="/" />
+        <BrandLogo href="/" className="h-9 w-auto sm:h-10" />
 
         <nav className="flex items-center gap-4">
           <Link

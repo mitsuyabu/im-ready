@@ -22,7 +22,7 @@ export default async function LoginPage() {
     <div className="flex min-h-dvh flex-col items-center justify-center bg-worksheet-surface px-4">
       <div className="w-full max-w-[400px] text-center">
         <div className="mb-8 flex justify-center">
-          <BrandLogo href="/login" className="text-2xl sm:text-3xl" />
+          <BrandLogo href="/login" className="h-14 w-auto sm:h-16" />
         </div>
 
         <p className="text-sm text-worksheet-secondary">Googleアカウントでログインできます</p>

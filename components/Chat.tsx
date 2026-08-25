@@ -665,7 +665,7 @@ export default function Chat({
       {isPlanChat && (
         <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-worksheet-border bg-worksheet-surface px-3 py-2.5 sm:px-6 sm:py-3">
           {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ここでは隠す（sticky・Plan情報は維持） */}
-          <BrandLogo href="/mypage" className="shrink-0 text-lg sm:text-xl lg:hidden" />
+          <BrandLogo href="/mypage" className="h-8 w-auto shrink-0 sm:h-9 lg:hidden" />
 
           {/* 薄いvertical divider。1行に収まらない場合は自然に折り返すため、狭い画面では非表示にする */}
           <span aria-hidden className="hidden h-6 w-px shrink-0 bg-worksheet-border sm:block lg:hidden" />

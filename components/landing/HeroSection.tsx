@@ -9,7 +9,7 @@ export default function HeroSection() {
   return (
     <section className="px-4 py-16 text-center sm:px-6 sm:py-24 lg:py-28">
       <div className="mx-auto max-w-2xl">
-        <BrandLogo href="/" className="mx-auto inline-block text-2xl sm:text-3xl" />
+        <BrandLogo href="/" className="mx-auto h-16 w-auto sm:h-20" />
 
         <h1 className="mt-6 text-3xl font-semibold leading-tight text-worksheet-primary sm:text-4xl lg:text-5xl">
           あなたの「行きたい」を、
