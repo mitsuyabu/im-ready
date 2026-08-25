@@ -1,23 +1,20 @@
 import Link from "next/link";
-import BrandLogo from "@/components/BrandLogo";
 
 /**
- * 公開ページ（/）のHero。ログイン後workspace（/mypage）よりも明確にブランド表現を強くするが、
- * 巨大なLP headlineにはしない。白・黒・sageのみで構成し、gradientは使わない。
+ * 公開ページ（/）のHero。ロゴはLandingHeader側に既にあるため、ここでは重複表示せず
+ * メインコピーに集中させる。白・黒・sageのみで構成し、gradientは使わない。
  */
 export default function HeroSection() {
   return (
     <section className="px-4 py-16 text-center sm:px-6 sm:py-24 lg:py-28">
       <div className="mx-auto max-w-2xl">
-        <BrandLogo href="/" className="mx-auto h-16 w-auto sm:h-20" />
-
-        <h1 className="mt-6 text-3xl font-semibold leading-tight text-worksheet-primary sm:text-4xl lg:text-5xl">
+        <h1 className="text-3xl font-semibold leading-tight text-worksheet-primary sm:text-4xl lg:text-5xl">
           あなたの「行きたい」を、
           <br />
           かたちにする。
         </h1>
 
-        <p className="mt-3 text-base text-worksheet-secondary sm:text-lg">留学・ワーホリの準備ワークスペース</p>
+        <p className="mt-3 text-lg text-worksheet-secondary sm:text-xl">留学・ワーホリの準備ワークスペース</p>
 
         <p className="mx-auto mt-6 max-w-md text-sm leading-relaxed text-worksheet-secondary sm:text-base">
           まだ迷っている段階から、
