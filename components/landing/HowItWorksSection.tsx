@@ -1,7 +1,12 @@
 import type { ReactNode } from "react";
-import ChatMockVisual from "@/components/landing/mock/ChatMockVisual";
+import Image from "next/image";
 import WorksheetMockVisual from "@/components/landing/mock/WorksheetMockVisual";
 import MyPlanMockVisual from "@/components/landing/mock/MyPlanMockVisual";
+
+/** public/landing/how-it-works-chat.pngの実寸(px)。wrapperのaspect-ratioをこれに厳密に
+ *  一致させることで、object-coverでも実際には一切croppingが発生しないようにしている。 */
+const CHAT_VISUAL_WIDTH = 1536;
+const CHAT_VISUAL_HEIGHT = 1024;
 
 type Accent = "sky" | "amber" | "sage";
 
@@ -28,7 +33,24 @@ const STEPS: {
     lead: "まだ言葉になっていないことから、話してみる。",
     description:
       "「なぜ行きたいのか」「何が不安なのか」。まとまっていなくても大丈夫です。AIとの会話を通して、気持ちや条件を少しずつ整理していきます。",
-    visual: <ChatMockVisual />,
+    // 完成された1枚絵（チャットUI×都市・語学学校の写真群）のため、mockカードのような
+    // 追加要素は重ねない。wrapperのaspect-ratioを画像の実寸に一致させ、object-coverでも
+    // cropが発生しないようにしている（02/03のmock visualとは異なる種類のvisualのため、
+    // 個別にJSXを書いている）。
+    visual: (
+      <div
+        className="relative w-full overflow-hidden rounded-3xl shadow-sm"
+        style={{ aspectRatio: `${CHAT_VISUAL_WIDTH} / ${CHAT_VISUAL_HEIGHT}` }}
+      >
+        <Image
+          src="/landing/how-it-works-chat.png"
+          alt=""
+          fill
+          sizes="(min-width: 1024px) 50vw, 100vw"
+          className="object-cover"
+        />
+      </div>
+    ),
   },
   {
     number: "02",
@@ -64,8 +86,10 @@ const STEPS: {
  * visual側のトーンだけに使う（白・黒・sageという基本色は崩さず、原色ベタ塗り・gradientは
  * 使わない）。本文はLP全体の方針に合わせてtext-worksheet-secondary（グレー）を廃止し、
  * 黒ベース（text-worksheet-primaryとその不透明度違い）に統一している。
- * Visualはmock（components/landing/mock/*）で、実際のChat/Worksheet/My Planのcomponent・
- * ロジックには依存していない。
+ * 02 Worksheet・03 My Planのvisualはmock（components/landing/mock/*）で、実際のcomponent・
+ * ロジックには依存していない。01 Chatだけは支給された完成済み1枚絵（public/landing/
+ * how-it-works-chat.png、チャットUI×都市・語学学校の写真群）をそのまま使い、mockカードは
+ * 使わない（旧ChatMockVisual.tsxは他に使用箇所が無いことを確認した上で削除した）。
  */
 export default function HowItWorksSection() {
   return (
