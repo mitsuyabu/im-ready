@@ -15,12 +15,11 @@ export const metadata: Metadata = {
  * だが、ブランド感を持たせるため2カラム構成にしている（Desktopのみ）。
  * 左側はブランドパネル。public/login/login-visual.png（Landing Page Heroの画像とは別の、
  * クリーム/セージ系の落ち着いたトーンの画像）をパネル全体の背景として敷く。
- * 画面全体を覆う白overlayは使わず、可読性の確保はテキストブロックごとの半透明白背景+
- * backdrop-blur（glass chip）だけで行い、背景画像自体はそのまま見せる方針にしている。
- * ロゴ直下の「留学・ワーホリの準備ワークスペース」は小さめのpill chip（サブタイトル扱い）、
- * 中央よりやや上の「さあ、準備を始めよう！」が主役コピー（濃さ・サイズともに強いchip）で、
- * 両者の視覚的な強弱をはっきり分けている。旧コピー「あなたの『行きたい』を、かたちにする。」
- * はこのパネルから削除した（他画面のコピーには影響しない、Login左パネル限定の変更）。
+ * 画面全体を覆う白overlayも、テキストごとの「白い板」的なchip背景も使わない。
+ * ロゴ直下の「留学・ワーホリの準備ワークスペース」は背景なしのプレーンテキスト（ロゴと
+ * 左端を揃える）。中央よりやや上の「さあ、準備を始めよう！」だけ、文字より一回り大きい
+ * 範囲に極薄・強いblur（bg-white/12 blur-3xl）のglowを敷いて、境界の見えない霧のような
+ * ぼかしで可読性を支えている（backdrop-blurによる矩形の縁が見えるカード状にはしていない）。
  * 右側がLogin panel（headline→description→Google login→補足→利用規約/プライバシー、
  * という情報階層）。
  * Mobileは2カラムにせず、BrandLogo→Headline→Description→Google login→補足/legal
@@ -61,27 +60,31 @@ export default async function LoginPage() {
           />
         </div>
 
-        {/* 画面全体を覆う白overlayは廃止。可読性の確保は各テキストブロック自身の
-            半透明白背景+backdrop-blur（glass chip）だけで行い、背景画像はそのまま見せる。 */}
+        {/* 画面全体を覆う白overlayは使わない。サブタイトルは背景なしのプレーンテキストにし、
+            主役コピーだけ「白い板」ではなく境界の見えない霧のようなぼかしglowで支える。 */}
         <div className="relative z-10 flex flex-1 flex-col">
-          <div className="flex flex-col items-start gap-3">
+          <div className="flex flex-col items-start gap-2">
             <BrandLogo href="/" className="h-9 w-auto" />
-            {/* ロゴの補足説明として小さく。mainコピーとは形（pill）・濃さ・サイズで強弱を分ける */}
-            <span className="rounded-full bg-white/55 px-3.5 py-1.5 text-sm font-medium text-worksheet-primary backdrop-blur-sm xl:text-base">
+            {/* ロゴの真下、左端も揃えたプレーンテキスト（背景・pillは無し） */}
+            <p className="text-base font-medium text-worksheet-primary xl:text-lg">
               留学・ワーホリの準備ワークスペース
-            </span>
+            </p>
           </div>
 
           {/* 中央よりやや上に主役コピーを配置するため、上下のスペーサーの比率をずらしている
-              （厳密な50%centeringではなく、上:下 = 0.85:1.15であえて上寄りにする） */}
+              （厳密な50%centeringではなく、上:下 = 0.65:1.35で以前よりさらに上寄りにする） */}
           <div className="flex flex-1 flex-col">
-            <div className="flex-[0.85]" />
-            <div className="self-start rounded-2xl bg-white/60 px-7 py-5 backdrop-blur-md xl:px-8 xl:py-6">
-              <p className="text-3xl font-bold leading-tight tracking-tight text-worksheet-primary xl:text-4xl">
+            <div className="flex-[0.65]" />
+            <div className="relative -ml-2 inline-block self-start">
+              {/* 「白い板」ではなく霧: 文字より一回り大きい範囲に、極薄・強いblurのglowだけを敷く。
+                  z-indexは使わず、DOM順（このdivが先＝下、pが後＝上）だけで重なりを作っている
+                  （relative単体では新しいstacking contextを作らないため、負のz-indexは使わない）。 */}
+              <div className="absolute -inset-6 rounded-full bg-white/12 blur-3xl xl:-inset-8" aria-hidden />
+              <p className="relative text-2xl font-bold leading-tight tracking-tight text-worksheet-primary xl:text-3xl">
                 さあ、準備を始めよう！
               </p>
             </div>
-            <div className="flex-[1.15]" />
+            <div className="flex-[1.35]" />
           </div>
         </div>
       </div>
