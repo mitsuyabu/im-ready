@@ -16,8 +16,10 @@ export const metadata: Metadata = {
  * 左側はブランドパネル。public/login/login-visual.png（Landing Page Heroの画像とは別の、
  * クリーム/セージ系の落ち着いたトーンの画像）をパネル全体の背景として敷く。
  * 画面全体を覆う白overlayも、テキストごとの「白い板」的なchip背景も使わない。
- * ロゴ直下の「留学・ワーホリの準備ワークスペース」は背景なしのプレーンテキスト（ロゴと
- * 左端を揃える）。中央よりやや上の「さあ、準備を始めよう！」だけ、文字より一回り大きい
+ * 情報階層は3段階: BrandLogo（ブランド）→ 小さめsemibold「留学・ワーホリの準備ワークスペース」
+ * （何のサービスか、ロゴと左端を揃えた背景なしのプレーンテキスト）→ パネル上端から
+ * 40〜45%付近（flexスペーサー比率でresponsiveに実現、固定pxではない）に置いた大きめbold
+ * 「さあ、準備を始めよう！」（行動を促す主役コピー）。主役コピーだけ、文字より一回り大きい
  * 範囲に極薄・強いblur（bg-white/12 blur-3xl）のglowを敷いて、境界の見えない霧のような
  * ぼかしで可読性を支えている（backdrop-blurによる矩形の縁が見えるカード状にはしていない）。
  * 右側がLogin panel（headline→description→Google login→補足→利用規約/プライバシー、
@@ -65,26 +67,28 @@ export default async function LoginPage() {
         <div className="relative z-10 flex flex-1 flex-col">
           <div className="flex flex-col items-start gap-2">
             <BrandLogo href="/" className="h-9 w-auto" />
-            {/* ロゴの真下、左端も揃えたプレーンテキスト（背景・pillは無し） */}
-            <p className="text-base font-medium text-worksheet-primary xl:text-lg">
+            {/* ロゴの真下、左端も揃えたプレーンテキスト（背景・pillは無し）。
+                BrandLogoの補足説明として見えるよう、サイズを1段階下げてweightをsemibold寄りにする。 */}
+            <p className="text-sm font-semibold text-worksheet-primary xl:text-base">
               留学・ワーホリの準備ワークスペース
             </p>
           </div>
 
-          {/* 中央よりやや上に主役コピーを配置するため、上下のスペーサーの比率をずらしている
-              （厳密な50%centeringではなく、上:下 = 0.65:1.35で以前よりさらに上寄りにする） */}
+          {/* パネル上端から40〜45%付近にコピー中心が来るよう、上下スペーサーの比率で
+              responsiveに位置決めしている（固定pxではない。上のBrandLogo+サブタイトル
+              ブロックの高さも含めた「パネル全体に対する位置」として、この比率を選んでいる）。 */}
           <div className="flex flex-1 flex-col">
-            <div className="flex-[0.65]" />
-            <div className="relative -ml-2 inline-block self-start">
-              {/* 「白い板」ではなく霧: 文字より一回り大きい範囲に、極薄・強いblurのglowだけを敷く。
+            <div className="flex-[0.55]" />
+            <div className="relative -ml-3 inline-block self-start">
+              {/* 「白い板」ではなく霧: 文字が一回り大きくなった分、glowの範囲も比例して広げている。
                   z-indexは使わず、DOM順（このdivが先＝下、pが後＝上）だけで重なりを作っている
                   （relative単体では新しいstacking contextを作らないため、負のz-indexは使わない）。 */}
-              <div className="absolute -inset-6 rounded-full bg-white/12 blur-3xl xl:-inset-8" aria-hidden />
-              <p className="relative text-2xl font-bold leading-tight tracking-tight text-worksheet-primary xl:text-3xl">
+              <div className="absolute -inset-7 rounded-full bg-white/12 blur-3xl xl:-inset-10" aria-hidden />
+              <p className="relative text-3xl font-bold leading-tight tracking-tight text-worksheet-primary xl:text-4xl">
                 さあ、準備を始めよう！
               </p>
             </div>
-            <div className="flex-[1.35]" />
+            <div className="flex-[1]" />
           </div>
         </div>
       </div>
