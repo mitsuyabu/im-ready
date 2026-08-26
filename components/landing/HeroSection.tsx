@@ -46,14 +46,14 @@ export default function HeroSection() {
           {/* 見出しを必ず2行に収めるため、containerをmax-w-mdから拡張している
               （旧max-w-mdでは「あなたの「行きたい」を、」1行だけで幅を超え、3行に折り返していた）。 */}
           <div className="w-full max-w-lg lg:max-w-2xl xl:max-w-[820px]">
-            <HeroCopy align="left" variant="onImage" />
+            <HeroCopy align="left" />
           </div>
         </div>
       </div>
 
       {/* Mobile: copy → image の縦積み */}
       <div className="px-4 py-10 sm:hidden">
-        <HeroCopy align="center" variant="plain" />
+        <HeroCopy align="center" />
 
         <div
           className="relative mt-8 w-full overflow-hidden rounded-bl-[32px]"
@@ -66,16 +66,13 @@ export default function HeroSection() {
   );
 }
 
-function HeroCopy({ align, variant }: { align: "left" | "center"; variant: "onImage" | "plain" }) {
-  const isOnImage = variant === "onImage";
-  // 画像に重ねるDesktop版は、背景のオレンジに対して実測コントラスト比を確認した上で
-  // 濃い色（黒ベース）に寄せている（既存のtext-worksheet-secondaryはオレンジ背景上で
-  // 約1.75:1しかなくWCAG AA基準4.5:1を大きく下回るため、そのままでは使えなかった）。
-  const subCopyClass = isOnImage ? "text-worksheet-primary" : "text-worksheet-secondary";
-  const bodyCopyClass = isOnImage ? "text-worksheet-primary/85" : "text-worksheet-secondary";
-  const loginLinkClass = isOnImage
-    ? "text-worksheet-primary decoration-worksheet-primary/40"
-    : "text-worksheet-secondary decoration-worksheet-secondary/40 hover:text-worksheet-primary";
+/**
+ * align以外の見た目はDesktop（画像の上）とMobile（白背景の上）で共通にしている。
+ * 黒文字は画像側で実測コントラスト比6.42:1、白背景側は言うまでもなく十分なため、
+ * variantによる色の出し分けはもう不要（以前はtext-worksheet-secondaryを画像上でも
+ * 使っていたためvariantで分岐していたが、グレーを廃止した今は分岐する理由がない）。
+ */
+function HeroCopy({ align }: { align: "left" | "center" }) {
   const alignClass = align === "left" ? "text-left" : "text-center";
   const itemsClass = align === "left" ? "items-start" : "items-center";
   const ctaJustifyClass = align === "left" ? "" : "sm:justify-center";
@@ -89,11 +86,11 @@ function HeroCopy({ align, variant }: { align: "left" | "center"; variant: "onIm
         かたちにする。
       </h1>
 
-      <p className={`mt-4 text-lg font-semibold sm:text-xl lg:text-2xl ${subCopyClass}`}>
+      <p className="mt-4 text-lg font-semibold text-worksheet-primary sm:text-xl lg:text-2xl">
         留学・ワーホリの準備ワークスペース
       </p>
 
-      <p className={`mt-6 text-sm leading-relaxed sm:text-base ${bodyCopyClass} ${bodyMaxWidthClass}`}>
+      <p className={`mt-6 text-sm leading-relaxed text-worksheet-primary/85 sm:text-base ${bodyMaxWidthClass}`}>
         まだ迷っている段階から、
         <br />
         話したり、書いたりしながら、
@@ -110,7 +107,7 @@ function HeroCopy({ align, variant }: { align: "left" | "center"; variant: "onIm
         </Link>
         <Link
           href="/login"
-          className={`text-sm underline underline-offset-4 transition-opacity duration-150 hover:opacity-70 ${loginLinkClass}`}
+          className="text-sm text-worksheet-primary underline decoration-worksheet-primary/40 underline-offset-4 transition-opacity duration-150 hover:opacity-70"
         >
           ログイン
         </Link>

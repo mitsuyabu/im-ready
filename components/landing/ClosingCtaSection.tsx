@@ -4,12 +4,12 @@ import Link from "next/link";
 export default function ClosingCtaSection() {
   return (
     <section className="border-t border-worksheet-border bg-worksheet-sage/25 px-4 py-16 text-center md:px-8 md:py-20 lg:px-[60px]">
-      <h2 className="text-2xl font-semibold leading-snug text-worksheet-primary sm:text-3xl">
+      <h2 className="text-3xl font-bold leading-tight tracking-tight text-worksheet-primary sm:text-4xl lg:text-5xl">
         行きたい気持ちが、
         <br />
         まだ曖昧でも大丈夫。
       </h2>
-      <p className="mt-3 text-sm text-worksheet-secondary sm:text-base">まずは、話すことから。</p>
+      <p className="mt-4 text-base text-worksheet-primary/85 sm:text-lg">まずは、話すことから。</p>
 
       <div className="mt-8">
         <Link
@@ -20,7 +20,7 @@ export default function ClosingCtaSection() {
         </Link>
       </div>
 
-      <p className="mt-3 text-xs text-worksheet-secondary">Googleアカウントで利用できます</p>
+      <p className="mt-3 text-xs text-worksheet-primary/70">Googleアカウントで利用できます</p>
     </section>
   );
 }

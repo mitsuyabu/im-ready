@@ -37,22 +37,22 @@ const VALUE_ITEMS: { number: string; accent: Accent; headline: string; body: str
  */
 export default function ValuePropsSection() {
   return (
-    <section className="bg-worksheet-surface px-4 py-16 md:px-8 md:py-20 lg:px-[60px] lg:py-24">
+    <section className="bg-worksheet-surface px-4 py-16 md:px-8 md:py-20 lg:px-[60px] lg:py-28">
       <div className="mx-auto max-w-2xl text-center">
-        <h2 className="text-2xl font-semibold leading-snug text-worksheet-primary sm:text-3xl">
+        <h2 className="text-3xl font-bold leading-tight tracking-tight text-worksheet-primary sm:text-4xl lg:text-5xl">
           留学先を決める前に、
           <br />
           自分のことを整理する。
         </h2>
 
-        <div className="mx-auto mt-10 max-w-lg space-y-6 text-left">
+        <div className="mx-auto mt-12 max-w-lg space-y-6 text-left">
           {VALUE_ITEMS.map((item) => (
             <div key={item.number} className="flex items-start gap-4">
               <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${ACCENT_DOT_CLASS[item.accent]}`} aria-hidden />
               <div className="min-w-0">
-                <p className="text-xs font-medium text-worksheet-secondary">{item.number}</p>
+                <p className="text-xs font-medium text-worksheet-primary/70">{item.number}</p>
                 <p className="mt-0.5 text-base font-semibold text-worksheet-primary sm:text-lg">{item.headline}</p>
-                <p className="mt-1 text-sm leading-relaxed text-worksheet-secondary sm:text-base">{item.body}</p>
+                <p className="mt-1 text-sm leading-relaxed text-worksheet-primary/85 sm:text-base">{item.body}</p>
               </div>
             </div>
           ))}
@@ -60,7 +60,7 @@ export default function ValuePropsSection() {
 
         <div className="mx-auto mt-12 flex max-w-lg items-center gap-3 border-t border-worksheet-border pt-6 text-left">
           <div className="h-10 w-10 shrink-0 rounded-xl bg-worksheet-surface-2" aria-hidden />
-          <p className="text-xs text-worksheet-secondary sm:text-sm">
+          <p className="text-xs text-worksheet-primary/70 sm:text-sm">
             必要になったら、学校の候補も一緒に考えられます。
           </p>
         </div>
