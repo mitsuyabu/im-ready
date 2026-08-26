@@ -14,12 +14,13 @@ export const metadata: Metadata = {
  * ログイン画面。Landing Page（/）のような長い説明はせず、シンプルな認証画面のまま
  * だが、ブランド感を持たせるため2カラム構成にしている（Desktopのみ）。
  * 左側はブランドパネル。public/login/login-visual.png（Landing Page Heroの画像とは別の、
- * クリーム/セージ系の落ち着いたトーンの画像）をパネル全体の背景として敷き、その上に
- * BrandLogo・メインコピー・サブコピーを重ねる。実測コントラスト比は黒文字で14.72:1と
- * 元々高かったが、コピーの可読性をさらに上げつつ写真の雰囲気も残すため、ごく薄い
- * 白overlay（bg-white/25）を画像とcopyの間のlayerに追加した。object-positionは
- * 画像左側の木々・情報量の多い部分を画面外に出すため70%→80%へ調整している
- * （人物・カフェ・海外感は残しつつ、コピーの背景をよりシンプルにする狙い）。
+ * クリーム/セージ系の落ち着いたトーンの画像）をパネル全体の背景として敷く。
+ * 画面全体を覆う白overlayは使わず、可読性の確保はテキストブロックごとの半透明白背景+
+ * backdrop-blur（glass chip）だけで行い、背景画像自体はそのまま見せる方針にしている。
+ * ロゴ直下の「留学・ワーホリの準備ワークスペース」は小さめのpill chip（サブタイトル扱い）、
+ * 中央よりやや上の「さあ、準備を始めよう！」が主役コピー（濃さ・サイズともに強いchip）で、
+ * 両者の視覚的な強弱をはっきり分けている。旧コピー「あなたの『行きたい』を、かたちにする。」
+ * はこのパネルから削除した（他画面のコピーには影響しない、Login左パネル限定の変更）。
  * 右側がLogin panel（headline→description→Google login→補足→利用規約/プライバシー、
  * という情報階層）。
  * Mobileは2カラムにせず、BrandLogo→Headline→Description→Google login→補足/legal
@@ -60,24 +61,27 @@ export default async function LoginPage() {
           />
         </div>
 
-        {/* 背景画像の雰囲気は残しつつコピーの可読性を上げるための、ごく薄い白overlay。
-            imageより上・foreground contentより下のlayerに置く。 */}
-        <div className="absolute inset-0 z-[1] bg-white/25" aria-hidden />
-
+        {/* 画面全体を覆う白overlayは廃止。可読性の確保は各テキストブロック自身の
+            半透明白背景+backdrop-blur（glass chip）だけで行い、背景画像はそのまま見せる。 */}
         <div className="relative z-10 flex flex-1 flex-col">
-          <BrandLogo href="/" className="h-9 w-auto" />
+          <div className="flex flex-col items-start gap-3">
+            <BrandLogo href="/" className="h-9 w-auto" />
+            {/* ロゴの補足説明として小さく。mainコピーとは形（pill）・濃さ・サイズで強弱を分ける */}
+            <span className="rounded-full bg-white/55 px-3.5 py-1.5 text-sm font-medium text-worksheet-primary backdrop-blur-sm xl:text-base">
+              留学・ワーホリの準備ワークスペース
+            </span>
+          </div>
 
-          <div className="flex flex-1 flex-col justify-center">
-            <div className="max-w-lg -translate-x-7 -translate-y-6">
-              <p className="text-3xl font-semibold leading-[1.2] tracking-tight text-worksheet-primary xl:text-4xl">
-                あなたの「行きたい」を、
-                <br />
-                かたちにする。
-              </p>
-              <p className="mt-4 text-xl font-semibold text-worksheet-primary xl:text-2xl">
-                留学・ワーホリの準備ワークスペース
+          {/* 中央よりやや上に主役コピーを配置するため、上下のスペーサーの比率をずらしている
+              （厳密な50%centeringではなく、上:下 = 0.85:1.15であえて上寄りにする） */}
+          <div className="flex flex-1 flex-col">
+            <div className="flex-[0.85]" />
+            <div className="self-start rounded-2xl bg-white/60 px-7 py-5 backdrop-blur-md xl:px-8 xl:py-6">
+              <p className="text-3xl font-bold leading-tight tracking-tight text-worksheet-primary xl:text-4xl">
+                さあ、準備を始めよう！
               </p>
             </div>
+            <div className="flex-[1.15]" />
           </div>
         </div>
       </div>
