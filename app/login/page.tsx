@@ -37,9 +37,15 @@ export default async function LoginPage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-worksheet-surface lg:flex-row">
-      {/* Desktop専用: ブランドパネル（背景画像＋テキストを重ねる） */}
+      {/* Desktop専用: ブランドパネル（背景画像＋テキストを重ねる）
+          背景imageはz-0（負のz-indexは使わない）、foreground contentをz-10のwrapperに
+          まとめて重ねる。このwrapper（relative overflow-hidden、z-indexを指定していない）は
+          それ自体では新しいstacking contextを作らないため、子に負のz-indexを与えると
+          このwrapperの外（＝outer wrapperのbg-worksheet-surface白背景）より下に
+          抜けてしまい画像が完全に見えなくなる（実際に発生していた不具合）。
+          z-0/z-10という非負の値同士にすることで、このwrapper内で意図通りの重なりになる。 */}
       <div className="relative hidden overflow-hidden lg:flex lg:w-1/2 lg:flex-col lg:p-10 xl:p-14">
-        <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-0 z-0">
           <Image
             src="/login/login-visual.png"
             alt=""
@@ -51,18 +57,20 @@ export default async function LoginPage() {
           />
         </div>
 
-        <BrandLogo href="/" className="h-9 w-auto" />
+        <div className="relative z-10 flex flex-1 flex-col">
+          <BrandLogo href="/" className="h-9 w-auto" />
 
-        <div className="flex flex-1 flex-col justify-center">
-          <div className="max-w-lg">
-            <p className="text-3xl font-semibold leading-[1.2] tracking-tight text-worksheet-primary xl:text-4xl">
-              あなたの「行きたい」を、
-              <br />
-              かたちにする。
-            </p>
-            <p className="mt-4 text-xl font-semibold text-worksheet-primary xl:text-2xl">
-              留学・ワーホリの準備ワークスペース
-            </p>
+          <div className="flex flex-1 flex-col justify-center">
+            <div className="max-w-lg">
+              <p className="text-3xl font-semibold leading-[1.2] tracking-tight text-worksheet-primary xl:text-4xl">
+                あなたの「行きたい」を、
+                <br />
+                かたちにする。
+              </p>
+              <p className="mt-4 text-xl font-semibold text-worksheet-primary xl:text-2xl">
+                留学・ワーホリの準備ワークスペース
+              </p>
+            </div>
           </div>
         </div>
       </div>
