@@ -51,15 +51,29 @@ export default function HeroSection() {
         </div>
       </div>
 
-      {/* Mobile: copy → image の縦積み */}
+      {/* Mobile: copy → image の縦積み。
+          Desktopと同じaspect比（1672/941、画像の実寸そのまま）で表示すると、左側の緑の
+          空白がそのまま出て主役（女性・青いスーツケース）が右端に小さく寄ってしまうため、
+          Mobileだけ別のtrimmingにする: containerをaspect-[4/3]（画像本来の1.776:1より
+          縦長）にすることでobject-coverが左右方向をcropし、object-positionで主役側へ
+          寄せ、scaleでもう一段ズームする。3つとも Desktop側（sm:以上、上のImage）には
+          一切適用していない。 */}
       <div className="px-4 py-10 sm:hidden">
         <HeroCopy align="center" />
 
         <div
           className="relative mt-8 w-full overflow-hidden rounded-bl-[32px]"
-          style={{ aspectRatio: "1672 / 941" }}
+          style={{ aspectRatio: "4 / 3" }}
         >
-          <Image src="/landing/hero-study-abroad.png" alt="" fill priority sizes="100vw" className="object-cover" />
+          <Image
+            src="/landing/hero-study-abroad.png"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="scale-[1.08] object-cover"
+            style={{ objectPosition: "76% 50%" }}
+          />
         </div>
       </div>
     </section>
