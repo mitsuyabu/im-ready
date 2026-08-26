@@ -13,11 +13,14 @@ export const metadata: Metadata = {
 /**
  * ログイン画面。Landing Page（/）のような長い説明はせず、シンプルな認証画面のまま
  * だが、ブランド感を持たせるため2カラム構成にしている（Desktopのみ）。
- * 左側はブランドパネル（sage背景＋Hero copyの一部＋Hero画像の小さめcrop、Landing
- * PageのHeroをそのまま複製しない）。右側がLogin panel（headline→description→
- * Google login→補足→利用規約/プライバシー、という情報階層）。
+ * 左側はブランドパネル。public/login/login-visual.png（Landing Page Heroの画像とは別の、
+ * クリーム/セージ系の落ち着いたトーンの画像）をパネル全体の背景として敷き、その上に
+ * BrandLogo・メインコピー・サブコピーを重ねる。実測コントラスト比は黒文字で14.72:1と
+ * 非常に高いため、overlayは追加していない（写真がそのまま見える状態を優先）。
+ * 右側がLogin panel（headline→description→Google login→補足→利用規約/プライバシー、
+ * という情報階層）。
  * Mobileは2カラムにせず、BrandLogo→Headline→Description→Google login→補足/legal
- * の1カラム構成にし、Hero画像は使わず縦に長くなりすぎないようにしている。
+ * の1カラム構成にし、Hero/Login用の画像は使わず縦に長くなりすぎないようにしている。
  *
  * Auth周り（LoginButtonのOAuth処理・redirectTo・/auth/callback・middleware・
  * session処理・ログイン済みユーザーの/mypage redirect）は一切変更していない。
@@ -34,29 +37,33 @@ export default async function LoginPage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-worksheet-surface lg:flex-row">
-      {/* Desktop専用: ブランドパネル */}
-      <div className="relative hidden flex-col justify-between bg-worksheet-sage/20 p-10 lg:flex lg:w-1/2 xl:p-14">
-        <BrandLogo href="/" className="h-9 w-auto" />
-
-        <div className="max-w-sm">
-          <p className="text-3xl font-semibold leading-[1.2] tracking-tight text-worksheet-primary xl:text-4xl">
-            あなたの「行きたい」を、
-            <br />
-            かたちにする。
-          </p>
-          <p className="mt-3 text-base font-medium text-worksheet-primary">留学・ワーホリの準備ワークスペース</p>
-        </div>
-
-        {/* Landing Page Heroの全面背景とは違う見せ方として、小さめのvisual panelに留める */}
-        <div className="relative h-56 w-full max-w-sm overflow-hidden rounded-2xl xl:h-64">
+      {/* Desktop専用: ブランドパネル（背景画像＋テキストを重ねる） */}
+      <div className="relative hidden overflow-hidden lg:flex lg:w-1/2 lg:flex-col lg:p-10 xl:p-14">
+        <div className="absolute inset-0 -z-10">
           <Image
-            src="/landing/hero-study-abroad.png"
+            src="/login/login-visual.png"
             alt=""
             fill
-            sizes="400px"
+            priority
+            sizes="50vw"
             className="object-cover"
-            style={{ objectPosition: "85% 55%" }}
+            style={{ objectPosition: "70% 45%" }}
           />
+        </div>
+
+        <BrandLogo href="/" className="h-9 w-auto" />
+
+        <div className="flex flex-1 flex-col justify-center">
+          <div className="max-w-lg">
+            <p className="text-3xl font-semibold leading-[1.2] tracking-tight text-worksheet-primary xl:text-4xl">
+              あなたの「行きたい」を、
+              <br />
+              かたちにする。
+            </p>
+            <p className="mt-4 text-xl font-semibold text-worksheet-primary xl:text-2xl">
+              留学・ワーホリの準備ワークスペース
+            </p>
+          </div>
         </div>
       </div>
 
