@@ -16,7 +16,10 @@ export const metadata: Metadata = {
  * 左側はブランドパネル。public/login/login-visual.png（Landing Page Heroの画像とは別の、
  * クリーム/セージ系の落ち着いたトーンの画像）をパネル全体の背景として敷き、その上に
  * BrandLogo・メインコピー・サブコピーを重ねる。実測コントラスト比は黒文字で14.72:1と
- * 非常に高いため、overlayは追加していない（写真がそのまま見える状態を優先）。
+ * 元々高かったが、コピーの可読性をさらに上げつつ写真の雰囲気も残すため、ごく薄い
+ * 白overlay（bg-white/25）を画像とcopyの間のlayerに追加した。object-positionは
+ * 画像左側の木々・情報量の多い部分を画面外に出すため70%→80%へ調整している
+ * （人物・カフェ・海外感は残しつつ、コピーの背景をよりシンプルにする狙い）。
  * 右側がLogin panel（headline→description→Google login→補足→利用規約/プライバシー、
  * という情報階層）。
  * Mobileは2カラムにせず、BrandLogo→Headline→Description→Google login→補足/legal
@@ -53,15 +56,19 @@ export default async function LoginPage() {
             priority
             sizes="50vw"
             className="object-cover"
-            style={{ objectPosition: "70% 45%" }}
+            style={{ objectPosition: "80% 45%" }}
           />
         </div>
+
+        {/* 背景画像の雰囲気は残しつつコピーの可読性を上げるための、ごく薄い白overlay。
+            imageより上・foreground contentより下のlayerに置く。 */}
+        <div className="absolute inset-0 z-[1] bg-white/25" aria-hidden />
 
         <div className="relative z-10 flex flex-1 flex-col">
           <BrandLogo href="/" className="h-9 w-auto" />
 
           <div className="flex flex-1 flex-col justify-center">
-            <div className="max-w-lg">
+            <div className="max-w-lg -translate-x-7 -translate-y-6">
               <p className="text-3xl font-semibold leading-[1.2] tracking-tight text-worksheet-primary xl:text-4xl">
                 あなたの「行きたい」を、
                 <br />
