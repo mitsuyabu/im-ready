@@ -15,6 +15,8 @@ export const metadata: Metadata = {
  * だが、ブランド感を持たせるため2カラム構成にしている（Desktopのみ）。
  * 左側はブランドパネル。public/login/login-visual.png（Landing Page Heroの画像とは別の、
  * クリーム/セージ系の落ち着いたトーンの画像）をパネル全体の背景として敷く。
+ * object-positionは88% 53%（右寄り・下寄り）にしており、画像内の女性の頭が主役コピー
+ * 「さあ、準備を始めよう！」と重ならないよう、文字の背景になる領域を優先している。
  * 画面全体を覆う白overlayも、テキストごとの「白い板」的なchip背景も使わない。
  * 情報階層は3段階: BrandLogo（ブランド）→ 小さめsemibold「留学・ワーホリの準備ワークスペース」
  * （何のサービスか、ロゴと左端を揃えた背景なしのプレーンテキスト）→ パネル上端から
@@ -58,7 +60,7 @@ export default async function LoginPage() {
             priority
             sizes="50vw"
             className="object-cover"
-            style={{ objectPosition: "80% 45%" }}
+            style={{ objectPosition: "88% 53%" }}
           />
         </div>
 
