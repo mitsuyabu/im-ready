@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
-import WorksheetMockVisual from "@/components/landing/mock/WorksheetMockVisual";
 import MyPlanMockVisual from "@/components/landing/mock/MyPlanMockVisual";
 
-/** public/landing/how-it-works-chat.pngの実寸(px)。wrapperのaspect-ratioをこれに厳密に
- *  一致させることで、object-coverでも実際には一切croppingが発生しないようにしている。 */
+/** public/landing/how-it-works-chat.png・how-it-works-worksheet.pngの実寸(px)。
+ *  wrapperのaspect-ratioをこれに厳密に一致させることで、object-coverでも
+ *  実際には一切croppingが発生しないようにしている。 */
 const CHAT_VISUAL_WIDTH = 1536;
 const CHAT_VISUAL_HEIGHT = 1024;
+const WORKSHEET_VISUAL_WIDTH = 1911;
+const WORKSHEET_VISUAL_HEIGHT = 823;
 
 type Accent = "sky" | "amber" | "sage";
 
@@ -58,7 +60,23 @@ const STEPS: {
     title: "Worksheetで整理する",
     lead: "自分のペースで、考えを整理する。",
     description: "目的、将来、条件、優先順位、不安。会話だけでは整理しきれないことを、Worksheetでじっくり考えられます。",
-    visual: <WorksheetMockVisual />,
+    // 01と同様、完成された1枚絵（Worksheet UI×Why?/Conditions/Worries/Priorityカード×
+    // 人物・都市写真）のため、mockカードや色付き背景箱は重ねない。wrapperのaspect-ratioを
+    // 画像の実寸に一致させ、object-coverでもcropが発生しないようにしている。
+    visual: (
+      <div
+        className="relative w-full overflow-hidden rounded-3xl shadow-sm"
+        style={{ aspectRatio: `${WORKSHEET_VISUAL_WIDTH} / ${WORKSHEET_VISUAL_HEIGHT}` }}
+      >
+        <Image
+          src="/landing/how-it-works-worksheet.png"
+          alt=""
+          fill
+          sizes="(min-width: 1024px) 50vw, 100vw"
+          className="object-cover"
+        />
+      </div>
+    ),
   },
   {
     number: "03",
@@ -86,10 +104,11 @@ const STEPS: {
  * visual側のトーンだけに使う（白・黒・sageという基本色は崩さず、原色ベタ塗り・gradientは
  * 使わない）。本文はLP全体の方針に合わせてtext-worksheet-secondary（グレー）を廃止し、
  * 黒ベース（text-worksheet-primaryとその不透明度違い）に統一している。
- * 02 Worksheet・03 My Planのvisualはmock（components/landing/mock/*）で、実際のcomponent・
- * ロジックには依存していない。01 Chatだけは支給された完成済み1枚絵（public/landing/
- * how-it-works-chat.png、チャットUI×都市・語学学校の写真群）をそのまま使い、mockカードは
- * 使わない（旧ChatMockVisual.tsxは他に使用箇所が無いことを確認した上で削除した）。
+ * 03 My Planのvisualだけmock（components/landing/mock/MyPlanMockVisual.tsx）で、実際の
+ * component・ロジックには依存していない。01 Chat・02 Worksheetは支給された完成済み1枚絵
+ * （public/landing/how-it-works-chat.png・how-it-works-worksheet.png）をそのまま使い、
+ * mockカードや色付き背景箱は重ねない（旧ChatMockVisual.tsx・WorksheetMockVisual.tsxは
+ * いずれも他に使用箇所が無いことを確認した上で削除した）。
  */
 export default function HowItWorksSection() {
   return (
