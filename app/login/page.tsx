@@ -15,8 +15,11 @@ export const metadata: Metadata = {
  * だが、ブランド感を持たせるため2カラム構成にしている（Desktopのみ）。
  * 左側はブランドパネル。public/login/login-visual.png（Landing Page Heroの画像とは別の、
  * クリーム/セージ系の落ち着いたトーンの画像）をパネル全体の背景として敷く。
- * object-positionは88% 53%（右寄り・下寄り）にしており、画像内の女性の頭が主役コピー
- * 「さあ、準備を始めよう！」と重ならないよう、文字の背景になる領域を優先している。
+ * object-positionは"70% 50%"という自然な基準構図に戻し、画像内の女性の頭・木々・建物を
+ * 主役コピー「さあ、準備を始めよう！」から遠ざける調整は、object-positionではなく
+ * 画像レイヤー自体のtranslate（translate-x-8 translate-y-6、右下へ）で行っている。
+ * translateで空いた左上の隙間はscale-110で画像自体を一回り拡大して埋めており、
+ * 親のoverflow-hiddenが拡大分のはみ出しを安全にクリップする。
  * 画面全体を覆う白overlayも、テキストごとの「白い板」的なchip背景も使わない。
  * 情報階層は3段階: BrandLogo（ブランド）→ 小さめsemibold「留学・ワーホリの準備ワークスペース」
  * （何のサービスか、ロゴと左端を揃えた背景なしのプレーンテキスト）→ パネル上端から
@@ -59,8 +62,8 @@ export default async function LoginPage() {
             fill
             priority
             sizes="50vw"
-            className="object-cover"
-            style={{ objectPosition: "88% 53%" }}
+            className="translate-x-8 translate-y-6 scale-110 object-cover"
+            style={{ objectPosition: "70% 50%" }}
           />
         </div>
 
