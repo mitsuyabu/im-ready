@@ -1,8 +1,9 @@
 import Link from "next/link";
 
+/** Hero画像とは別の、淡いsage背景で軽くビジュアルの区切りを持たせる（巨大な広告バナーにはしない）。 */
 export default function ClosingCtaSection() {
   return (
-    <section className="border-t border-worksheet-border bg-worksheet-surface-2 px-4 py-16 text-center md:px-8 md:py-20 lg:px-[60px]">
+    <section className="border-t border-worksheet-border bg-worksheet-sage/25 px-4 py-16 text-center md:px-8 md:py-20 lg:px-[60px]">
       <h2 className="text-2xl font-semibold leading-snug text-worksheet-primary sm:text-3xl">
         行きたい気持ちが、
         <br />

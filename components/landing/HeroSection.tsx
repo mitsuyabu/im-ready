@@ -15,10 +15,16 @@ import LandingHeader from "@/components/landing/LandingHeader";
  *
  * Mobile: 背景化せず、Header（transparent、白いpage背景の上にそのまま乗る）→copy→CTA→
  * imageの縦積み（画像は独立したブロックとしてw-fullでaspect ratioを維持したまま表示する）。
+ *
+ * 見出しは必ずDesktopで2行に収める。copy containerをbreakpointごとに拡張し
+ * （max-w-lg/2xl/[820px]）、見出し1行目「あなたの「行きたい」を、」がその幅に収まる
+ * ことを文字数×フォントサイズで検算した上でサイズを決めている。
+ * Hero全体（Header込み）の左下だけにrounded-bl-[56px]を付け、他の3隅は直角のまま維持する
+ * （Mobileの単体image blockには控えめなrounded-bl-[32px]のみ）。
  */
 export default function HeroSection() {
   return (
-    <section className="relative overflow-hidden">
+    <section className="relative overflow-hidden rounded-bl-[56px]">
       {/* Desktop: 背景image（Header〜Hero copyの後ろ全体に敷く） */}
       <div className="absolute inset-0 z-0 hidden sm:block">
         <Image
@@ -37,7 +43,9 @@ export default function HeroSection() {
 
         {/* Desktop copy: Header分を除いた残りの高さの中で縦中央寄せ */}
         <div className="hidden flex-1 items-center px-4 py-10 sm:flex md:px-8 lg:px-[60px]">
-          <div className="w-full max-w-md">
+          {/* 見出しを必ず2行に収めるため、containerをmax-w-mdから拡張している
+              （旧max-w-mdでは「あなたの「行きたい」を、」1行だけで幅を超え、3行に折り返していた）。 */}
+          <div className="w-full max-w-lg lg:max-w-2xl xl:max-w-[820px]">
             <HeroCopy align="left" variant="onImage" />
           </div>
         </div>
@@ -47,7 +55,10 @@ export default function HeroSection() {
       <div className="px-4 py-10 sm:hidden">
         <HeroCopy align="center" variant="plain" />
 
-        <div className="relative mt-8 w-full" style={{ aspectRatio: "1672 / 941" }}>
+        <div
+          className="relative mt-8 w-full overflow-hidden rounded-bl-[32px]"
+          style={{ aspectRatio: "1672 / 941" }}
+        >
           <Image src="/landing/hero-study-abroad.png" alt="" fill priority sizes="100vw" className="object-cover" />
         </div>
       </div>
@@ -72,13 +83,15 @@ function HeroCopy({ align, variant }: { align: "left" | "center"; variant: "onIm
 
   return (
     <div className={alignClass}>
-      <h1 className="text-3xl font-semibold leading-tight text-worksheet-primary sm:text-4xl lg:text-5xl">
+      <h1 className="text-3xl leading-[1.15] font-semibold tracking-tight text-worksheet-primary sm:text-4xl lg:text-5xl xl:text-6xl">
         あなたの「行きたい」を、
         <br />
         かたちにする。
       </h1>
 
-      <p className={`mt-3 text-lg sm:text-xl ${subCopyClass}`}>留学・ワーホリの準備ワークスペース</p>
+      <p className={`mt-4 text-lg font-semibold sm:text-xl lg:text-2xl ${subCopyClass}`}>
+        留学・ワーホリの準備ワークスペース
+      </p>
 
       <p className={`mt-6 text-sm leading-relaxed sm:text-base ${bodyCopyClass} ${bodyMaxWidthClass}`}>
         まだ迷っている段階から、
