@@ -25,10 +25,12 @@ interface PlanPageProps {
  * 「存在しないPlan」と「他人のPlan」は区別せず、どちらもnotFound()にする
  * （情報漏洩防止のため）。
  *
- * MVP方針: Documents / Todo / 学校候補一覧 / My Plan専用画面 / nextAction / conflicts は
- * 裏付けとなる永続化・専用UIがまだ無いため、今回は置かない（未実装機能を動くボタンとして
- * 見せない、というCLAUDE.mdの方針に沿う）。既存2導線（Chat/Worksheet）の入口の質を上げ、
- * Karteから取れるstated情報だけを薄く可視化する。
+ * MVP方針: Todo / 学校候補一覧 / nextAction / conflicts は裏付けとなる永続化・専用UIが
+ * まだ無いため、今回は置かない（未実装機能を動くボタンとして見せない、というCLAUDE.mdの
+ * 方針に沿う）。既存2導線（Chat/Worksheet）の入口の質を上げ、Karteから取れるstated情報
+ * だけを薄く可視化する。
+ * Documentsはplan_documentsテーブル・RLS・一覧ページ（土台のみ、生成機能はまだ無い）が
+ * 用意できたため、My Planと同じ「右カラムの軽いリンクカード」として入口だけ追加している。
  */
 export default async function PlanPage({ params }: PlanPageProps) {
   const { planId } = await params;
@@ -166,6 +168,19 @@ export default async function PlanPage({ params }: PlanPageProps) {
                 className="mt-4 inline-block text-xs text-worksheet-accent underline decoration-worksheet-accent/40 underline-offset-2 transition-colors hover:decoration-worksheet-accent"
               >
                 My Planを見る →
+              </Link>
+            </section>
+
+            <section className="rounded-[20px] border-[0.5px] border-worksheet-border bg-worksheet-surface-2 p-5 sm:p-6">
+              <h2 className="text-base font-semibold text-worksheet-primary">Documents</h2>
+              <p className="mt-1 text-sm leading-relaxed text-worksheet-secondary">
+                My Planをもとに、資料を作成・保存できるようになります。
+              </p>
+              <Link
+                href={`/plans/${typedPlan.id}/documents`}
+                className="mt-4 inline-block text-xs text-worksheet-accent underline decoration-worksheet-accent/40 underline-offset-2 transition-colors hover:decoration-worksheet-accent"
+              >
+                Documentsを見る →
               </Link>
             </section>
 
