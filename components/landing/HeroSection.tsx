@@ -13,8 +13,12 @@ import LandingHeader from "@/components/landing/LandingHeader";
  * のバランスと両立しないため）。object-positionは人物・アーチ・ランドマークが集まる右下寄りに
  * 設定し、トリミングが発生する場合は装飾的な雲・アーチ上部のカーブ側から優先的に削れるようにする。
  *
- * Mobile: 背景化せず、Header（transparent、白いpage背景の上にそのまま乗る）→copy→CTA→
- * imageの縦積み（画像は独立したブロックとしてw-fullでaspect ratioを維持したまま表示する）。
+ * Mobile: 背景化はしないが、「テキストの下に独立した画像ブロックが置かれている」印象を
+ * 避けるため、copyだけpx-4で余白を取り、画像はページ左右のpaddingから解放してfull-bleed
+ * （画面幅いっぱい）で表示する。画像の後に余白を追加せず、Hero section自体を画像で
+ * 締めくくることで、Desktop（画像がHeader〜copyの背後を覆う一体型banner）と同じ
+ * 「画像が主役」の方向性をMobileでも再現している（Header→copy→CTA→画像という
+ * 読み進め順自体は維持）。
  *
  * 見出しは必ずDesktopで2行に収める。copy containerをbreakpointごとに拡張し
  * （max-w-lg/2xl/[820px]）、見出し1行目「あなたの「行きたい」を、」がその幅に収まる
@@ -51,15 +55,19 @@ export default function HeroSection() {
         </div>
       </div>
 
-      {/* Mobile: copy → image の縦積み。
-          Desktopと同じaspect比（1672/941、画像の実寸そのまま）で表示すると、左側の緑の
-          空白がそのまま出て主役（女性・青いスーツケース）が右端に小さく寄ってしまうため、
-          Mobileだけ別のtrimmingにする: containerをaspect-[4/3]（画像本来の1.776:1より
-          縦長）にすることでobject-coverが左右方向をcropし、object-positionで主役側へ
-          寄せ、scaleでもう一段ズームする。3つとも Desktop側（sm:以上、上のImage）には
-          一切適用していない。 */}
-      <div className="px-4 py-10 sm:hidden">
-        <HeroCopy align="center" />
+      {/* Mobile: copy → image。画像を「下に置かれた独立ブロック」に見せないため、
+          copyだけpx-4で余白を取り、画像はページの左右paddingから解放してfull-bleed
+          （画面幅いっぱい）で表示する。Hero sectionの最後の要素として画像自身が
+          締めくくる形にし（画像の後に余白を追加しない）、Desktop Hero（画像が
+          Header〜copyの背後全体を覆う一体型banner）と同じ「画像が主役」という
+          方向性をMobileでも再現している。
+          aspect-[4/3]・object-position: 76% 50%・scale-[1.08]は、女性・青い
+          スーツケース・サーフボードの見え方を検証した上で以前確定させた値のため、
+          今回は変更していない（Desktop側の画像設定にも一切影響しない）。 */}
+      <div className="sm:hidden">
+        <div className="px-4 pt-10">
+          <HeroCopy align="center" />
+        </div>
 
         <div
           className="relative mt-8 w-full overflow-hidden rounded-bl-[32px]"
