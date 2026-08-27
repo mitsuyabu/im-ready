@@ -201,7 +201,7 @@ export default function HowItWorksSection() {
   return (
     <section className="bg-worksheet-surface px-4 py-20 md:px-8 md:py-24 lg:px-[60px] lg:py-32">
       <div className="mx-auto max-w-3xl text-center">
-        <h2 className="text-4xl font-bold tracking-tight text-worksheet-primary sm:text-5xl lg:text-6xl">
+        <h2 className="text-5xl font-bold tracking-tight text-worksheet-primary sm:text-5xl lg:text-6xl">
           How it Works
         </h2>
         <p className="mt-4 text-sm font-medium text-worksheet-primary/80 sm:text-base">
@@ -213,29 +213,49 @@ export default function HowItWorksSection() {
         {STEPS.map((step, index) => {
           const reversed = index % 2 === 1;
           return (
-            <div
-              key={step.number}
-              className={`flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-16 ${
-                reversed ? "lg:flex-row-reverse" : ""
-              }`}
-            >
-              <div className="lg:w-4/12">
-                <p
-                  className={`text-2xl font-semibold tracking-wide sm:text-3xl lg:text-4xl ${ACCENT_NUMBER_CLASS[step.accent]}`}
-                >
+            <div key={step.number}>
+              {/* Mobile（sm未満）専用: 番号+タイトル → 画像 → lead/descriptionの順に並べ、
+                  画像を主役として先に見せる。Desktop/Tablet（sm以上）の既存構成には一切
+                  影響しない、完全に別のJSXブロック（HeroSectionのDesktop/Mobile分岐と
+                  同じ考え方）。 */}
+              <div className="sm:hidden">
+                <p className={`text-2xl font-semibold tracking-wide ${ACCENT_NUMBER_CLASS[step.accent]}`}>
                   {step.number}
                 </p>
-                <h3 className="mt-4 text-3xl font-bold leading-tight text-worksheet-primary sm:text-4xl lg:text-5xl">
-                  {step.title}
-                </h3>
-                <p className="mt-4 text-lg font-semibold leading-snug text-worksheet-primary sm:text-xl">
-                  {step.lead}
-                </p>
-                <p className="mt-3 text-base leading-relaxed text-worksheet-primary/85 sm:text-lg">
-                  {step.description}
-                </p>
+                <h3 className="mt-4 text-4xl font-bold leading-tight text-worksheet-primary">{step.title}</h3>
+
+                <div className="mt-8">{step.visual}</div>
+
+                <div className="mt-8">
+                  <p className="text-lg font-semibold leading-snug text-worksheet-primary">{step.lead}</p>
+                  <p className="mt-4 text-base leading-relaxed text-worksheet-primary/85">{step.description}</p>
+                </div>
               </div>
-              <div className="lg:w-8/12">{step.visual}</div>
+
+              {/* Desktop / Tablet（sm以上）: 既存構成のまま維持 */}
+              <div
+                className={`hidden sm:flex sm:flex-col sm:gap-8 lg:flex-row lg:items-center lg:gap-16 ${
+                  reversed ? "lg:flex-row-reverse" : ""
+                }`}
+              >
+                <div className="lg:w-4/12">
+                  <p
+                    className={`text-2xl font-semibold tracking-wide sm:text-3xl lg:text-4xl ${ACCENT_NUMBER_CLASS[step.accent]}`}
+                  >
+                    {step.number}
+                  </p>
+                  <h3 className="mt-4 text-3xl font-bold leading-tight text-worksheet-primary sm:text-4xl lg:text-5xl">
+                    {step.title}
+                  </h3>
+                  <p className="mt-4 text-lg font-semibold leading-snug text-worksheet-primary sm:text-xl">
+                    {step.lead}
+                  </p>
+                  <p className="mt-3 text-base leading-relaxed text-worksheet-primary/85 sm:text-lg">
+                    {step.description}
+                  </p>
+                </div>
+                <div className="lg:w-8/12">{step.visual}</div>
+              </div>
             </div>
           );
         })}
