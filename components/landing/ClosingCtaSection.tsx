@@ -46,7 +46,7 @@ export default function ClosingCtaSection() {
         aria-hidden
       />
 
-      <div className="relative z-10 flex min-h-[440px] flex-col justify-center px-4 py-16 sm:min-h-[500px] sm:px-6 md:px-8 lg:min-h-[600px] lg:px-[60px] xl:min-h-[660px]">
+      <div className="relative z-10 flex min-h-[400px] flex-col justify-center px-4 py-16 sm:min-h-[460px] sm:px-6 md:px-8 lg:min-h-[520px] lg:px-[60px] xl:min-h-[580px]">
         <div className="max-w-[260px] text-left sm:max-w-sm md:max-w-md lg:max-w-xl">
           <h2 className="text-3xl font-bold leading-tight tracking-tight text-worksheet-primary sm:text-4xl lg:text-5xl">
             行きたい気持ちが、
