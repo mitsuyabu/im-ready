@@ -1,11 +1,10 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
-import DocumentsMockVisual from "@/components/landing/DocumentsMockVisual";
 
 /** public/landing/how-it-works-chat.png・how-it-works-worksheet.png・
- *  how-it-works-my-plan.png・how-it-works-ai-counselor.pngの実寸(px)。wrapperの
- *  aspect-ratioをこれに厳密に一致させることで、object-coverでも実際には一切croppingが
- *  発生しないようにしている。 */
+ *  how-it-works-my-plan.png・how-it-works-ai-counselor.png・
+ *  how-it-works-documents.pngの実寸(px)。wrapperのaspect-ratioをこれに厳密に一致させる
+ *  ことで、object-coverでも実際には一切croppingが発生しないようにしている。 */
 const CHAT_VISUAL_WIDTH = 1536;
 const CHAT_VISUAL_HEIGHT = 1024;
 const WORKSHEET_VISUAL_WIDTH = 1484;
@@ -14,6 +13,8 @@ const MY_PLAN_VISUAL_WIDTH = 1719;
 const MY_PLAN_VISUAL_HEIGHT = 915;
 const AI_COUNSELOR_VISUAL_WIDTH = 1536;
 const AI_COUNSELOR_VISUAL_HEIGHT = 1024;
+const DOCUMENTS_VISUAL_WIDTH = 1536;
+const DOCUMENTS_VISUAL_HEIGHT = 1024;
 
 type Accent = "sky" | "amber" | "sage" | "teal" | "rose";
 
@@ -141,11 +142,25 @@ const STEPS: {
     lead: "整理した内容を、伝わるかたちに。",
     description:
       "My Planに整理した内容をもとに、相談や説明に使える資料を作成できます。留学エージェントや先生への相談はもちろん、応援してくれる家族にも、「なぜ行きたいのか」「どんなプランで行きたいのか」をわかりやすく伝えられます。",
-    // 完成画像は未支給のため暫定visual（DocumentsMockVisual）を使用。将来画像が支給され
-    // 次第、01〜04と同じ「aspect-ratio厳密一致のImageコンポーネント」に置き換える想定。
-    // 01〜04が「自分の中で考える・整理する・相談する」なのに対し、05は「外部の人に説明する・
-    // 共有する」という役割の違いをコピー側で明示している。
-    visual: <DocumentsMockVisual />,
+    // 01〜04と同様、完成された1枚絵（My Study Abroad Plan summary×For Family/For
+    // Counselor/School Comparisonの資料カード）のため、mockカードや色付き背景箱は重ねない。
+    // wrapperのaspect-ratioを画像の実寸に一致させ、object-coverでもcropが発生しないように
+    // している。01〜04が「自分の中で考える・整理する・相談する」なのに対し、05は「外部の人に
+    // 説明する・共有する」という役割の違いをコピー側で明示している。
+    visual: (
+      <div
+        className="relative w-full overflow-hidden rounded-3xl shadow-sm"
+        style={{ aspectRatio: `${DOCUMENTS_VISUAL_WIDTH} / ${DOCUMENTS_VISUAL_HEIGHT}` }}
+      >
+        <Image
+          src="/landing/how-it-works-documents.png"
+          alt=""
+          fill
+          sizes="(min-width: 1024px) 50vw, 100vw"
+          className="object-cover"
+        />
+      </div>
+    ),
   },
 ];
 
@@ -166,13 +181,13 @@ const STEPS: {
  * いう基本色は崩さず、原色ベタ塗り・purple系のAI gradientは使わない）。本文はLP全体の方針に
  * 合わせてtext-worksheet-secondary（グレー）を廃止し、黒ベース（text-worksheet-primaryと
  * その不透明度違い）に統一している。
- * 01 Chat・02 Worksheet・03 My Plan・04 AIカウンセラーは支給された完成済み1枚絵
- * （public/landing/how-it-works-chat.png・how-it-works-worksheet.png・
- * how-it-works-my-plan.png・how-it-works-ai-counselor.png）をそのまま使い、mockカードや
- * 色付き背景箱は重ねない（旧ChatMockVisual.tsx・WorksheetMockVisual.tsx・
- * MyPlanMockVisual.tsx・AiCounselorMockVisual.tsxはいずれも他に使用箇所が無いことを
- * 確認した上で削除した）。05 資料にして伝えるだけは完成画像が未支給のため、暫定visual
- * （components/landing/DocumentsMockVisual.tsx）を使用している。
+ * 01 Chat・02 Worksheet・03 My Plan・04 AIカウンセラー・05 資料にして伝えるいずれも
+ * 支給された完成済み1枚絵（public/landing/how-it-works-chat.png・
+ * how-it-works-worksheet.png・how-it-works-my-plan.png・how-it-works-ai-counselor.png・
+ * how-it-works-documents.png）をそのまま使い、mockカードや色付き背景箱は重ねない
+ * （旧ChatMockVisual.tsx・WorksheetMockVisual.tsx・MyPlanMockVisual.tsx・
+ * AiCounselorMockVisual.tsx・DocumentsMockVisual.tsxはいずれも他に使用箇所が無いことを
+ * 確認した上で削除した）。
  * 04は01の「まず話してみる」入口とは役割が異なり、01〜03で整理された情報をもとに具体的な
  * 留学プラン・学校候補を相談・提案する場という位置づけ。05はさらにその先で、「自分の中で
  * 考える・整理する・相談する」（01〜04）から「外部の人（家族・先生・エージェント）に説明する・
