@@ -3,85 +3,93 @@ import Image from "next/image";
 import LandingHeader from "@/components/landing/LandingHeader";
 
 /**
- * 公開ページ（/）のHero。HeaderとHero画像を同じ背景の上で一体化して見せるため、
- * LandingHeaderをこのsection自身の最初の子として描画する（app/page.tsx側では
- * 単独で<LandingHeader />を呼ばない。HeaderとHeroを別の白いブロックに分けないため）。
+ * 公開ページ（/）のHero。Desktop/Mobileとも、Hero画像を「section全体の背景」として
+ * 敷き、その上にHeader・copy・CTAを重ねる一体型banner構成にしている（app/page.tsx側では
+ * 単独で<LandingHeader />を呼ばない）。DesktopとMobileでcrop・高さ・overlayの必要性が
+ * 大きく異なるため、LandingHeader・背景Image・copyのセットをbreakpointごとに完全に
+ * 独立したJSXブロックとして持つ（HowItWorksSectionのMobile/Desktop分岐と同じ考え方）。
  *
- * Desktop: 画像をsection全体（Header込み）の背景として敷く。containerの高さは画像の
- * aspect ratioに厳密固定せず、min-heightで確保する（実際に画像を検証した結果、被写体
- * （人物・アーチ・雲）の周囲に安全な余白がほとんど無く、厳密なaspect-ratio追従はfirst view
- * のバランスと両立しないため）。object-positionは人物・アーチ・ランドマークが集まる右下寄りに
- * 設定し、トリミングが発生する場合は装飾的な雲・アーチ上部のカーブ側から優先的に削れるようにする。
+ * Desktop（sm以上）: 画像をsection全体（Header込み）の背景として敷く。containerの高さは
+ * 画像のaspect ratioに厳密固定せず、min-heightで確保する（実際に画像を検証した結果、
+ * 被写体（女性・スーツケース）の周囲に安全な余白がほとんど無く、厳密なaspect-ratio追従は
+ * first viewのバランスと両立しないため）。object-positionは被写体が集まる右下寄りに設定。
+ * 背景のオレンジ〜クリーム系の色に対し黒文字で実測コントラスト比6.42:1あるため、overlay
+ * なしでも十分読める。
  *
- * Mobile: 背景化はしないが、「テキストの下に独立した画像ブロックが置かれている」印象を
- * 避けるため、copyだけpx-4で余白を取り、画像はページ左右のpaddingから解放してfull-bleed
- * （画面幅いっぱい）で表示する。画像の後に余白を追加せず、Hero section自体を画像で
- * 締めくくることで、Desktop（画像がHeader〜copyの背後を覆う一体型banner）と同じ
- * 「画像が主役」の方向性をMobileでも再現している（Header→copy→CTA→画像という
- * 読み進め順自体は維持）。
+ * Mobile（sm未満）: Desktopとは別に、Mobile専用の背景image＋readability用の白グラデーション
+ * scrim＋Header＋copyのセットを用意している。containerをmin-h-[85svh]という縦長の比率に
+ * すると、object-coverは画像の高さを基準に合わせるため横方向を大きくcropする
+ * （実際の可視幅は画像全体の約26%程度）。そのため、被写体（女性・スーツケース）が
+ * ある程度収まるようobject-positionを画像右寄りへ設定した上で、文字が乗る上部〜中央に
+ * ごく薄い白グラデーション（bg-gradient-to-b from-white/95 via-white/60 to-transparent）
+ * を重ね、画像を濃いベタ塗りで潰さずに可読性だけを確保している。copyはHeader直下の
+ * 上寄りに配置し、Hero下部は画像がそのまま見える「クリアな余白」として残す。
  *
  * 見出しは必ずDesktopで2行に収める。copy containerをbreakpointごとに拡張し
  * （max-w-lg/2xl/[820px]）、見出し1行目「あなたの「行きたい」を、」がその幅に収まる
  * ことを文字数×フォントサイズで検算した上でサイズを決めている。
- * Hero全体（Header込み）の左下だけにrounded-bl-[56px]を付け、他の3隅は直角のまま維持する
- * （Mobileの単体image blockには控えめなrounded-bl-[32px]のみ）。
+ * Hero全体の左下だけにrounded-bl-[56px]を付け、他の3隅は直角のまま維持する
+ * （Desktop/Mobileとも同じ1つのsection全体に対する角丸で、Mobile側に画像専用の
+ * 個別角丸は持たせない＝画像だけが独立カードに見える状態を避けている）。
  */
 export default function HeroSection() {
   return (
     <section className="relative overflow-hidden rounded-bl-[56px]">
-      {/* Desktop: 背景image（Header〜Hero copyの後ろ全体に敷く） */}
-      <div className="absolute inset-0 z-0 hidden sm:block">
-        <Image
-          src="/landing/hero-study-abroad.png"
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
-          style={{ objectPosition: "80% 65%" }}
-        />
-      </div>
-
-      <div className="relative z-10 flex flex-col sm:min-h-[540px] lg:min-h-[640px] xl:min-h-[720px]">
-        <LandingHeader />
-
-        {/* Desktop copy: Header分を除いた残りの高さの中で縦中央寄せ */}
-        <div className="hidden flex-1 items-center px-4 py-10 sm:flex md:px-8 lg:px-[60px]">
-          {/* 見出しを必ず2行に収めるため、containerをmax-w-mdから拡張している
-              （旧max-w-mdでは「あなたの「行きたい」を、」1行だけで幅を超え、3行に折り返していた）。 */}
-          <div className="w-full max-w-lg lg:max-w-2xl xl:max-w-[820px]">
-            <HeroCopy align="left" />
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile: copy → image。画像を「下に置かれた独立ブロック」に見せないため、
-          copyだけpx-4で余白を取り、画像はページの左右paddingから解放してfull-bleed
-          （画面幅いっぱい）で表示する。Hero sectionの最後の要素として画像自身が
-          締めくくる形にし（画像の後に余白を追加しない）、Desktop Hero（画像が
-          Header〜copyの背後全体を覆う一体型banner）と同じ「画像が主役」という
-          方向性をMobileでも再現している。
-          aspect-[4/3]・object-position: 76% 50%・scale-[1.08]は、女性・青い
-          スーツケース・サーフボードの見え方を検証した上で以前確定させた値のため、
-          今回は変更していない（Desktop側の画像設定にも一切影響しない）。 */}
-      <div className="sm:hidden">
-        <div className="px-4 pt-10">
-          <HeroCopy align="center" />
-        </div>
-
-        <div
-          className="relative mt-8 w-full overflow-hidden rounded-bl-[32px]"
-          style={{ aspectRatio: "4 / 3" }}
-        >
+      {/* Desktop（sm以上）: 背景image + Header + copy を1つのbannerとして重ねる */}
+      <div className="relative hidden sm:block">
+        <div className="absolute inset-0 z-0">
           <Image
             src="/landing/hero-study-abroad.png"
             alt=""
             fill
             priority
             sizes="100vw"
-            className="scale-[1.08] object-cover"
-            style={{ objectPosition: "76% 50%" }}
+            className="object-cover"
+            style={{ objectPosition: "80% 65%" }}
           />
+        </div>
+
+        <div className="relative z-10 flex flex-col sm:min-h-[540px] lg:min-h-[640px] xl:min-h-[720px]">
+          <LandingHeader />
+
+          {/* Header分を除いた残りの高さの中で縦中央寄せ */}
+          <div className="flex flex-1 items-center px-4 py-10 md:px-8 lg:px-[60px]">
+            {/* 見出しを必ず2行に収めるため、containerをmax-w-mdから拡張している
+                （旧max-w-mdでは「あなたの「行きたい」を、」1行だけで幅を超え、3行に折り返していた）。 */}
+            <div className="w-full max-w-lg lg:max-w-2xl xl:max-w-[820px]">
+              <HeroCopy align="left" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile（sm未満）: 背景image + 白グラデーションscrim + Header + copy を
+          1画面目として成立する一体型bannerにする（画像を独立ブロックとして下に置かない）。 */}
+      <div className="relative sm:hidden">
+        <div className="absolute inset-0 z-0">
+          <Image
+            src="/landing/hero-study-abroad.png"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+            style={{ objectPosition: "70% 50%" }}
+          />
+        </div>
+
+        {/* 濃いベタ塗りではなく、文字が乗る上部〜中央だけを白く持ち上げるグラデーション。
+            下へ行くほど透明になり、Hero下部では画像そのものの印象が残るようにしている。 */}
+        <div
+          className="absolute inset-0 z-[1] bg-gradient-to-b from-white/95 via-white/60 to-transparent"
+          aria-hidden
+        />
+
+        <div className="relative z-10 flex min-h-[85svh] flex-col">
+          <LandingHeader />
+          <div className="px-4 pb-16 pt-6">
+            <HeroCopy align="center" />
+          </div>
         </div>
       </div>
     </section>
@@ -89,10 +97,11 @@ export default function HeroSection() {
 }
 
 /**
- * align以外の見た目はDesktop（画像の上）とMobile（白背景の上）で共通にしている。
- * 黒文字は画像側で実測コントラスト比6.42:1、白背景側は言うまでもなく十分なため、
- * variantによる色の出し分けはもう不要（以前はtext-worksheet-secondaryを画像上でも
- * 使っていたためvariantで分岐していたが、グレーを廃止した今は分岐する理由がない）。
+ * align以外の見た目はDesktop（画像の上）とMobile（画像＋白グラデーションの上）で共通に
+ * している。黒文字はDesktop側で実測コントラスト比6.42:1、Mobile側は白グラデーション
+ * scrimにより背景がほぼ白に近づくため、どちらもvariantによる色の出し分けは不要
+ * （以前はtext-worksheet-secondaryを画像上でも使っていたためvariantで分岐していたが、
+ * グレーを廃止した今は分岐する理由がない）。
  */
 function HeroCopy({ align }: { align: "left" | "center" }) {
   const alignClass = align === "left" ? "text-left" : "text-center";
