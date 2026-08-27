@@ -35,10 +35,13 @@ import LandingHeader from "@/components/landing/LandingHeader";
  * 見出しは必ずDesktopで2行に収める。copy containerをbreakpointごとに拡張し
  * （max-w-lg/2xl/[820px]）、見出し1行目「あなたの「行きたい」を、」がその幅に収まる
  * ことを文字数×フォントサイズで検算した上でサイズを決めている。Mobileの見出しは
- * 「あなたの／「行きたい」を、／かたちにする。」の3行に明示的に分割している
- * （文言・意味は変えていない。手動で改行位置を固定するのは、text-4xlのサイズだと
- * 自動折り返しに任せた場合、日本語には空白がないため予測できない位置で行が割れる
- * リスクがあるため）。
+ * 「あなたの「行きたい」／を、かたちにする。」の2行に明示的に分割している
+ * （文言・意味は変えていない。手動で改行位置を固定するのは、日本語には空白がないため
+ * 自動折り返しに任せた場合に予測できない位置で行が割れるリスクがあるため）。フォント
+ * サイズ（35px）は、Hiragino角ゴシックでの実測グリフ幅から「あなたの「行きたい」」
+ * （全角10文字）が390px幅の画面（px-4を引いた実効幅358px）に収まる上限として選んで
+ * いる（36px=text-4xlだと360pxとなり2pxオーバーフローするため、1段階小さいこの値に
+ * している）。
  * Hero全体の左下だけにrounded-bl-[56px]を付け、他の3隅は直角のまま維持する
  * （Desktop/Mobileとも同じ1つのsection全体に対する角丸で、Mobile側に画像専用の
  * 個別角丸は持たせない＝画像だけが独立カードに見える状態を避けている）。
@@ -157,17 +160,16 @@ function HeroCopy() {
  * Mobile専用。Mindtripのスマホ Heroを参考に、左寄せ・大きめ見出し・CTAも左基準で
  * ゼロから組んでいる（Desktopと共有すると条件分岐が複雑になるため独立componentにした）。
  * 文言・CTAリンク先はDesktopと完全に同一。見出しの改行だけ、自動折り返しの予測不能な
- * 位置での行割れを避けるため3行に明示的に分割している。
+ * 位置での行割れを避けるため2行に明示的に分割している。CTAは横並び（はじめる→ログイン）
+ * で左揃え、buttonはfull-widthにしない。
  */
 function MobileHeroCopy() {
   return (
     <div className="text-left">
-      <h1 className="text-4xl leading-[1.25] font-semibold tracking-tight text-worksheet-primary">
-        あなたの
+      <h1 className="text-[35px] leading-[1.3] font-bold tracking-tight text-worksheet-primary">
+        あなたの「行きたい」
         <br />
-        「行きたい」を、
-        <br />
-        かたちにする。
+        を、かたちにする。
       </h1>
 
       <p className="mt-4 text-lg font-semibold text-worksheet-primary">留学・ワーホリの準備ワークスペース</p>
@@ -180,7 +182,7 @@ function MobileHeroCopy() {
         自分だけの留学Planを少しずつつくっていけます。
       </p>
 
-      <div className="mt-8 flex flex-col items-start gap-3">
+      <div className="mt-8 flex flex-row items-center gap-6">
         <Link
           href="/login"
           className="inline-flex items-center rounded-full bg-worksheet-accent px-6 py-3 text-sm font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"

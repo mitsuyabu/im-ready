@@ -113,7 +113,7 @@ const STEPS: {
   {
     number: "04",
     accent: "teal",
-    title: "AIカウンセラーに相談する",
+    title: "AIカウンセラーに相談",
     lead: "あなたに合った留学プランを、一緒に考える。",
     description:
       "AIカウンセラーが、これまで話したことや整理した条件をもとに、留学エージェントのカウンセラーのように相談に乗ります。国・都市・学校選びから、具体的な留学プランまで一緒に考えます。",
@@ -217,12 +217,20 @@ export default function HowItWorksSection() {
               {/* Mobile（sm未満）専用: 番号+タイトル → 画像 → lead/descriptionの順に並べ、
                   画像を主役として先に見せる。Desktop/Tablet（sm以上）の既存構成には一切
                   影響しない、完全に別のJSXブロック（HeroSectionのDesktop/Mobile分岐と
-                  同じ考え方）。 */}
+                  同じ考え方）。タイトルはtext-3xl font-boldに01〜05統一し、常に1行で
+                  表示されるようwhitespace-nowrapを付けている。text-3xl(30px)は、最も
+                  長い「Worksheetで整理する」がHiragino角ゴシックでの実測グリフ幅で
+                  約326px（390px画面のpx-4を引いた実効幅358pxに対し32pxの余白）となり、
+                  安全に収まる値として選んでいる（04のタイトルを短縮したこと自体はこの
+                  余白確保には直接効いていないが、5つを同一サイズに揃える前提を崩さずに
+                  済んでいる）。 */}
               <div className="sm:hidden">
                 <p className={`text-2xl font-semibold tracking-wide ${ACCENT_NUMBER_CLASS[step.accent]}`}>
                   {step.number}
                 </p>
-                <h3 className="mt-4 text-4xl font-bold leading-tight text-worksheet-primary">{step.title}</h3>
+                <h3 className="mt-3 text-3xl font-bold leading-tight whitespace-nowrap text-worksheet-primary">
+                  {step.title}
+                </h3>
 
                 <div className="mt-8">{step.visual}</div>
 
