@@ -1,14 +1,15 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
-import MyPlanMockVisual from "@/components/landing/mock/MyPlanMockVisual";
 
-/** public/landing/how-it-works-chat.png・how-it-works-worksheet.pngの実寸(px)。
- *  wrapperのaspect-ratioをこれに厳密に一致させることで、object-coverでも
- *  実際には一切croppingが発生しないようにしている。 */
+/** public/landing/how-it-works-chat.png・how-it-works-worksheet.png・
+ *  how-it-works-my-plan.pngの実寸(px)。wrapperのaspect-ratioをこれに厳密に一致させる
+ *  ことで、object-coverでも実際には一切croppingが発生しないようにしている。 */
 const CHAT_VISUAL_WIDTH = 1536;
 const CHAT_VISUAL_HEIGHT = 1024;
 const WORKSHEET_VISUAL_WIDTH = 1911;
 const WORKSHEET_VISUAL_HEIGHT = 823;
+const MY_PLAN_VISUAL_WIDTH = 1719;
+const MY_PLAN_VISUAL_HEIGHT = 915;
 
 type Accent = "sky" | "amber" | "sage";
 
@@ -84,7 +85,23 @@ const STEPS: {
     title: "My Planが育つ",
     lead: "話したこと、考えたことが、ひとつのPlanになる。",
     description: "ChatやWorksheetで整理した内容から、自分だけの留学Planが少しずつかたちになります。",
-    visual: <MyPlanMockVisual />,
+    // 01/02と同様、完成された1枚絵（My Study Abroad Plan UI×Why/Budget/City/Departure×
+    // 留学先・人物写真）のため、mockカードや色付き背景箱は重ねない。wrapperのaspect-ratioを
+    // 画像の実寸に一致させ、object-coverでもcropが発生しないようにしている。
+    visual: (
+      <div
+        className="relative w-full overflow-hidden rounded-3xl shadow-sm"
+        style={{ aspectRatio: `${MY_PLAN_VISUAL_WIDTH} / ${MY_PLAN_VISUAL_HEIGHT}` }}
+      >
+        <Image
+          src="/landing/how-it-works-my-plan.png"
+          alt=""
+          fill
+          sizes="(min-width: 1024px) 50vw, 100vw"
+          className="object-cover"
+        />
+      </div>
+    ),
   },
 ];
 
@@ -104,11 +121,10 @@ const STEPS: {
  * visual側のトーンだけに使う（白・黒・sageという基本色は崩さず、原色ベタ塗り・gradientは
  * 使わない）。本文はLP全体の方針に合わせてtext-worksheet-secondary（グレー）を廃止し、
  * 黒ベース（text-worksheet-primaryとその不透明度違い）に統一している。
- * 03 My Planのvisualだけmock（components/landing/mock/MyPlanMockVisual.tsx）で、実際の
- * component・ロジックには依存していない。01 Chat・02 Worksheetは支給された完成済み1枚絵
- * （public/landing/how-it-works-chat.png・how-it-works-worksheet.png）をそのまま使い、
- * mockカードや色付き背景箱は重ねない（旧ChatMockVisual.tsx・WorksheetMockVisual.tsxは
- * いずれも他に使用箇所が無いことを確認した上で削除した）。
+ * 01 Chat・02 Worksheet・03 My Planいずれも支給された完成済み1枚絵（public/landing/
+ * how-it-works-chat.png・how-it-works-worksheet.png・how-it-works-my-plan.png）をそのまま
+ * 使い、mockカードや色付き背景箱は重ねない（旧ChatMockVisual.tsx・WorksheetMockVisual.tsx・
+ * MyPlanMockVisual.tsxはいずれも他に使用箇所が無いことを確認した上で削除した）。
  */
 export default function HowItWorksSection() {
   return (
