@@ -56,7 +56,7 @@ const STEPS: {
           src="/landing/how-it-works-chat.png"
           alt=""
           fill
-          sizes="(min-width: 1024px) 50vw, 100vw"
+          sizes="(min-width: 1024px) 60vw, 100vw"
           className="object-cover"
         />
       </div>
@@ -80,7 +80,7 @@ const STEPS: {
           src="/landing/how-it-works-worksheet.png"
           alt=""
           fill
-          sizes="(min-width: 1024px) 50vw, 100vw"
+          sizes="(min-width: 1024px) 60vw, 100vw"
           className="object-cover"
         />
       </div>
@@ -104,7 +104,7 @@ const STEPS: {
           src="/landing/how-it-works-my-plan.png"
           alt=""
           fill
-          sizes="(min-width: 1024px) 50vw, 100vw"
+          sizes="(min-width: 1024px) 60vw, 100vw"
           className="object-cover"
         />
       </div>
@@ -129,7 +129,7 @@ const STEPS: {
           src="/landing/how-it-works-ai-counselor.png"
           alt=""
           fill
-          sizes="(min-width: 1024px) 50vw, 100vw"
+          sizes="(min-width: 1024px) 60vw, 100vw"
           className="object-cover"
         />
       </div>
@@ -156,7 +156,7 @@ const STEPS: {
           src="/landing/how-it-works-documents.png"
           alt=""
           fill
-          sizes="(min-width: 1024px) 50vw, 100vw"
+          sizes="(min-width: 1024px) 60vw, 100vw"
           className="object-cover"
         />
       </div>
@@ -169,12 +169,18 @@ const STEPS: {
  * Hero直後に「How it Works」という大見出しを置き、Heroのオレンジから白背景へ切り替わる
  * ことでsectionの区切りを明確にする。見出しはpage全体の主見出しとして扱い、参考にした
  * Mindtripのように大きく・太く・中央寄せで表示する（Desktop text-6xl、Mobile text-4xl）。
+ * visualをテキストより主役として見せるため、Desktop（lg:）のtext/visual列幅は
+ * `lg:w-[30%]`/`lg:w-[70%]`（テキストが狭くなりすぎて見出しが不自然に折り返さない範囲で
+ * visualを最大化）。STEPS全体のcontainer幅も`max-w-6xl`→`max-w-7xl`に広げ、Desktopの
+ * 大きな画面でvisualがより大きく表示されるようにしている（sectionの左右余白ルール自体
+ * ―Desktop約60px・Tablet約32px・Mobile約16px―は`<section>`側の`px-4 md:px-8 lg:px-[60px]`
+ * のままで変更していない）。各Imageの`sizes`もvisual幅の拡大に合わせて50vw→60vwへ調整。
  *
  * 各stepは 番号（小さくaccent色）→title（大きく黒、Chat/Worksheet/My Planを直接示す短い語句）
  * →lead（中間サイズ、黒、既存の文言を流用）→description（body、黒85%）という4段階の階層。
- * Desktopでは奇数/偶数stepでtext-left/visual-rightを反転させ、visualは7/12→8/12相当の
- * 大きめ比率のまま維持する。mobileでは常にtext→visualの順に積む（flex-col +
- * lg:flex-row-reverseの組み合わせにより、DOM順は変えずCSSだけで反転させている）。
+ * Desktopでは奇数/偶数stepでtext-left/visual-rightを反転させる。mobileでは常にtext→visual
+ * の順に積む（flex-col + lg:flex-row-reverseの組み合わせにより、DOM順は変えずCSSだけで
+ * 反転させている）。
  *
  * 各stepには淡いaccent色（Chat=sky, Worksheet=amber, My Plan=sage, AIカウンセラー=teal,
  * 資料にして伝える=rose）を割り当て、番号の色とvisual側のトーンだけに使う（白・黒・sageと
@@ -207,7 +213,7 @@ export default function HowItWorksSection() {
         </p>
       </div>
 
-      <div className="mx-auto mt-20 flex max-w-6xl flex-col gap-20 sm:mt-24 sm:gap-28 lg:mt-32 lg:gap-36">
+      <div className="mx-auto mt-20 flex max-w-7xl flex-col gap-20 sm:mt-24 sm:gap-28 lg:mt-32 lg:gap-40">
         {STEPS.map((step, index) => {
           const reversed = index % 2 === 1;
           return (
@@ -217,7 +223,7 @@ export default function HowItWorksSection() {
                 reversed ? "lg:flex-row-reverse" : ""
               }`}
             >
-              <div className="lg:w-4/12">
+              <div className="lg:w-[30%]">
                 <p className={`text-sm font-semibold tracking-wide ${ACCENT_NUMBER_CLASS[step.accent]}`}>
                   {step.number}
                 </p>
@@ -231,7 +237,7 @@ export default function HowItWorksSection() {
                   {step.description}
                 </p>
               </div>
-              <div className="lg:w-8/12">{step.visual}</div>
+              <div className="lg:w-[70%]">{step.visual}</div>
             </div>
           );
         })}
