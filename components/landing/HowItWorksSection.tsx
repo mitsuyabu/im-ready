@@ -2,21 +2,25 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 
 /** public/landing/how-it-works-chat.png・how-it-works-worksheet.png・
- *  how-it-works-my-plan.pngの実寸(px)。wrapperのaspect-ratioをこれに厳密に一致させる
- *  ことで、object-coverでも実際には一切croppingが発生しないようにしている。 */
+ *  how-it-works-my-plan.png・how-it-works-ai-counselor.pngの実寸(px)。wrapperの
+ *  aspect-ratioをこれに厳密に一致させることで、object-coverでも実際には一切croppingが
+ *  発生しないようにしている。 */
 const CHAT_VISUAL_WIDTH = 1536;
 const CHAT_VISUAL_HEIGHT = 1024;
 const WORKSHEET_VISUAL_WIDTH = 1484;
 const WORKSHEET_VISUAL_HEIGHT = 1060;
 const MY_PLAN_VISUAL_WIDTH = 1719;
 const MY_PLAN_VISUAL_HEIGHT = 915;
+const AI_COUNSELOR_VISUAL_WIDTH = 1536;
+const AI_COUNSELOR_VISUAL_HEIGHT = 1024;
 
-type Accent = "sky" | "amber" | "sage";
+type Accent = "sky" | "amber" | "sage" | "teal";
 
 const ACCENT_NUMBER_CLASS: Record<Accent, string> = {
   sky: "text-sky-600",
   amber: "text-amber-600",
   sage: "text-emerald-700",
+  teal: "text-teal-600",
 };
 
 const STEPS: {
@@ -103,6 +107,31 @@ const STEPS: {
       </div>
     ),
   },
+  {
+    number: "04",
+    accent: "teal",
+    title: "AIカウンセラーに相談する",
+    lead: "あなたに合った留学プランを、一緒に考える。",
+    description:
+      "AIカウンセラーが、これまで話したことや整理した条件をもとに、留学エージェントのカウンセラーのように相談に乗ります。国・都市・学校選びから、具体的な留学プランまで一緒に考えます。",
+    // 01〜03と同様、完成された1枚絵（AI Counselorチャット×優先条件チップ×都市/学校の
+    // 提案カード）のため、mockカードや色付き背景箱は重ねない。wrapperのaspect-ratioを
+    // 画像の実寸に一致させ、object-coverでもcropが発生しないようにしている。
+    visual: (
+      <div
+        className="relative w-full overflow-hidden rounded-3xl shadow-sm"
+        style={{ aspectRatio: `${AI_COUNSELOR_VISUAL_WIDTH} / ${AI_COUNSELOR_VISUAL_HEIGHT}` }}
+      >
+        <Image
+          src="/landing/how-it-works-ai-counselor.png"
+          alt=""
+          fill
+          sizes="(min-width: 1024px) 50vw, 100vw"
+          className="object-cover"
+        />
+      </div>
+    ),
+  },
 ];
 
 /**
@@ -117,14 +146,21 @@ const STEPS: {
  * 大きめ比率のまま維持する。mobileでは常にtext→visualの順に積む（flex-col +
  * lg:flex-row-reverseの組み合わせにより、DOM順は変えずCSSだけで反転させている）。
  *
- * 各stepには淡いaccent色（Chat=sky, Worksheet=amber, My Plan=sage）を割り当て、番号の色と
- * visual側のトーンだけに使う（白・黒・sageという基本色は崩さず、原色ベタ塗り・gradientは
- * 使わない）。本文はLP全体の方針に合わせてtext-worksheet-secondary（グレー）を廃止し、
- * 黒ベース（text-worksheet-primaryとその不透明度違い）に統一している。
- * 01 Chat・02 Worksheet・03 My Planいずれも支給された完成済み1枚絵（public/landing/
- * how-it-works-chat.png・how-it-works-worksheet.png・how-it-works-my-plan.png）をそのまま
- * 使い、mockカードや色付き背景箱は重ねない（旧ChatMockVisual.tsx・WorksheetMockVisual.tsx・
- * MyPlanMockVisual.tsxはいずれも他に使用箇所が無いことを確認した上で削除した）。
+ * 各stepには淡いaccent色（Chat=sky, Worksheet=amber, My Plan=sage, AIカウンセラー=teal）を
+ * 割り当て、番号の色とvisual側のトーンだけに使う（白・黒・sageという基本色は崩さず、原色
+ * ベタ塗り・purple系のAI gradientは使わない）。本文はLP全体の方針に合わせて
+ * text-worksheet-secondary（グレー）を廃止し、黒ベース（text-worksheet-primaryとその
+ * 不透明度違い）に統一している。
+ * 01 Chat・02 Worksheet・03 My Plan・04 AIカウンセラーいずれも支給された完成済み1枚絵
+ * （public/landing/how-it-works-chat.png・how-it-works-worksheet.png・
+ * how-it-works-my-plan.png・how-it-works-ai-counselor.png）をそのまま使い、mockカードや
+ * 色付き背景箱は重ねない（旧ChatMockVisual.tsx・WorksheetMockVisual.tsx・
+ * MyPlanMockVisual.tsx・AiCounselorMockVisual.tsxはいずれも他に使用箇所が無いことを
+ * 確認した上で削除した）。
+ * 04は01の「まず話してみる」入口とは役割が異なり、01〜03で整理された情報をもとに具体的な
+ * 留学プラン・学校候補を相談・提案する場という位置づけ（コピー上でもタイトル・lead・
+ * descriptionでこの違いを明示している）。STEPSはindexで奇数/偶数を判定して自動的に
+ * alternatingするため、04追加もコード変更なしで自然に03と反対側の配置になる。
  */
 export default function HowItWorksSection() {
   return (
