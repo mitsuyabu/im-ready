@@ -6,20 +6,24 @@ import Link from "next/link";
  * 共有された参考モックアップ（海沿いの遊歩道・爽やかなトーン）を目指し、背景画像＋左寄せ
  * テキストという構成に変更している。
  *
- * 背景画像 public/landing/closing-cta-coastal-path.png は、共有された参考モックアップ画像
- * （public/landing/uncertain-hero-section.png）そのものではない。共有されたモックアップは
- * 見出し・サブコピー・CTA・補足文がすでに画像に焼き込まれた完成デザイン参考のため、その
- * まま背景に使うとHTML側の本物のテキストと二重に表示されてしまう。そのため、モックアップの
- * うち文字が一切含まれない右側46%以降（元画像1867pxの859px以降、1009×842px）だけを
- * 切り出し、実際に背景として使えるクリーンな写真として保存した（海岸線と木製フェンスの
- * 遊歩道はどちらもこの範囲に収まっている）。
+ * 背景画像 public/landing/uncertain-hero-section.png は、文字が一切焼き込まれていない
+ * クリーンな海沿いの写真（1859×846px、アスペクト比約2.2:1）。旧バージョンは見出し等が
+ * 画像に焼き込まれた完成デザイン参考のモックアップだったため、実装時にHTML側の本物の
+ * テキストと二重表示になる問題があり、右側だけを切り出した暫定画像
+ * （closing-cta-coastal-path.png）で代替していたが、クリーンな写真に差し替えられたため
+ * その暫定ファイルは削除し、この画像をそのまま使用している。
  *
  * HeroSectionとは異なり、このsectionにはLandingHeaderのような「Desktopだけ別の要素」が
  * 無く、左テキスト＋右へ抜ける画像という同じ構図がMobile/Desktop共通で成立するため、
  * breakpoint別に別JSXブロックへ分けず、同じ構造をユーティリティクラスの出し分けだけで
- * 表現している。object-positionは単一の値（65% 55%）で妥協しており、Mobileの縦長
- * container・Desktopの横長containerのどちらでも海岸線と遊歩道がある程度見えることを
- * 優先している。
+ * 表現している。object-positionは単一の値（68% 55%）。画像のアスペクト比（2.2:1）が
+ * Desktopのcontainer（横長、例: 1280×520で比率2.46）より縦長寄りのため、Desktopでは
+ * containerの横幅に画像の横幅が一致し、ほぼ全幅（＝海岸線から遊歩道まで）がそのまま
+ * 見える（上下がわずかにcropされるだけ）。逆にMobileのcontainer（縦長）では画像の縦が
+ * containerの高さに一致するため上下方向のcropは発生せず、横方向だけが大きくcropされる。
+ * そのためxは「Mobileでどの横位置を見せるか」、yは「Desktopでどの縦位置を見せるか」を
+ * それぞれ独立に制御しており、x=68%はMobileで遊歩道・ビーチのカーブが見える位置、
+ * y=55%はDesktopで空の余白を取りすぎず遊歩道・ビーチが収まる位置として選んでいる。
  * 文字が乗る左側の可読性は、bg-gradient-to-rの白グラデーション1枚（from-white/90
  * via-white/60 to-transparent）で確保し、白ベタで画像全体を覆うことはしていない。
  * テキスト列の幅をmax-w-[260px]（Mobile）〜max-w-xl（lg）に絞っているのは、
@@ -32,12 +36,12 @@ export default function ClosingCtaSection() {
     <section className="relative overflow-hidden border-t border-worksheet-border bg-worksheet-sage/25">
       <div className="absolute inset-0 z-0">
         <Image
-          src="/landing/closing-cta-coastal-path.png"
+          src="/landing/uncertain-hero-section.png"
           alt=""
           fill
           sizes="100vw"
           className="object-cover"
-          style={{ objectPosition: "65% 55%" }}
+          style={{ objectPosition: "68% 55%" }}
         />
       </div>
 
