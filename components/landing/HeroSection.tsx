@@ -5,9 +5,13 @@ import LandingHeader from "@/components/landing/LandingHeader";
 /**
  * 公開ページ（/）のHero。Desktop/Mobileとも、Hero画像を「section全体の背景」として
  * 敷き、その上にHeader・copy・CTAを重ねる一体型banner構成にしている（app/page.tsx側では
- * 単独で<LandingHeader />を呼ばない）。DesktopとMobileでcrop・高さ・overlayの必要性が
- * 大きく異なるため、LandingHeader・背景Image・copyのセットをbreakpointごとに完全に
- * 独立したJSXブロックとして持つ（HowItWorksSectionのMobile/Desktop分岐と同じ考え方）。
+ * 単独で<LandingHeader />を呼ばない）。DesktopとMobileでcrop・高さ・overlay・copyの
+ * サイズ感の必要性が大きく異なるため、LandingHeader・背景Image・copyのセットを
+ * breakpointごとに完全に独立したJSXブロックとして持つ（HowItWorksSectionの
+ * Mobile/Desktop分岐と同じ考え方）。copy自体もDesktop用（HeroCopy）とMobile用
+ * （MobileHeroCopy）で別componentにしている。単純なalign違いだけでなく、Mobileは
+ * 見出しの改行位置・フォントサイズ・spacing・CTAの並びをMindtripのスマホHeroを参考に
+ * ゼロから作り直しているため、共有すると条件分岐が複雑になりすぎると判断した。
  *
  * Desktop（sm以上）: 画像をsection全体（Header込み）の背景として敷く。containerの高さは
  * 画像のaspect ratioに厳密固定せず、min-heightで確保する（実際に画像を検証した結果、
@@ -17,17 +21,24 @@ import LandingHeader from "@/components/landing/LandingHeader";
  * なしでも十分読める。
  *
  * Mobile（sm未満）: Desktopとは別に、Mobile専用の背景image＋readability用の白グラデーション
- * scrim＋Header＋copyのセットを用意している。containerをmin-h-[85svh]という縦長の比率に
- * すると、object-coverは画像の高さを基準に合わせるため横方向を大きくcropする
- * （実際の可視幅は画像全体の約26%程度）。そのため、被写体（女性・スーツケース）が
- * ある程度収まるようobject-positionを画像右寄りへ設定した上で、文字が乗る上部〜中央に
- * ごく薄い白グラデーション（bg-gradient-to-b from-white/95 via-white/60 to-transparent）
- * を重ね、画像を濃いベタ塗りで潰さずに可読性だけを確保している。copyはHeader直下の
- * 上寄りに配置し、Hero下部は画像がそのまま見える「クリアな余白」として残す。
+ * scrim（縦＋横の2枚）＋Header＋copyのセットを用意している。containerをmin-h-[85svh]と
+ * いう縦長の比率にすると、object-coverは画像の高さを基準に合わせるため横方向を大きく
+ * cropする（実際の可視幅は画像全体の約26%程度）。copyを左寄せにしたことで「左＝文字
+ * エリア、右〜下＝人物・スーツケース」という役割分担にしたいため、object-positionを
+ * さらに右寄り（76%）へ調整し、白グラデーションも縦方向（上→下）と横方向（左→右）の
+ * 2枚を重ねることで、左上〜左中央がしっかり読める濃さになり、右下ほど画像がそのまま
+ * 見える構成にしている（濃いベタ塗り1枚ではなく、薄い2枚の重ねで自然な階調にする）。
+ * copyはHeaderの下に十分な余白（pt-28、Header高さと合わせておおよそHero上部30%前後）
+ * を空けてから配置し、Mindtripのような「Header→大きな空間→Hero見出し」というリズムに
+ * している。
  *
  * 見出しは必ずDesktopで2行に収める。copy containerをbreakpointごとに拡張し
  * （max-w-lg/2xl/[820px]）、見出し1行目「あなたの「行きたい」を、」がその幅に収まる
- * ことを文字数×フォントサイズで検算した上でサイズを決めている。
+ * ことを文字数×フォントサイズで検算した上でサイズを決めている。Mobileの見出しは
+ * 「あなたの／「行きたい」を、／かたちにする。」の3行に明示的に分割している
+ * （文言・意味は変えていない。手動で改行位置を固定するのは、text-4xlのサイズだと
+ * 自動折り返しに任せた場合、日本語には空白がないため予測できない位置で行が割れる
+ * リスクがあるため）。
  * Hero全体の左下だけにrounded-bl-[56px]を付け、他の3隅は直角のまま維持する
  * （Desktop/Mobileとも同じ1つのsection全体に対する角丸で、Mobile側に画像専用の
  * 個別角丸は持たせない＝画像だけが独立カードに見える状態を避けている）。
@@ -35,7 +46,7 @@ import LandingHeader from "@/components/landing/LandingHeader";
 export default function HeroSection() {
   return (
     <section className="relative overflow-hidden rounded-bl-[56px]">
-      {/* Desktop（sm以上）: 背景image + Header + copy を1つのbannerとして重ねる */}
+      {/* Desktop（sm以上）: 背景image + Header + copy を1つのbannerとして重ねる（無変更） */}
       <div className="relative hidden sm:block">
         <div className="absolute inset-0 z-0">
           <Image
@@ -57,14 +68,15 @@ export default function HeroSection() {
             {/* 見出しを必ず2行に収めるため、containerをmax-w-mdから拡張している
                 （旧max-w-mdでは「あなたの「行きたい」を、」1行だけで幅を超え、3行に折り返していた）。 */}
             <div className="w-full max-w-lg lg:max-w-2xl xl:max-w-[820px]">
-              <HeroCopy align="left" />
+              <HeroCopy />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Mobile（sm未満）: 背景image + 白グラデーションscrim + Header + copy を
-          1画面目として成立する一体型bannerにする（画像を独立ブロックとして下に置かない）。 */}
+      {/* Mobile（sm未満）: 背景image + 白グラデーションscrim(縦+横) + Header + copy を
+          1画面目として成立する一体型bannerにする。copyは左寄せ、Header直下に大きめの
+          余白を取ってからメインコピーを配置する（Mindtripのスマホ Heroのリズムを参考）。 */}
       <div className="relative sm:hidden">
         <div className="absolute inset-0 z-0">
           <Image
@@ -74,21 +86,26 @@ export default function HeroSection() {
             priority
             sizes="100vw"
             className="object-cover"
-            style={{ objectPosition: "70% 50%" }}
+            style={{ objectPosition: "76% 50%" }}
           />
         </div>
 
-        {/* 濃いベタ塗りではなく、文字が乗る上部〜中央だけを白く持ち上げるグラデーション。
-            下へ行くほど透明になり、Hero下部では画像そのものの印象が残るようにしている。 */}
+        {/* 縦方向（上→下）のscrim: 文字が乗る上部を持ち上げ、下へ行くほど透明にする */}
         <div
-          className="absolute inset-0 z-[1] bg-gradient-to-b from-white/95 via-white/60 to-transparent"
+          className="absolute inset-0 z-[1] bg-gradient-to-b from-white/80 via-white/45 to-transparent"
+          aria-hidden
+        />
+        {/* 横方向（左→右）のscrim: 文字エリアである左側だけをさらに持ち上げ、
+            右側（人物・スーツケース側）はできるだけ画像の印象を残す */}
+        <div
+          className="absolute inset-0 z-[1] bg-gradient-to-r from-white/70 via-white/25 to-transparent"
           aria-hidden
         />
 
         <div className="relative z-10 flex min-h-[85svh] flex-col">
           <LandingHeader />
-          <div className="px-4 pb-16 pt-6">
-            <HeroCopy align="center" />
+          <div className="px-4 pb-16 pt-28">
+            <MobileHeroCopy />
           </div>
         </div>
       </div>
@@ -96,21 +113,10 @@ export default function HeroSection() {
   );
 }
 
-/**
- * align以外の見た目はDesktop（画像の上）とMobile（画像＋白グラデーションの上）で共通に
- * している。黒文字はDesktop側で実測コントラスト比6.42:1、Mobile側は白グラデーション
- * scrimにより背景がほぼ白に近づくため、どちらもvariantによる色の出し分けは不要
- * （以前はtext-worksheet-secondaryを画像上でも使っていたためvariantで分岐していたが、
- * グレーを廃止した今は分岐する理由がない）。
- */
-function HeroCopy({ align }: { align: "left" | "center" }) {
-  const alignClass = align === "left" ? "text-left" : "text-center";
-  const itemsClass = align === "left" ? "items-start" : "items-center";
-  const ctaJustifyClass = align === "left" ? "" : "sm:justify-center";
-  const bodyMaxWidthClass = align === "left" ? "max-w-md" : "mx-auto max-w-md";
-
+/** Desktop専用。左寄せcopy（従来のalign="left"相当をそのまま維持）。 */
+function HeroCopy() {
   return (
-    <div className={alignClass}>
+    <div className="text-left">
       <h1 className="text-3xl leading-[1.15] font-semibold tracking-tight text-worksheet-primary sm:text-4xl lg:text-5xl xl:text-6xl">
         あなたの「行きたい」を、
         <br />
@@ -121,7 +127,7 @@ function HeroCopy({ align }: { align: "left" | "center" }) {
         留学・ワーホリの準備ワークスペース
       </p>
 
-      <p className={`mt-6 text-sm leading-relaxed text-worksheet-primary/85 sm:text-base ${bodyMaxWidthClass}`}>
+      <p className="mt-6 max-w-md text-sm leading-relaxed text-worksheet-primary/85 sm:text-base">
         まだ迷っている段階から、
         <br />
         話したり、書いたりしながら、
@@ -129,7 +135,52 @@ function HeroCopy({ align }: { align: "left" | "center" }) {
         自分だけの留学Planを少しずつつくっていけます。
       </p>
 
-      <div className={`mt-8 flex flex-col ${itemsClass} gap-3 sm:flex-row sm:items-center ${ctaJustifyClass}`}>
+      <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+        <Link
+          href="/login"
+          className="inline-flex items-center rounded-full bg-worksheet-accent px-6 py-3 text-sm font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
+        >
+          はじめる
+        </Link>
+        <Link
+          href="/login"
+          className="text-sm text-worksheet-primary underline decoration-worksheet-primary/40 underline-offset-4 transition-opacity duration-150 hover:opacity-70"
+        >
+          ログイン
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Mobile専用。Mindtripのスマホ Heroを参考に、左寄せ・大きめ見出し・CTAも左基準で
+ * ゼロから組んでいる（Desktopと共有すると条件分岐が複雑になるため独立componentにした）。
+ * 文言・CTAリンク先はDesktopと完全に同一。見出しの改行だけ、自動折り返しの予測不能な
+ * 位置での行割れを避けるため3行に明示的に分割している。
+ */
+function MobileHeroCopy() {
+  return (
+    <div className="text-left">
+      <h1 className="text-4xl leading-[1.25] font-semibold tracking-tight text-worksheet-primary">
+        あなたの
+        <br />
+        「行きたい」を、
+        <br />
+        かたちにする。
+      </h1>
+
+      <p className="mt-4 text-lg font-semibold text-worksheet-primary">留学・ワーホリの準備ワークスペース</p>
+
+      <p className="mt-5 text-sm leading-relaxed text-worksheet-primary/85">
+        まだ迷っている段階から、
+        <br />
+        話したり、書いたりしながら、
+        <br />
+        自分だけの留学Planを少しずつつくっていけます。
+      </p>
+
+      <div className="mt-8 flex flex-col items-start gap-3">
         <Link
           href="/login"
           className="inline-flex items-center rounded-full bg-worksheet-accent px-6 py-3 text-sm font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
