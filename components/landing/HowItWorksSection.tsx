@@ -6,8 +6,8 @@ import Image from "next/image";
  *  ことで、object-coverでも実際には一切croppingが発生しないようにしている。 */
 const CHAT_VISUAL_WIDTH = 1536;
 const CHAT_VISUAL_HEIGHT = 1024;
-const WORKSHEET_VISUAL_WIDTH = 1911;
-const WORKSHEET_VISUAL_HEIGHT = 823;
+const WORKSHEET_VISUAL_WIDTH = 1484;
+const WORKSHEET_VISUAL_HEIGHT = 1060;
 const MY_PLAN_VISUAL_WIDTH = 1719;
 const MY_PLAN_VISUAL_HEIGHT = 915;
 
