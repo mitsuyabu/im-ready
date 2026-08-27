@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
+import DocumentsMockVisual from "@/components/landing/DocumentsMockVisual";
 
 /** public/landing/how-it-works-chat.png・how-it-works-worksheet.png・
  *  how-it-works-my-plan.png・how-it-works-ai-counselor.pngの実寸(px)。wrapperの
@@ -14,13 +15,14 @@ const MY_PLAN_VISUAL_HEIGHT = 915;
 const AI_COUNSELOR_VISUAL_WIDTH = 1536;
 const AI_COUNSELOR_VISUAL_HEIGHT = 1024;
 
-type Accent = "sky" | "amber" | "sage" | "teal";
+type Accent = "sky" | "amber" | "sage" | "teal" | "rose";
 
 const ACCENT_NUMBER_CLASS: Record<Accent, string> = {
   sky: "text-sky-600",
   amber: "text-amber-600",
   sage: "text-emerald-700",
   teal: "text-teal-600",
+  rose: "text-rose-600",
 };
 
 const STEPS: {
@@ -132,6 +134,19 @@ const STEPS: {
       </div>
     ),
   },
+  {
+    number: "05",
+    accent: "rose",
+    title: "資料にして伝える",
+    lead: "整理した内容を、伝わるかたちに。",
+    description:
+      "My Planに整理した内容をもとに、相談や説明に使える資料を作成できます。留学エージェントや先生への相談はもちろん、応援してくれる家族にも、「なぜ行きたいのか」「どんなプランで行きたいのか」をわかりやすく伝えられます。",
+    // 完成画像は未支給のため暫定visual（DocumentsMockVisual）を使用。将来画像が支給され
+    // 次第、01〜04と同じ「aspect-ratio厳密一致のImageコンポーネント」に置き換える想定。
+    // 01〜04が「自分の中で考える・整理する・相談する」なのに対し、05は「外部の人に説明する・
+    // 共有する」という役割の違いをコピー側で明示している。
+    visual: <DocumentsMockVisual />,
+  },
 ];
 
 /**
@@ -146,21 +161,24 @@ const STEPS: {
  * 大きめ比率のまま維持する。mobileでは常にtext→visualの順に積む（flex-col +
  * lg:flex-row-reverseの組み合わせにより、DOM順は変えずCSSだけで反転させている）。
  *
- * 各stepには淡いaccent色（Chat=sky, Worksheet=amber, My Plan=sage, AIカウンセラー=teal）を
- * 割り当て、番号の色とvisual側のトーンだけに使う（白・黒・sageという基本色は崩さず、原色
- * ベタ塗り・purple系のAI gradientは使わない）。本文はLP全体の方針に合わせて
- * text-worksheet-secondary（グレー）を廃止し、黒ベース（text-worksheet-primaryとその
- * 不透明度違い）に統一している。
- * 01 Chat・02 Worksheet・03 My Plan・04 AIカウンセラーいずれも支給された完成済み1枚絵
+ * 各stepには淡いaccent色（Chat=sky, Worksheet=amber, My Plan=sage, AIカウンセラー=teal,
+ * 資料にして伝える=rose）を割り当て、番号の色とvisual側のトーンだけに使う（白・黒・sageと
+ * いう基本色は崩さず、原色ベタ塗り・purple系のAI gradientは使わない）。本文はLP全体の方針に
+ * 合わせてtext-worksheet-secondary（グレー）を廃止し、黒ベース（text-worksheet-primaryと
+ * その不透明度違い）に統一している。
+ * 01 Chat・02 Worksheet・03 My Plan・04 AIカウンセラーは支給された完成済み1枚絵
  * （public/landing/how-it-works-chat.png・how-it-works-worksheet.png・
  * how-it-works-my-plan.png・how-it-works-ai-counselor.png）をそのまま使い、mockカードや
  * 色付き背景箱は重ねない（旧ChatMockVisual.tsx・WorksheetMockVisual.tsx・
  * MyPlanMockVisual.tsx・AiCounselorMockVisual.tsxはいずれも他に使用箇所が無いことを
- * 確認した上で削除した）。
+ * 確認した上で削除した）。05 資料にして伝えるだけは完成画像が未支給のため、暫定visual
+ * （components/landing/DocumentsMockVisual.tsx）を使用している。
  * 04は01の「まず話してみる」入口とは役割が異なり、01〜03で整理された情報をもとに具体的な
- * 留学プラン・学校候補を相談・提案する場という位置づけ（コピー上でもタイトル・lead・
- * descriptionでこの違いを明示している）。STEPSはindexで奇数/偶数を判定して自動的に
- * alternatingするため、04追加もコード変更なしで自然に03と反対側の配置になる。
+ * 留学プラン・学校候補を相談・提案する場という位置づけ。05はさらにその先で、「自分の中で
+ * 考える・整理する・相談する」（01〜04）から「外部の人（家族・先生・エージェント）に説明する・
+ * 共有する」への切り替わりという位置づけ（コピー上でもタイトル・lead・descriptionでこの
+ * 違いを明示している）。STEPSはindexで奇数/偶数を判定して自動的にalternatingするため、
+ * 05追加もコード変更なしで自然に04と反対側の配置になる。
  */
 export default function HowItWorksSection() {
   return (
