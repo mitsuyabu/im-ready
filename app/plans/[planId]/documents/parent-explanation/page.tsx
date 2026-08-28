@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanKarte } from "@/lib/planChat";
-import { buildDocumentsKarteView, type DocumentsKarteView } from "@/lib/documentsKarteView";
+import { buildDocumentsKarteView } from "@/lib/documentsKarteView";
 import { formatLastUpdated } from "@/lib/planActivity";
 import { planDocumentTypeLabel, type PlanDocumentType } from "@/lib/planDocuments";
 import BrandLogo from "@/components/BrandLogo";
@@ -45,20 +45,24 @@ function parseParentExplanationContent(content: unknown): ParentExplanationConte
 }
 
 /**
- * 親向け説明資料の詳細画面。Step 4では読み取り専用の受け皿だったが、Step 6で
- * 「保存済みdocumentが無い場合に、その場で1回だけ生成して確認する」フローを追加した
- * （まだplan_documentsへの保存は実装しない。生成結果はClient Component側のReact stateのみ）。
+ * 親向け説明資料の詳細画面。Step 6までは生成結果をClient側のReact stateに一時表示する
+ * だけだったが、Step 7で実際の生成・保存（plan_documentsへのINSERT）が
+ * /api/documents/parent-explanation側で行われるようになったため、このページの役割は
+ * 「保存済みdocumentを表示する」に一本化された。
  *
  * 責務分担: このServer Componentがlogin確認・Plan所有者確認・保存済みdocumentの取得・
- * （保存済みが無い場合のみ）Karte読み込み＋DocumentsKarteView構築までを行い、
- * 生成ボタン・API呼び出し・loading・生成結果の一時表示はClient Component
- * （components/ParentExplanationGenerator.tsx）に委ねる。KarteそのものはClientへ渡さず、
- * 生成に必要な最小限であるDocumentsKarteViewだけをpropsで渡す。
+ * （保存済みが無い場合のみ）Karte読み込み＋DocumentsKarteView構築による表示用の
+ * `canGenerate`算出までを行う。Karte・DocumentsKarteViewそのものはClientへ渡さず、
+ * 生成ボタンを表示してよいかどうかのboolean（`canGenerate`）とplanIdだけをClient
+ * Component（components/ParentExplanationGenerator.tsx）へpropsで渡す。実際の
+ * Karte取得・DocumentsKarteView構築・生成可否の最終判定・Anthropic生成・DB保存は
+ * すべてAPI route側（Server）でもう一度行われる（UI側のcanGenerateはあくまで
+ * 一次防御で、実際の安全性はAPI側の再判定に依存する二重防御構造）。
  *
  * plan_documentsはStep 1で作成したmigrationがまだremote Supabaseへ未適用の可能性がある
  * （このセッションでは実DBへの適用を行っていない）。そのため「テーブルが存在しない」
  * エラーと「documentがまだ0件」を同じempty state扱いにせず、Supabaseからのerrorを
- * 明示的に見て区別する（詳細は完了報告のL参照）。
+ * 明示的に見て区別する（詳細は完了報告のU参照）。
  */
 export default async function ParentExplanationDocumentPage({ params }: ParentExplanationPageProps) {
   const { planId } = await params;
@@ -93,13 +97,15 @@ export default async function ParentExplanationDocumentPage({ params }: ParentEx
   const row = doc as PlanDocumentRow | null;
   const parsedContent = row ? parseParentExplanationContent(row.content) : null;
 
-  // 保存済みdocumentが無く、クエリ自体もエラーになっていない場合だけ、生成フロー用に
-  // Karteを読み、DocumentsKarteViewを構築する（保存済みdocumentがある通常時は不要な
-  // DB読み込みを避ける）。
-  let documentsView: DocumentsKarteView | null = null;
+  // 保存済みdocumentが無く、クエリ自体もエラーになっていない場合だけ、UI表示判定用に
+  // Karteを読み、DocumentsKarteView.hasEnoughContextを算出する（保存済みdocumentがある
+  // 通常時は不要なDB読み込みを避ける）。Karte・DocumentsKarteViewそのものはClientへ
+  // 渡さない（実際の生成可否の最終判定はAPI側でもう一度行う）。
+  let canGenerate = false;
   if (!docError && !row) {
     const karte = await loadPlanKarte(supabase, planId);
-    documentsView = buildDocumentsKarteView(karte);
+    const documentsView = buildDocumentsKarteView(karte);
+    canGenerate = documentsView.hasEnoughContext;
   }
 
   return (
@@ -132,7 +138,7 @@ export default async function ParentExplanationDocumentPage({ params }: ParentEx
         ) : !row ? (
           <>
             <h1 className="text-2xl font-bold text-worksheet-primary sm:text-3xl">親向け説明資料</h1>
-            {documentsView && <ParentExplanationGenerator view={documentsView} />}
+            <ParentExplanationGenerator planId={planId} canGenerate={canGenerate} />
           </>
         ) : (
           <>

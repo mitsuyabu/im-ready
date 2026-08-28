@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { DocumentsKarteView } from "@/lib/documentsKarteView";
 
 type GenerationStatus = "idle" | "generating" | "success" | "error";
 
@@ -12,20 +11,37 @@ type GenerationStatus = "idle" | "generating" | "success" | "error";
  */
 function errorMessageFor(status: number): string {
   if (status === 401) return "ログイン状態を確認できませんでした。再度ログインしてからお試しください。";
+  if (status === 404) return "対象のPlanを確認できませんでした。ページを再読み込みしてからお試しください。";
+  if (status === 409) return "この資料はすでに作成されています。ページを再読み込みしてください。";
   if (status === 422) return "資料を作るには、もう少しMy Planの内容を整理する必要があります。";
   if (status === 400) return "資料を作成する準備ができませんでした。ページを再読み込みしてからお試しください。";
   return "資料を作成できませんでした。時間をおいてもう一度お試しください。";
 }
 
 /**
- * 親向け説明資料の「一時生成」フロー（Step 6）。plan_documentsに保存済みの行が無い場合のみ、
+ * 親向け説明資料の生成 + 保存フロー（Step 7）。plan_documentsに保存済みの行が無い場合のみ、
  * このComponentが描画される（Server Component側で判定済み）。
  *
- * まだDB保存を実装していないため、生成結果はReact stateだけで保持する。ページを
- * reloadすれば消える前提（意図的な暫定仕様。保存する/もう一度作る等のボタンは今回置かない）。
- * hasEnoughContext=falseの場合はボタン自体を出さない（API側の422ガードと二重防御）。
+ * Step 6からの変更点: KarteやDocumentsKarteViewをpropsで受け取らず、`planId`と
+ * 表示判定用の`canGenerate`（Server Component側で算出済みのhasEnoughContext）だけを
+ * 受け取る。生成に使う本物のPlan Karte・DocumentsKarteViewの構築・保存はすべてServer側
+ * （/api/documents/parent-explanation）の責務であり、Clientはplan_documentsへ直接
+ * 書き込まない。canGenerateはUI表示の一次防御に過ぎず、実際の生成可否はAPI側で
+ * 再度hasEnoughContextを判定する（二重防御。API単体のセキュリティはこのpropsの値に
+ * 依存しない）。
+ *
+ * 生成成功時、レスポンスの内容は既にDBへ保存済みの正式なDocumentである
+ * （「この内容はまだ一時表示です」という注記は無くなった。保存に失敗した場合は
+ * 生成文章を一切表示せず、そのままerror扱いにする＝ユーザーが「保存された」と
+ * 誤認する状態を作らない）。
  */
-export default function ParentExplanationGenerator({ view }: { view: DocumentsKarteView }) {
+export default function ParentExplanationGenerator({
+  planId,
+  canGenerate,
+}: {
+  planId: string;
+  canGenerate: boolean;
+}) {
   const [status, setStatus] = useState<GenerationStatus>("idle");
   const [generatedBody, setGeneratedBody] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -38,19 +54,21 @@ export default function ParentExplanationGenerator({ view }: { view: DocumentsKa
       const res = await fetch("/api/documents/parent-explanation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ view }),
+        body: JSON.stringify({ planId }),
       });
 
       const data = await res.json().catch(() => null);
 
-      if (!res.ok || typeof data?.body !== "string") {
+      // 生成に成功していても、DB保存（route.ts側のINSERT）まで成功していなければ
+      // document.bodyは返らない。その場合も「一時表示」はせず、error扱いにする。
+      if (!res.ok || typeof data?.document?.body !== "string") {
         console.error("parent explanation generation failed:", res.status, data);
         setErrorMessage(errorMessageFor(res.status));
         setStatus("error");
         return;
       }
 
-      setGeneratedBody(data.body);
+      setGeneratedBody(data.document.body);
       setStatus("success");
     } catch (err) {
       console.error("parent explanation generation network error:", err);
@@ -59,7 +77,7 @@ export default function ParentExplanationGenerator({ view }: { view: DocumentsKa
     }
   }
 
-  if (!view.hasEnoughContext) {
+  if (!canGenerate) {
     return (
       <div className="mt-10 rounded-2xl border border-worksheet-border p-6 sm:p-8">
         <p className="text-base font-medium text-worksheet-primary">
@@ -72,9 +90,7 @@ export default function ParentExplanationGenerator({ view }: { view: DocumentsKa
   if (status === "success" && generatedBody) {
     return (
       <div className="mt-10">
-        <p className="text-xs text-worksheet-secondary">
-          この内容はまだ一時表示です。ページを閉じると消えます。
-        </p>
+        <p className="text-xs text-worksheet-secondary">保存しました。</p>
         {/* Step 4の保存済みDocument表示と同じTypography（whitespace-pre-wrap・プレーンテキスト表示。
             dangerouslySetInnerHTMLは使わない。{generatedBody}はJSX内の文字列展開のみで、
             Reactが自動エスケープするためHTMLとして解釈されない）。 */}

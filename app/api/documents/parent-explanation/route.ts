@@ -3,129 +3,62 @@ import Anthropic from "@anthropic-ai/sdk";
 import { anthropic, MODEL } from "@/lib/anthropic";
 import { stripMarkdownBold } from "@/lib/markdown";
 import { createClient } from "@/lib/supabase/server";
-import { BLOCK_SPECS, type FieldSource } from "@/lib/karte";
-import type { DecisionLeaning, DocumentCertainty, DocumentKarteItem, DocumentsKarteView } from "@/lib/documentsKarteView";
+import { loadPlanKarte } from "@/lib/planChat";
+import { buildDocumentsKarteView } from "@/lib/documentsKarteView";
 import {
   buildParentExplanationSystemPrompt,
   canGenerateParentExplanation,
+  PARENT_EXPLANATION_DEFAULT_TITLE,
   PARENT_EXPLANATION_USER_MESSAGE,
 } from "@/lib/parentExplanationPrompt";
 
 /**
- * 親向け説明資料の生成専用エンドポイント（Step 5）。
+ * 親向け説明資料の生成 + 保存エンドポイント（Step 7）。
  *
- * 責務はここまで: ログイン確認 → request bodyのDocumentsKarteViewをruntime validation →
- * hasEnoughContext確認 → lib/parentExplanationPrompt.tsのprompt builderへそのまま渡す →
- * Anthropic呼び出し → 生成結果のsanitize → JSON応答。
+ * Step 5からの最大の変更点: requestが `{ view: DocumentsKarteView }` ではなく
+ * `{ planId: string }` になった。Clientから改変可能なDocumentsKarteViewを保存の
+ * 根拠として信用しないため、Karte取得・DocumentsKarteView構築・生成可否判定・
+ * Anthropic生成・DB保存のすべてをこのServer側で行う
+ * （Client → planIdだけ送る → Serverが本物のPlan Karteから生成用viewを作る →
+ * Serverが生成 → Serverが保存、という一方向の構造）。
  *
- * 意図的にDB（plans / plan_karte / plan_documents）へは一切触れない
- * （生成と保存を分離する。保存は次Stepで別途扱う）。そのためplanIdもrequestに含めない。
- * 呼び出し側（将来のUI）が、既にbuildDocumentsKarteView()で安全に変換した後のviewを
- * ここへ渡す前提。ここでのvalidationは「その変換結果の形が壊れていないか」だけを見る
- * （lib/documentsKarteView.tsのビジネスロジック—certaintyの振り分け・conflict除外・
- * hasEnoughContextの算出—をここで再実装しない）。
+ * 処理順: 認証確認 → request body validation → Plan ownership確認 →
+ * 既存parent_explanation document確認（あれば409） → Karte取得 → DocumentsKarteView構築 →
+ * hasEnoughContext確認（falseなら422、Anthropicを呼ばない） → Anthropic生成 → sanitize →
+ * plan_documentsへINSERT → 成功response。
  *
- * 既存の/api/worksheet-letter・/api/worksheet-note（匿名Worksheet向け、認証不要）とは異なり、
- * Plan Documents機能かつAnthropic APIコストが発生するため、Supabase Authのログイン確認を必須にする。
- * ただしPlan ownership確認（plansテーブルを読む）は行わない — それはplanIdを扱う次Step
- * （UIからの呼び出し・DB保存）の責務。
+ * 同時リクエスト競合について: 事前の既存document確認だけでは、複数タブ等でほぼ同時に
+ * 2リクエストが走った場合に両方が「既存なし」を確認してしまい、両方が生成・INSERTを
+ * 試みる可能性がある。plan_documentsの既存unique(plan_id, type)制約により後発の
+ * INSERTはPostgresのunique_violation（SQLSTATE 23505）で失敗するため、これを検知して
+ * 409 document_already_existsへ変換する（500にしない）。新しいconstraint・migrationは
+ * 追加せず、既存のunique(plan_id, type)をそのまま利用する。DB内部のエラーメッセージは
+ * ログにのみ出し、clientへは返さない。
  */
 
-const VALID_BLOCKS = new Set(Object.keys(BLOCK_SPECS));
-const VALID_SOURCES: readonly FieldSource[] = ["chat", "worksheet", "profile"];
-const VALID_DECISION_LEANINGS: readonly DecisionLeaning[] = ["going", "not_going", "undecided"];
+const DOCUMENT_TYPE = "parent_explanation";
 
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
+/** Postgres unique_violation のSQLSTATEコード。plan_documentsのunique(plan_id, type)制約違反時にPostgRESTがこの値をerror.codeへ設定する */
+const POSTGRES_UNIQUE_VIOLATION = "23505";
+
+/** request bodyのplanId（unknown）を検証する。UUID形式の厳格な検証はせず、既存の
+ *  Server Component側のownership確認パターン（Postgres側にidの妥当性判定を委ね、
+ *  該当行が見つからなければ404にする）と同じ方針に合わせている。 */
+export function parsePlanId(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return null;
+  return trimmed;
 }
 
-/**
- * expectedCertaintyは呼び出し側（stated配列 / inferred配列）が決める。item自身が持つ
- * certainty値がそれと一致しない場合はrejectする＝stated/inferredの取り違えをここで防ぐ
- * （7節: stated配列にinferredが紛れる・その逆を400にする）。
- */
-function parseDocumentKarteItem(raw: unknown, expectedCertainty: DocumentCertainty): DocumentKarteItem | null {
-  if (!raw || typeof raw !== "object") return null;
-  const { block, key, label, value, certainty, source } = raw as Record<string, unknown>;
+type ParentExplanationDocumentResponse = {
+  id: string;
+  title: string;
+  body: string;
+  updatedAt: string;
+};
 
-  if (typeof block !== "string" || !VALID_BLOCKS.has(block)) return null;
-  if (!isNonEmptyString(key)) return null;
-  if (!isNonEmptyString(label)) return null;
-  if (!isNonEmptyString(value)) return null;
-  if (certainty !== expectedCertainty) return null;
-  if (source !== undefined && !VALID_SOURCES.includes(source as FieldSource)) return null;
-
-  return {
-    block: block as DocumentKarteItem["block"],
-    key,
-    label,
-    value,
-    certainty: expectedCertainty,
-    source: source as FieldSource | undefined,
-  };
-}
-
-function parseDocumentKarteItemArray(raw: unknown, expectedCertainty: DocumentCertainty): DocumentKarteItem[] | null {
-  if (!Array.isArray(raw)) return null;
-  const result: DocumentKarteItem[] = [];
-  for (const entry of raw) {
-    const item = parseDocumentKarteItem(entry, expectedCertainty);
-    if (!item) return null;
-    result.push(item);
-  }
-  return result;
-}
-
-function parseExcludedConflicts(raw: unknown): DocumentsKarteView["excludedConflicts"] | null {
-  if (!Array.isArray(raw)) return null;
-  const result: DocumentsKarteView["excludedConflicts"] = [];
-  for (const entry of raw) {
-    if (!entry || typeof entry !== "object") return null;
-    const { block, key } = entry as Record<string, unknown>;
-    if (typeof block !== "string" || !VALID_BLOCKS.has(block)) return null;
-    if (!isNonEmptyString(key)) return null;
-    result.push({ block: block as DocumentKarteItem["block"], key });
-  }
-  return result;
-}
-
-function parseDecisionLeaning(raw: unknown): { ok: true; value: DecisionLeaning | undefined } | { ok: false } {
-  if (raw === undefined) return { ok: true, value: undefined };
-  if (typeof raw === "string" && VALID_DECISION_LEANINGS.includes(raw as DecisionLeaning)) {
-    return { ok: true, value: raw as DecisionLeaning };
-  }
-  return { ok: false };
-}
-
-/** request bodyのview（unknown）を検証し、安全なDocumentsKarteViewへ変換する。不正な形は一律null */
-export function parseDocumentsKarteView(raw: unknown): DocumentsKarteView | null {
-  if (!raw || typeof raw !== "object") return null;
-  const { stated, inferred, excludedConflicts, decisionLeaning, hasEnoughContext } = raw as Record<string, unknown>;
-
-  const statedItems = parseDocumentKarteItemArray(stated, "stated");
-  if (!statedItems) return null;
-
-  const inferredItems = parseDocumentKarteItemArray(inferred, "inferred");
-  if (!inferredItems) return null;
-
-  const excludedConflictItems = parseExcludedConflicts(excludedConflicts);
-  if (!excludedConflictItems) return null;
-
-  const leaningResult = parseDecisionLeaning(decisionLeaning);
-  if (!leaningResult.ok) return null;
-
-  if (typeof hasEnoughContext !== "boolean") return null;
-
-  return {
-    stated: statedItems,
-    inferred: inferredItems,
-    excludedConflicts: excludedConflictItems,
-    decisionLeaning: leaningResult.value,
-    hasEnoughContext,
-  };
-}
-
-type ParentExplanationGenerateResponse = { body: string };
+type ParentExplanationGenerateResponse = { document: ParentExplanationDocumentResponse };
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -144,16 +77,53 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "リクエストの形式が不正です" }, { status: 400 });
   }
 
-  const { view: rawView } = (requestBody ?? {}) as { view?: unknown };
-  const view = parseDocumentsKarteView(rawView);
-  if (!view) {
-    return Response.json({ error: "view が不正です" }, { status: 400 });
+  const { planId: rawPlanId } = (requestBody ?? {}) as { planId?: unknown };
+  const planId = parsePlanId(rawPlanId);
+  if (!planId) {
+    return Response.json({ error: "planId が不正です" }, { status: 400 });
   }
+
+  // Plan ownership確認。既存Server Componentと同じ方針（存在しないPlanと他人のPlanを
+  // 区別しない）。他人のPlanの存在自体を示さないため403ではなく404にする。
+  const { data: plan } = await supabase
+    .from("plans")
+    .select("id")
+    .eq("id", planId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!plan) {
+    return Response.json({ error: "対象のPlanが見つかりません" }, { status: 404 });
+  }
+
+  // 既存document確認（事前チェック）。Anthropicを呼ぶ前に行い、無駄なAPI呼び出しを避ける。
+  // ここでのDBエラー（例: migration未適用でテーブルが存在しない）はunique_violationとは
+  // 別物なので、一律500 document_save_failedとして扱い、生成には進まない。
+  const { data: existingDoc, error: existingDocError } = await supabase
+    .from("plan_documents")
+    .select("id")
+    .eq("plan_id", planId)
+    .eq("type", DOCUMENT_TYPE)
+    .maybeSingle();
+
+  if (existingDocError) {
+    console.error("parent explanation existing check error:", existingDocError.message);
+    return Response.json({ error: "document_save_failed" }, { status: 500 });
+  }
+
+  if (existingDoc) {
+    return Response.json({ error: "document_already_exists" }, { status: 409 });
+  }
+
+  // Client由来のデータは一切使わず、Server側でPlan Karteから改めてDocumentsKarteViewを作る。
+  const karte = await loadPlanKarte(supabase, planId);
+  const view = buildDocumentsKarteView(karte);
 
   if (!canGenerateParentExplanation(view)) {
     return Response.json({ error: "not_enough_context" }, { status: 422 });
   }
 
+  let generatedBody: string;
   try {
     const response = await anthropic.messages.create({
       model: MODEL,
@@ -170,14 +140,11 @@ export async function POST(req: NextRequest) {
     const textBlock = response.content.find(
       (block): block is Anthropic.TextBlock => block.type === "text",
     );
-    const generatedBody = textBlock ? stripMarkdownBold(textBlock.text.trim()) : "";
+    generatedBody = textBlock ? stripMarkdownBold(textBlock.text.trim()) : "";
 
     if (!generatedBody) {
       return Response.json({ error: "資料を生成できませんでした" }, { status: 502 });
     }
-
-    const result: ParentExplanationGenerateResponse = { body: generatedBody };
-    return Response.json(result);
   } catch (err) {
     const isApiError = err instanceof Anthropic.APIError;
     console.error("parent explanation generation error:", isApiError ? err.message : err);
@@ -190,4 +157,37 @@ export async function POST(req: NextRequest) {
       { status: isApiError && err.status ? err.status : 500 },
     );
   }
+
+  const { data: inserted, error: insertError } = await supabase
+    .from("plan_documents")
+    .insert({
+      plan_id: planId,
+      type: DOCUMENT_TYPE,
+      title: PARENT_EXPLANATION_DEFAULT_TITLE,
+      content: { format: "text", body: generatedBody },
+      updated_at: new Date().toISOString(),
+    })
+    .select("id, title, updated_at")
+    .single();
+
+  if (insertError) {
+    // 同時リクエスト競合: 事前確認の直後に別リクエストが先にINSERTした場合、こちらの
+    // INSERTはunique(plan_id, type)違反で失敗する。生成された文章は破棄し（AI生成成功が
+    // 保存成功を意味しない）、409として扱う。
+    if (insertError.code === POSTGRES_UNIQUE_VIOLATION) {
+      return Response.json({ error: "document_already_exists" }, { status: 409 });
+    }
+    console.error("parent explanation insert error:", insertError.message);
+    return Response.json({ error: "document_save_failed" }, { status: 500 });
+  }
+
+  const result: ParentExplanationGenerateResponse = {
+    document: {
+      id: inserted.id,
+      title: inserted.title,
+      body: generatedBody,
+      updatedAt: inserted.updated_at,
+    },
+  };
+  return Response.json(result);
 }
