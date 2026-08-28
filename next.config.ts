@@ -23,6 +23,19 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // /share/documents/[token] は親向け説明資料（留学動機・予算・不安・出発/行動予定など
+        // 個人的な内容）をログイン不要で表示する公開ページ。page側の
+        // export const dynamic = "force-dynamic" に加え、HTTP responseとしても
+        // キャッシュを明示的に禁止する（共有ブラウザ・プロキシ・CDNに残さない）。
+        source: "/share/documents/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "private, no-store",
+          },
+        ],
+      },
     ];
   },
 };
