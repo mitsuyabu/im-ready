@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loadPlanKarte } from "@/lib/planChat";
+import { buildDocumentsKarteView, type DocumentsKarteView } from "@/lib/documentsKarteView";
 import { formatLastUpdated } from "@/lib/planActivity";
 import { planDocumentTypeLabel, type PlanDocumentType } from "@/lib/planDocuments";
 import BrandLogo from "@/components/BrandLogo";
+import ParentExplanationGenerator from "@/components/ParentExplanationGenerator";
 
 export const metadata: Metadata = {
   title: "親向け説明資料",
@@ -42,14 +45,20 @@ function parseParentExplanationContent(content: unknown): ParentExplanationConte
 }
 
 /**
- * 親向け説明資料の詳細画面（読み取り専用）。今回は生成機能を実装しないため、
- * document未生成でも正常に開ける「受け皿」としてのみ機能する（次Stepで
- * Documents一覧 → 生成 という導線を足すための土台）。
+ * 親向け説明資料の詳細画面。Step 4では読み取り専用の受け皿だったが、Step 6で
+ * 「保存済みdocumentが無い場合に、その場で1回だけ生成して確認する」フローを追加した
+ * （まだplan_documentsへの保存は実装しない。生成結果はClient Component側のReact stateのみ）。
+ *
+ * 責務分担: このServer Componentがlogin確認・Plan所有者確認・保存済みdocumentの取得・
+ * （保存済みが無い場合のみ）Karte読み込み＋DocumentsKarteView構築までを行い、
+ * 生成ボタン・API呼び出し・loading・生成結果の一時表示はClient Component
+ * （components/ParentExplanationGenerator.tsx）に委ねる。KarteそのものはClientへ渡さず、
+ * 生成に必要な最小限であるDocumentsKarteViewだけをpropsで渡す。
  *
  * plan_documentsはStep 1で作成したmigrationがまだremote Supabaseへ未適用の可能性がある
  * （このセッションでは実DBへの適用を行っていない）。そのため「テーブルが存在しない」
  * エラーと「documentがまだ0件」を同じempty state扱いにせず、Supabaseからのerrorを
- * 明示的に見て区別する（詳細はB完了報告のL参照）。
+ * 明示的に見て区別する（詳細は完了報告のL参照）。
  */
 export default async function ParentExplanationDocumentPage({ params }: ParentExplanationPageProps) {
   const { planId } = await params;
@@ -84,6 +93,15 @@ export default async function ParentExplanationDocumentPage({ params }: ParentEx
   const row = doc as PlanDocumentRow | null;
   const parsedContent = row ? parseParentExplanationContent(row.content) : null;
 
+  // 保存済みdocumentが無く、クエリ自体もエラーになっていない場合だけ、生成フロー用に
+  // Karteを読み、DocumentsKarteViewを構築する（保存済みdocumentがある通常時は不要な
+  // DB読み込みを避ける）。
+  let documentsView: DocumentsKarteView | null = null;
+  if (!docError && !row) {
+    const karte = await loadPlanKarte(supabase, planId);
+    documentsView = buildDocumentsKarteView(karte);
+  }
+
   return (
     <div className="min-h-dvh bg-worksheet-surface">
       <header className="flex items-center justify-between border-b border-worksheet-border px-4 py-3 sm:px-6">
@@ -114,14 +132,7 @@ export default async function ParentExplanationDocumentPage({ params }: ParentEx
         ) : !row ? (
           <>
             <h1 className="text-2xl font-bold text-worksheet-primary sm:text-3xl">親向け説明資料</h1>
-            <div className="mt-10 rounded-2xl border border-worksheet-border p-6 sm:p-8">
-              <p className="text-base font-medium text-worksheet-primary">まだ資料は作られていません。</p>
-              <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
-                この資料では、My Planに整理した内容をもとに、
-                <br className="hidden sm:block" />
-                今考えていることを家族に伝えられるようになります。
-              </p>
-            </div>
+            {documentsView && <ParentExplanationGenerator view={documentsView} />}
           </>
         ) : (
           <>
