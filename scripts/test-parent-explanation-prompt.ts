@@ -1,6 +1,6 @@
 /**
  * lib/parentExplanationPrompt.ts の動作確認用スクリプト（Step 3で作成、実生成結果の
- * レビューを踏まえたprompt改善でCase 6以降を追加）。
+ * 2回のレビューを踏まえたprompt改善でCase 6〜16、Case 17〜29を追加）。
  * 新しいtest frameworkは導入せず、既にdevDependencyにあるtsxで直接実行するだけ。
  * Anthropic SDKは一切importしない・呼ばない。
  *
@@ -284,6 +284,160 @@ console.log("Case 16: 概要リストと本文の重複を減らす指示");
   assert(
     prompt.includes("同じ形でもう一度列挙しないこと"),
     "本文で条件を再掲しない旨の具体的な指示がある",
+  );
+}
+
+// --- ここから、実生成結果の2回目のレビュー（「言い足し」抑制の最終調整）の確認 ---
+
+console.log("Case 17: trueGoalHypothesisを原則本文に使わない指示");
+{
+  const view = buildReviewSampleView();
+  const prompt = buildParentExplanationSystemPrompt(view);
+  assert(
+    prompt.includes("この項目は、親向け説明資料の本文では原則として一切使用しないこと"),
+    "trueGoalHypothesisを本文で原則使用しない旨の明示的な指示がある",
+  );
+  assert(
+    prompt.includes("深層動機を第三者（家族）に見せるためのものではない"),
+    "理由（第三者へ見せる資料ではない）が明記されている",
+  );
+}
+
+console.log("Case 18: statedだけで足りる場合はinferredを使わない指示");
+{
+  const view = buildReviewSampleView();
+  const prompt = buildParentExplanationSystemPrompt(view);
+  assert(
+    prompt.includes("statedの情報だけで自然な文章が作れる場合は、inferredを使わないこと"),
+    "stated単独で足りるならinferredを使わない旨の指示がある",
+  );
+  assert(
+    prompt.includes("あくまでstatedの内容を理解する補助としてのみ利用すること"),
+    "inferredをstated理解の補助としてのみ使う旨の指示がある",
+  );
+}
+
+console.log("Case 19: 出発時期から準備期限を逆算しない指示");
+{
+  const view = buildReviewSampleView();
+  const prompt = buildParentExplanationSystemPrompt(view);
+  assert(
+    prompt.includes("準備スケジュールを逆算して作ってはいけない"),
+    "時期からの逆算を禁止する指示がある",
+  );
+  assert(prompt.includes("2か月前にビザを取る"), "逆算の具体例が禁止例として言及されている");
+}
+
+console.log("Case 20: statedのNext Actionが無ければ「今からやること」を省略する指示");
+{
+  const view = buildReviewSampleView();
+  const prompt = buildParentExplanationSystemPrompt(view);
+  assert(
+    prompt.includes(
+      "このセクションを生成してよいのは、view.statedの中に、本人が明示した具体的なNext Action・期限・予定が存在する場合だけである",
+    ),
+    "statedの具体的Next Actionが無ければ生成しない旨の条件が明示されている",
+  );
+}
+
+console.log("Case 21: 「現在〜段階にいる」とAIが勝手に推測しない指示");
+{
+  const view = buildReviewSampleView();
+  const prompt = buildParentExplanationSystemPrompt(view);
+  assert(
+    prompt.includes("本人が明言していない現在の状態・フェーズを推測してラベル付けしないこと"),
+    "状態・フェーズの推測を禁止する指示がある",
+  );
+}
+
+console.log("Case 22: 本人の意味を越えて価値観・目的を追加しない指示");
+{
+  const view = buildReviewSampleView();
+  const prompt = buildParentExplanationSystemPrompt(view);
+  assert(
+    prompt.includes("本人が述べた意味の範囲を越えて、新しい価値観・目的・感情を追加しないこと"),
+    "意味の拡張を禁止する明示的な指示がある",
+  );
+  assert(
+    prompt.includes("その場所に本当に根ざす感覚を得たい"),
+    "意味拡張の具体例が禁止例として言及されている",
+  );
+}
+
+console.log("Case 23: 文章の美しさより事実性を優先する指示");
+{
+  const view = buildReviewSampleView();
+  const prompt = buildParentExplanationSystemPrompt(view);
+  assert(prompt.includes("文章の質の優先順位"), "優先順位の見出しがある");
+  assert(
+    prompt.includes("1. 事実性") && prompt.includes("4. 文章の美しさ"),
+    "事実性が最優先・美しさが最下位という順序が明示されている",
+  );
+}
+
+console.log("Case 24: 不安にAIが勝手な解決策を足さない指示");
+{
+  const view = buildReviewSampleView();
+  const prompt = buildParentExplanationSystemPrompt(view);
+  assert(
+    prompt.includes("学校で学べば大丈夫") && prompt.includes("AIが作って付け加えないこと"),
+    "不安への解決策創作を禁止する具体的な指示がある",
+  );
+}
+
+console.log("Case 25: 本人が言っていない因果関係を作らない指示");
+{
+  const view = buildReviewSampleView();
+  const prompt = buildParentExplanationSystemPrompt(view);
+  assert(prompt.includes("因果関係を作らない"), "因果関係禁止の見出しがある");
+  assert(
+    prompt.includes("多国籍な環境だから英語が伸びる"),
+    "因果関係の具体例が禁止例として言及されている",
+  );
+}
+
+console.log("Case 26: 「この場所を考えている理由」セクションの条件付き生成");
+{
+  const view = buildReviewSampleView();
+  const prompt = buildParentExplanationSystemPrompt(view);
+  assert(prompt.includes("この場所を考えている理由"), "セクション名がプロンプトに含まれる");
+  assert(
+    prompt.includes("材料が無ければこのセクション自体を省略すること"),
+    "材料が無ければ省略する旨が明示されている",
+  );
+}
+
+console.log("Case 27: 場所理由もstated優先");
+{
+  const view = buildReviewSampleView();
+  const prompt = buildParentExplanationSystemPrompt(view);
+  assert(
+    prompt.includes("この場所についてもstatedの情報を優先し"),
+    "場所理由セクションでもstated優先の指示がある",
+  );
+}
+
+console.log("Case 28: 文字数を満たすために情報を足さない指示");
+{
+  const view = buildReviewSampleView();
+  const prompt = buildParentExplanationSystemPrompt(view);
+  assert(
+    prompt.includes("500〜700文字程度になっても構わない"),
+    "情報が少ない場合の短文化が具体的に許容されている",
+  );
+  assert(
+    prompt.includes("事実性や本人の意味を保つことより優先しないこと"),
+    "文字数を事実性・本人の意味より優先しない旨が明示されている",
+  );
+}
+
+console.log("Case 29: 材料のないsectionを省略する指示");
+{
+  const view = buildReviewSampleView();
+  const prompt = buildParentExplanationSystemPrompt(view);
+  assert(
+    prompt.includes("すべてのセクションを埋めることを目的にせず、資料の見栄えのために水増ししないこと"),
+    "セクションを無理に埋めない旨の指示がある",
   );
 }
 
