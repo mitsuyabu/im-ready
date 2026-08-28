@@ -24,9 +24,15 @@ type PlanDocumentRow = {
 /**
  * Documents一覧（Step 1: 土台のみ）。My Plan・Worksheetと同じ所有者確認パターンを踏襲する。
  * 生成機能はまだ無いため、このページはplan_documentsを読むだけで一切書き込まない。
- * 0件が既定状態（今回、生成UIから作る手段が無いため）。行が将来増えたときのために
- * 一覧表示の構造だけ用意しておくが、詳細routeがまだ無いためtitleへのリンクは付けない
- * （存在しないrouteへリンクしない、という方針）。
+ * 0件が既定状態（今回、生成UIから作る手段が無いため）。
+ *
+ * Step 4でparent_explanationの詳細route（/documents/parent-explanation）ができたため、
+ * type === "parent_explanation" の行だけをそこへリンクする。他type（my_note等）は
+ * まだ詳細routeが無いため、存在しないrouteへリンクしない方針のままdivのみで表示する。
+ *
+ * plan_documentsはmigrationがremote Supabaseへ未適用の可能性がある（このセッションでは
+ * 実DBへの適用を行っていない）。そのため「テーブルが存在しない」エラーと「documentが
+ * まだ0件」を同じ空状態表示にせず、Supabaseからのerrorを明示的に見て区別する。
  */
 export default async function PlanDocumentsPage({ params }: PlanDocumentsPageProps) {
   const { planId } = await params;
@@ -51,7 +57,7 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
     notFound();
   }
 
-  const { data: documents } = await supabase
+  const { data: documents, error: documentsError } = await supabase
     .from("plan_documents")
     .select("id, type, title, updated_at")
     .eq("plan_id", planId)
@@ -79,7 +85,12 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
         <h1 className="text-2xl font-bold text-worksheet-primary sm:text-3xl">Documents</h1>
         <p className="mt-1 text-sm text-worksheet-secondary">{plan.title}</p>
 
-        {rows.length === 0 ? (
+        {documentsError ? (
+          <div className="mt-10 rounded-2xl border border-worksheet-border p-6 sm:p-8">
+            <p className="text-base font-medium text-worksheet-primary">資料を読み込めませんでした。</p>
+            <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">しばらくしてから再度お試しください。</p>
+          </div>
+        ) : rows.length === 0 ? (
           <div className="mt-10 rounded-2xl border border-worksheet-border p-6 sm:p-8">
             <p className="text-base font-medium text-worksheet-primary">まだ資料はありません。</p>
             <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
@@ -92,15 +103,35 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
           </div>
         ) : (
           <div className="mt-8 divide-y divide-worksheet-border">
-            {rows.map((doc) => (
-              <div key={doc.id} className="flex items-center justify-between gap-4 py-4 first:pt-0">
-                <div>
-                  <p className="text-sm font-medium text-worksheet-primary">{doc.title}</p>
-                  <p className="mt-0.5 text-xs text-worksheet-secondary">{planDocumentTypeLabel(doc.type)}</p>
+            {rows.map((doc) => {
+              const label = planDocumentTypeLabel(doc.type);
+              const updated = formatLastUpdated(doc.updated_at);
+              const rowContent = (
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-worksheet-primary">{doc.title}</p>
+                    <p className="mt-0.5 text-xs text-worksheet-secondary">{label}</p>
+                  </div>
+                  <p className="shrink-0 text-xs text-worksheet-secondary">{updated}</p>
+                </>
+              );
+
+              // 詳細routeがまだ存在するのはparent_explanationのみ。他typeは未実装routeへ
+              // リンクしないよう、divのまま表示する。
+              return doc.type === "parent_explanation" ? (
+                <Link
+                  key={doc.id}
+                  href={`/plans/${planId}/documents/parent-explanation`}
+                  className="flex items-center justify-between gap-4 py-4 transition-colors duration-150 first:pt-0 hover:bg-worksheet-sage/20"
+                >
+                  {rowContent}
+                </Link>
+              ) : (
+                <div key={doc.id} className="flex items-center justify-between gap-4 py-4 first:pt-0">
+                  {rowContent}
                 </div>
-                <p className="shrink-0 text-xs text-worksheet-secondary">{formatLastUpdated(doc.updated_at)}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
