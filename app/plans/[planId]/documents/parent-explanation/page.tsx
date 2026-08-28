@@ -6,6 +6,7 @@ import { loadPlanKarte } from "@/lib/planChat";
 import { buildDocumentsKarteView } from "@/lib/documentsKarteView";
 import { formatLastUpdated } from "@/lib/planActivity";
 import { planDocumentTypeLabel, type PlanDocumentType } from "@/lib/planDocuments";
+import { classifyShareStatus, type ShareStatusRow } from "@/lib/parentExplanationShare";
 import BrandLogo from "@/components/BrandLogo";
 import ParentExplanationGenerator from "@/components/ParentExplanationGenerator";
 import ParentExplanationShare from "@/components/ParentExplanationShare";
@@ -109,6 +110,24 @@ export default async function ParentExplanationDocumentPage({ params }: ParentEx
     canGenerate = documentsView.hasEnoughContext;
   }
 
+  // 保存済み・表示可能なdocumentがある場合のみ、共有UIの初期状態を算出する（Step 13）。
+  // owner RLS経由でdocument_sharesのenabled=true行（partial unique indexにより高々1件）の
+  // enabled/revoked_at/expires_atだけを取り、"none"|"active"|"expired"へ分類する。
+  // token_hash・id・plan_document_id・raw tokenはClientへ渡さない。
+  let initialShareStatus: "none" | "active" | "expired" = "none";
+  let initialShareExpiresAt: string | undefined;
+  if (row && parsedContent) {
+    const { data: shareRow } = await supabase
+      .from("document_shares")
+      .select("enabled, revoked_at, expires_at")
+      .eq("plan_document_id", row.id)
+      .eq("enabled", true)
+      .maybeSingle();
+    const classified = classifyShareStatus((shareRow as ShareStatusRow | null) ?? null);
+    initialShareStatus = classified.status;
+    initialShareExpiresAt = classified.expiresAt;
+  }
+
   return (
     <div className="min-h-dvh bg-worksheet-surface">
       <header className="flex items-center justify-between border-b border-worksheet-border px-4 py-3 sm:px-6">
@@ -152,10 +171,15 @@ export default async function ParentExplanationDocumentPage({ params }: ParentEx
                 <div className="mt-8 whitespace-pre-wrap rounded-2xl border border-worksheet-border bg-worksheet-surface-2 p-5 text-sm leading-relaxed text-worksheet-primary sm:p-6">
                   {parsedContent.body}
                 </div>
-                {/* 保存済みで表示可能なdocumentがある場合にだけ共有導線を出す（Step 12）。
+                {/* 保存済みで表示可能なdocumentがある場合にだけ共有導線を出す（Step 12/13）。
                     ページ全体はServer Componentのまま、共有操作だけClientへ切り出す。
-                    Clientへ渡すのはplanIdのみ（share URL・bodyは渡さない）。 */}
-                <ParentExplanationShare planId={planId} />
+                    Clientへ渡すのはplanIdと、Serverが算出した初期share状態のみ
+                    （share URL・body・token・IDは渡さない）。 */}
+                <ParentExplanationShare
+                  planId={planId}
+                  initialShareStatus={initialShareStatus}
+                  initialExpiresAt={initialShareExpiresAt}
+                />
               </>
             ) : (
               <div className="mt-8 rounded-2xl border border-worksheet-border p-6 sm:p-8">
