@@ -25,15 +25,16 @@ type PlanDocumentRow = {
  * Documents一覧。My Plan・Worksheetと同じ所有者確認パターンを踏襲する。
  * このページはplan_documentsを読むだけで一切書き込まない。
  *
- * parent_explanationはStep 6で「詳細画面から生成できる」導線が完成しているため、
- * DB行の有無に関係なく常設カードとして表示する（未生成でも詳細routeへ入れることで、
- * Documents → 親向け説明資料 → 資料を作る、という導線を成立させる）。常設カード側で
- * 表示する分、通常のrow一覧（other document types向け）からはparent_explanationを除外し、
+ * My Note（my_note）と親向け説明資料（parent_explanation）は詳細画面から生成できる導線が
+ * 完成しているため、DB行の有無に関係なく常設カードとして表示する（未生成でも詳細routeへ
+ * 入れることで、Documents → 各Document → 作成、という導線を成立させる）。表示順は
+ * 本人向けの My Note を最上段、その下に親向け説明資料。常設カードで表示する分、通常の
+ * row一覧（other document types向け）からは my_note と parent_explanation の両方を除外し、
  * 二重表示を防いでいる。
  *
- * 他type（my_note等）はまだ生成機能・詳細routeが無いため、DB行が実際に存在する場合のみ
- * 「その他の資料」として一覧表示し、リンクは付けない（存在しないrouteへリンクしない方針）。
- * 未生成の他typeについては、常設カードのような先出し表示はしない。
+ * 残りのtype（study_plan等）はまだ生成機能・詳細routeが無いため、DB行が実際に存在する
+ * 場合のみ「その他の資料」として一覧表示し、リンクは付けない（存在しないrouteへ
+ * リンクしない方針）。未生成のそれらについては、常設カードのような先出し表示はしない。
  *
  * plan_documentsはmigrationがremote Supabaseへ未適用の可能性がある（このセッションでは
  * 実DBへの適用を行っていない）。そのため「テーブルが存在しない」エラーと「documentが
@@ -71,8 +72,11 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
     .order("updated_at", { ascending: false });
 
   const rows = (documents ?? []) as PlanDocumentRow[];
+  const myNoteDoc = rows.find((doc) => doc.type === "my_note") ?? null;
   const parentExplanationDoc = rows.find((doc) => doc.type === "parent_explanation") ?? null;
-  const otherRows = rows.filter((doc) => doc.type !== "parent_explanation");
+  const otherRows = rows.filter(
+    (doc) => doc.type !== "my_note" && doc.type !== "parent_explanation",
+  );
 
   return (
     <div className="min-h-dvh bg-worksheet-surface">
@@ -101,11 +105,35 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
           </div>
         ) : (
           <>
-            {/* 親向け説明資料は常設カード。DB行の有無に関わらず表示し、詳細routeへの
+            {/* My Note は常設カード。最上段（本人向けを先頭に）。DB行の有無に関わらず
+                詳細routeへの入口を提供する。 */}
+            <Link
+              href={`/plans/${planId}/documents/my-note`}
+              className="mt-8 block rounded-2xl border border-worksheet-border p-6 transition-colors duration-150 hover:bg-worksheet-sage/20 sm:p-8"
+            >
+              <p className="text-base font-medium text-worksheet-primary">My Note</p>
+              {myNoteDoc ? (
+                <p className="mt-1 text-xs text-worksheet-secondary">
+                  最終更新: {formatLastUpdated(myNoteDoc.updated_at)}
+                </p>
+              ) : (
+                <>
+                  <p className="mt-2 text-sm leading-relaxed text-worksheet-secondary">
+                    今の考えや迷っていることを整理して、自分用に残しておくノートです。
+                  </p>
+                  <p className="mt-1 text-xs text-worksheet-secondary">まだ作成されていません</p>
+                </>
+              )}
+              <p className="mt-3 text-xs font-medium text-worksheet-accent">
+                {myNoteDoc ? "開く →" : "作成する →"}
+              </p>
+            </Link>
+
+            {/* 親向け説明資料も常設カード。DB行の有無に関わらず表示し、詳細routeへの
                 入口を常に提供する（Step 6の「資料を作る」導線につなげるため）。 */}
             <Link
               href={`/plans/${planId}/documents/parent-explanation`}
-              className="mt-8 block rounded-2xl border border-worksheet-border p-6 transition-colors duration-150 hover:bg-worksheet-sage/20 sm:p-8"
+              className="mt-4 block rounded-2xl border border-worksheet-border p-6 transition-colors duration-150 hover:bg-worksheet-sage/20 sm:p-8"
             >
               <p className="text-base font-medium text-worksheet-primary">親向け説明資料</p>
               {parentExplanationDoc ? (
