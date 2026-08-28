@@ -1,5 +1,6 @@
 /**
- * 親向け説明資料の「共有する」導線（Step 12）＋ 停止・再発行（Step 13）が使う純粋関数。
+ * 親向け説明資料の「共有する」導線（Step 12）＋ 停止・再発行（Step 13）＋ LINE 共有（Step 14）
+ * が使う純粋関数。
  *
  * components/ParentExplanationShare.tsx（Client Component）と、詳細ページの Server Component
  * （初期 share 状態の分類）から使うが、この lib 自体は React にも fetch にも Supabase にも
@@ -9,6 +10,7 @@
  *  - fetch 済みの document_shares 行（enabled/revoked_at/expires_at のみ）を
  *    "none" | "active" | "expired" へ分類する
  *  - 期限日の日本語フォーマット
+ *  - 公開 share URL から LINE 共有 URL（LINE 公式 URL スキーム）を組み立てる（Step 14）
  *
  * hash 化・token 生成は Server 専用（lib/documentShareToken.ts）でここには一切持ち込まない。
  * share URL / token をこの module がログ・storage に出すこともない（文字列を組み立てて
@@ -180,4 +182,44 @@ export function interpretRevokeResponse(
 
   // 500・その他。内部 code（revoke_failed 等）はそのまま見せない。
   return { kind: "error", message: "共有を停止できませんでした。時間をおいてもう一度お試しください。" };
+}
+
+// ============================================================
+// Step 14: LINE 共有 URL の組み立て
+// ============================================================
+
+/**
+ * LINE 共有時に本文へ添える固定の短い案内文（§20）。
+ * ユーザー本人になりきった長文は生成しない。この1文 + 公開 share URL だけを渡す。
+ */
+export const LINE_SHARE_MESSAGE = "留学について今考えていることをまとめました。";
+
+/**
+ * 公開 share URL から、LINE の「送信先を選ぶ」画面を開く URL を作る（Step 14）。
+ *
+ * 方式: LINE 公式の URL スキーム `https://line.me/R/share?text=...`
+ * （developers.line.biz の "Use LINE features with the LINE URL scheme" で現行の
+ * 推奨形。旧 `line://` / `line.me/R/msg/text/` は使わない）。text に案内文 + URL を
+ * 改行で連結し、全体を encodeURIComponent で percent-encode（UTF-8）する。
+ * LINE Messaging API / LINE Login / LIFF / 外部 SDK は使わない。
+ *
+ * text へ入れるのは「固定案内文 + 公開 share URL」だけ。document 本文・budget・
+ * worries・Plan 名・Karte・title 全文・planId・tokenHash・internal ID は一切入れない。
+ *
+ * shareUrl が空 / URL として不正 / http(s) 以外なら null（呼び出し側は LINE ボタンを
+ * 出さない）。
+ */
+export function buildLineShareUrl(shareUrl: string): string | null {
+  if (typeof shareUrl !== "string" || shareUrl.trim().length === 0) return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(shareUrl);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+
+  const text = `${LINE_SHARE_MESSAGE}\n${shareUrl}`;
+  return `https://line.me/R/share?text=${encodeURIComponent(text)}`;
 }

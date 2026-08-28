@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  buildLineShareUrl,
   formatShareExpiry,
   formatShareExpiryDate,
   interpretRevokeResponse,
@@ -11,7 +12,8 @@ import {
 } from "@/lib/parentExplanationShare";
 
 /**
- * 親向け説明資料の詳細画面に出す「共有する」導線（Step 12）＋ 停止・再発行（Step 13）。
+ * 親向け説明資料の詳細画面に出す「共有する」導線（Step 12）＋ 停止・再発行（Step 13）
+ * ＋ LINE 共有（Step 14）。
  *
  * 保存済み parent_explanation document がある場合にだけ Server Component
  * （app/plans/[planId]/documents/parent-explanation/page.tsx）から描画される。
@@ -28,7 +30,11 @@ import {
  * initialShareStatus で毎回渡すので、reload 後は「発行済み・停止できます」表示に戻る。
  * 別の URL が必要なら「停止 → 新規発行」という明示操作で回復する。
  * share URL は React state だけで保持し、localStorage / sessionStorage / cookie /
- * query param には一切載せない。console にも出さない。
+ * history.state / module singleton / query param には一切載せない。console にも出さない。
+ *
+ * Step 14: issued 状態でのみ「LINEで共有」を出す（LINE 公式 URL スキーム。外部 SDK なし）。
+ * LINE へ渡すのは固定の短い案内文 + 公開 share URL だけ。document 本文・Plan/User/内部 ID・
+ * tokenHash は渡さない。active/expired 状態では raw URL が無いので LINE ボタン自体を出さない。
  */
 
 type View = ShareStatus | "issued";
@@ -159,9 +165,13 @@ export default function ParentExplanationShare({
   }
 
   const primaryButtonClass =
-    "inline-flex items-center gap-2 rounded-full bg-worksheet-accent px-5 py-3 text-sm font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100";
+    "inline-flex items-center justify-center gap-2 rounded-full bg-worksheet-accent px-5 py-3 text-sm font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100";
   const secondaryButtonClass =
     "inline-flex items-center justify-center rounded-full border border-worksheet-border px-5 py-2.5 text-sm font-medium text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent";
+
+  // LINE 公式 URL スキームへの共有 URL。issued（発行直後、raw URL が React state にある間）
+  // だけ組み立てる。active/expired では raw URL が無いので null のまま = LINE ボタンを出さない。
+  const lineShareUrl = issued ? buildLineShareUrl(issued.shareUrl) : null;
 
   return (
     <section className="mt-10 rounded-2xl border border-worksheet-border p-6 sm:p-8">
@@ -194,6 +204,11 @@ export default function ParentExplanationShare({
               ? "この共有リンクは有効期限が切れています。"
               : "この資料には共有リンクが発行されています。"}
           </p>
+          {view === "active" && (
+            <p className="mt-1 text-xs leading-relaxed text-worksheet-secondary">
+              安全のため、発行済みのリンクは再表示できません。
+            </p>
+          )}
           {expiresAt && (
             <p className="mt-2 text-sm text-worksheet-secondary">
               有効期限: {formatShareExpiryDate(expiresAt)}
@@ -251,19 +266,26 @@ export default function ParentExplanationShare({
       {view === "issued" && issued && (
         <div className="mt-6">
           <p className="text-xs text-worksheet-secondary">共有リンク</p>
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-            <input
-              type="text"
-              readOnly
-              value={issued.shareUrl}
-              onFocus={(e) => e.currentTarget.select()}
-              className="w-full flex-1 rounded-full border border-worksheet-border bg-worksheet-surface-2 px-4 py-2 text-sm text-worksheet-primary"
-            />
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="inline-flex shrink-0 items-center justify-center rounded-full border border-worksheet-border px-5 py-2.5 text-sm font-medium text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage"
-            >
+          <input
+            type="text"
+            readOnly
+            value={issued.shareUrl}
+            onFocus={(e) => e.currentTarget.select()}
+            className="mt-2 w-full rounded-full border border-worksheet-border bg-worksheet-surface-2 px-4 py-2 text-sm text-worksheet-primary"
+          />
+
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            {lineShareUrl && (
+              <a
+                href={lineShareUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={primaryButtonClass}
+              >
+                LINEで共有
+              </a>
+            )}
+            <button type="button" onClick={handleCopy} className={secondaryButtonClass}>
               リンクをコピー
             </button>
           </div>
@@ -278,8 +300,8 @@ export default function ParentExplanationShare({
           )}
 
           <p className="mt-3 text-xs text-worksheet-secondary">{formatShareExpiry(issued.expiresAt)}</p>
-          <p className="mt-2 text-xs text-worksheet-secondary">
-            この画面を離れるとリンクは再表示できません。必要ならいまコピーしてください。
+          <p className="mt-2 text-xs leading-relaxed text-worksheet-secondary">
+            ※ このリンクは、この画面を離れると再表示できません。今のうちにコピーまたは共有してください。
           </p>
         </div>
       )}
