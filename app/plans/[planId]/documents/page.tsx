@@ -22,17 +22,24 @@ type PlanDocumentRow = {
 };
 
 /**
- * Documents一覧（Step 1: 土台のみ）。My Plan・Worksheetと同じ所有者確認パターンを踏襲する。
- * 生成機能はまだ無いため、このページはplan_documentsを読むだけで一切書き込まない。
- * 0件が既定状態（今回、生成UIから作る手段が無いため）。
+ * Documents一覧。My Plan・Worksheetと同じ所有者確認パターンを踏襲する。
+ * このページはplan_documentsを読むだけで一切書き込まない。
  *
- * Step 4でparent_explanationの詳細route（/documents/parent-explanation）ができたため、
- * type === "parent_explanation" の行だけをそこへリンクする。他type（my_note等）は
- * まだ詳細routeが無いため、存在しないrouteへリンクしない方針のままdivのみで表示する。
+ * parent_explanationはStep 6で「詳細画面から生成できる」導線が完成しているため、
+ * DB行の有無に関係なく常設カードとして表示する（未生成でも詳細routeへ入れることで、
+ * Documents → 親向け説明資料 → 資料を作る、という導線を成立させる）。常設カード側で
+ * 表示する分、通常のrow一覧（other document types向け）からはparent_explanationを除外し、
+ * 二重表示を防いでいる。
+ *
+ * 他type（my_note等）はまだ生成機能・詳細routeが無いため、DB行が実際に存在する場合のみ
+ * 「その他の資料」として一覧表示し、リンクは付けない（存在しないrouteへリンクしない方針）。
+ * 未生成の他typeについては、常設カードのような先出し表示はしない。
  *
  * plan_documentsはmigrationがremote Supabaseへ未適用の可能性がある（このセッションでは
  * 実DBへの適用を行っていない）。そのため「テーブルが存在しない」エラーと「documentが
- * まだ0件」を同じ空状態表示にせず、Supabaseからのerrorを明示的に見て区別する。
+ * まだ0件」を同じ状態にせず、Supabaseからのerrorを明示的に見て区別する。DB error時は
+ * 常設カードを含め通常状態のUIを一切出さず、error表示だけを出す（正しくない「まだ
+ * 作成されていません」表示を防ぐため）。
  */
 export default async function PlanDocumentsPage({ params }: PlanDocumentsPageProps) {
   const { planId } = await params;
@@ -64,6 +71,8 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
     .order("updated_at", { ascending: false });
 
   const rows = (documents ?? []) as PlanDocumentRow[];
+  const parentExplanationDoc = rows.find((doc) => doc.type === "parent_explanation") ?? null;
+  const otherRows = rows.filter((doc) => doc.type !== "parent_explanation");
 
   return (
     <div className="min-h-dvh bg-worksheet-surface">
@@ -90,49 +99,55 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
             <p className="text-base font-medium text-worksheet-primary">資料を読み込めませんでした。</p>
             <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">しばらくしてから再度お試しください。</p>
           </div>
-        ) : rows.length === 0 ? (
-          <div className="mt-10 rounded-2xl border border-worksheet-border p-6 sm:p-8">
-            <p className="text-base font-medium text-worksheet-primary">まだ資料はありません。</p>
-            <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
-              ここでは、My Planをもとに
-              <br className="hidden sm:block" />
-              親向け説明資料や留学計画書などを
-              <br className="hidden sm:block" />
-              作成できるようになります。
-            </p>
-          </div>
         ) : (
-          <div className="mt-8 divide-y divide-worksheet-border">
-            {rows.map((doc) => {
-              const label = planDocumentTypeLabel(doc.type);
-              const updated = formatLastUpdated(doc.updated_at);
-              const rowContent = (
-                <>
-                  <div>
-                    <p className="text-sm font-medium text-worksheet-primary">{doc.title}</p>
-                    <p className="mt-0.5 text-xs text-worksheet-secondary">{label}</p>
-                  </div>
-                  <p className="shrink-0 text-xs text-worksheet-secondary">{updated}</p>
-                </>
-              );
-
-              // 詳細routeがまだ存在するのはparent_explanationのみ。他typeは未実装routeへ
-              // リンクしないよう、divのまま表示する。
-              return doc.type === "parent_explanation" ? (
-                <Link
-                  key={doc.id}
-                  href={`/plans/${planId}/documents/parent-explanation`}
-                  className="flex items-center justify-between gap-4 py-4 transition-colors duration-150 first:pt-0 hover:bg-worksheet-sage/20"
-                >
-                  {rowContent}
-                </Link>
+          <>
+            {/* 親向け説明資料は常設カード。DB行の有無に関わらず表示し、詳細routeへの
+                入口を常に提供する（Step 6の「資料を作る」導線につなげるため）。 */}
+            <Link
+              href={`/plans/${planId}/documents/parent-explanation`}
+              className="mt-8 block rounded-2xl border border-worksheet-border p-6 transition-colors duration-150 hover:bg-worksheet-sage/20 sm:p-8"
+            >
+              <p className="text-base font-medium text-worksheet-primary">親向け説明資料</p>
+              {parentExplanationDoc ? (
+                <p className="mt-1 text-xs text-worksheet-secondary">
+                  最終更新: {formatLastUpdated(parentExplanationDoc.updated_at)}
+                </p>
               ) : (
-                <div key={doc.id} className="flex items-center justify-between gap-4 py-4 first:pt-0">
-                  {rowContent}
+                <>
+                  <p className="mt-2 text-sm leading-relaxed text-worksheet-secondary">
+                    My Planに整理した内容をもとに、今考えていることを家族に伝えるための資料です。
+                  </p>
+                  <p className="mt-1 text-xs text-worksheet-secondary">まだ作成されていません</p>
+                </>
+              )}
+              <p className="mt-3 text-xs font-medium text-worksheet-accent">
+                {parentExplanationDoc ? "開く →" : "作成する →"}
+              </p>
+            </Link>
+
+            {/* 他typeはまだ生成機能・詳細routeが無いため、DB行が実在する場合のみ一覧表示する
+                （未生成の先出しカードは作らない。存在しないrouteへリンクもしない）。 */}
+            {otherRows.length > 0 && (
+              <div className="mt-10">
+                <h2 className="text-sm font-medium text-worksheet-secondary">その他の資料</h2>
+                <div className="mt-4 divide-y divide-worksheet-border">
+                  {otherRows.map((doc) => (
+                    <div key={doc.id} className="flex items-center justify-between gap-4 py-4 first:pt-0">
+                      <div>
+                        <p className="text-sm font-medium text-worksheet-primary">{doc.title}</p>
+                        <p className="mt-0.5 text-xs text-worksheet-secondary">
+                          {planDocumentTypeLabel(doc.type)}
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-xs text-worksheet-secondary">
+                        {formatLastUpdated(doc.updated_at)}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
