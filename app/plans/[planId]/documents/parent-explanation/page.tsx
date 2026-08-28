@@ -8,6 +8,7 @@ import { formatLastUpdated } from "@/lib/planActivity";
 import { planDocumentTypeLabel, type PlanDocumentType } from "@/lib/planDocuments";
 import BrandLogo from "@/components/BrandLogo";
 import ParentExplanationGenerator from "@/components/ParentExplanationGenerator";
+import ParentExplanationShare from "@/components/ParentExplanationShare";
 
 export const metadata: Metadata = {
   title: "親向け説明資料",
@@ -147,9 +148,15 @@ export default async function ParentExplanationDocumentPage({ params }: ParentEx
             <p className="mt-1 text-xs text-worksheet-secondary">最終更新: {formatLastUpdated(row.updated_at)}</p>
 
             {parsedContent ? (
-              <div className="mt-8 whitespace-pre-wrap rounded-2xl border border-worksheet-border bg-worksheet-surface-2 p-5 text-sm leading-relaxed text-worksheet-primary sm:p-6">
-                {parsedContent.body}
-              </div>
+              <>
+                <div className="mt-8 whitespace-pre-wrap rounded-2xl border border-worksheet-border bg-worksheet-surface-2 p-5 text-sm leading-relaxed text-worksheet-primary sm:p-6">
+                  {parsedContent.body}
+                </div>
+                {/* 保存済みで表示可能なdocumentがある場合にだけ共有導線を出す（Step 12）。
+                    ページ全体はServer Componentのまま、共有操作だけClientへ切り出す。
+                    Clientへ渡すのはplanIdのみ（share URL・bodyは渡さない）。 */}
+                <ParentExplanationShare planId={planId} />
+              </>
             ) : (
               <div className="mt-8 rounded-2xl border border-worksheet-border p-6 sm:p-8">
                 <p className="text-base font-medium text-worksheet-primary">この資料を表示できませんでした。</p>
