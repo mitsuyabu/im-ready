@@ -17,7 +17,7 @@ export type PlanDocumentType = (typeof PLAN_DOCUMENT_TYPES)[number];
 export const PLAN_DOCUMENT_TYPE_LABELS: Record<PlanDocumentType, string> = {
   parent_explanation: "親向け説明資料",
   my_note: "My Note",
-  study_plan: "留学計画書",
+  study_plan: "Study Plan",
   agent_summary: "エージェント相談用まとめ",
   school_comparison: "学校比較資料",
 };
