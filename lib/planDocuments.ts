@@ -19,7 +19,7 @@ export const PLAN_DOCUMENT_TYPE_LABELS: Record<PlanDocumentType, string> = {
   my_note: "My Note",
   study_plan: "Study Plan",
   agent_summary: "エージェント相談用まとめ",
-  school_comparison: "学校比較資料",
+  school_comparison: "School Comparison",
 };
 
 function isPlanDocumentType(value: string): value is PlanDocumentType {

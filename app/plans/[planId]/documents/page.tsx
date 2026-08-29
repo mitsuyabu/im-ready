@@ -25,16 +25,18 @@ type PlanDocumentRow = {
  * Documents一覧。My Plan・Worksheetと同じ所有者確認パターンを踏襲する。
  * このページはplan_documentsを読むだけで一切書き込まない。
  *
- * My Note（my_note）・Study Plan（study_plan）・親向け説明資料（parent_explanation）は
- * 詳細画面から生成できる導線が完成しているため、DB行の有無に関係なく常設カードとして
- * 表示する（未生成でも詳細routeへ入れることで、Documents → 各Document → 作成、という
- * 導線を成立させる）。表示順は本人向けの My Note → Study Plan を先頭にまとめ、その下に
- * 親向け説明資料。常設カードで表示する分、通常のrow一覧（other document types向け）からは
- * my_note / study_plan / parent_explanation の3つを除外し、二重表示を防いでいる。
+ * My Note（my_note）・Study Plan（study_plan）・School Comparison（school_comparison）・
+ * 親向け説明資料（parent_explanation）は詳細画面から生成できる導線が完成しているため、
+ * DB行の有無に関係なく常設カードとして表示する（未生成でも詳細routeへ入れることで、
+ * Documents → 各Document → 作成、という導線を成立させる）。表示順は本人向けの
+ * My Note → Study Plan → School Comparison を先頭にまとめ、その下に親向け説明資料。
+ * 常設カードで表示する分、通常のrow一覧（other document types向け）からは
+ * my_note / study_plan / school_comparison / parent_explanation の4つを除外し、
+ * 二重表示を防いでいる。
  *
- * 残りのtype（agent_summary / school_comparison）はまだ生成機能・詳細routeが無いため、
- * DB行が実際に存在する場合のみ「その他の資料」として一覧表示し、リンクは付けない
- * （存在しないrouteへリンクしない方針）。未生成のそれらについては先出し表示はしない。
+ * 残りのtype（agent_summary）はまだ生成機能・詳細routeが無いため、DB行が実際に存在する
+ * 場合のみ「その他の資料」として一覧表示し、リンクは付けない（存在しないrouteへ
+ * リンクしない方針）。未生成のそれらについては先出し表示はしない。
  *
  * plan_documentsはmigrationがremote Supabaseへ未適用の可能性がある（このセッションでは
  * 実DBへの適用を行っていない）。そのため「テーブルが存在しない」エラーと「documentが
@@ -74,10 +76,14 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
   const rows = (documents ?? []) as PlanDocumentRow[];
   const myNoteDoc = rows.find((doc) => doc.type === "my_note") ?? null;
   const studyPlanDoc = rows.find((doc) => doc.type === "study_plan") ?? null;
+  const schoolComparisonDoc = rows.find((doc) => doc.type === "school_comparison") ?? null;
   const parentExplanationDoc = rows.find((doc) => doc.type === "parent_explanation") ?? null;
   const otherRows = rows.filter(
     (doc) =>
-      doc.type !== "my_note" && doc.type !== "study_plan" && doc.type !== "parent_explanation",
+      doc.type !== "my_note" &&
+      doc.type !== "study_plan" &&
+      doc.type !== "school_comparison" &&
+      doc.type !== "parent_explanation",
   );
 
   return (
@@ -151,6 +157,29 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
               )}
               <p className="mt-3 text-xs font-medium text-worksheet-accent">
                 {studyPlanDoc ? "開く →" : "作成する →"}
+              </p>
+            </Link>
+
+            {/* School Comparison も常設カード。Study Plan の下（本人向けをまとめる）。 */}
+            <Link
+              href={`/plans/${planId}/documents/school-comparison`}
+              className="mt-4 block rounded-2xl border border-worksheet-border p-6 transition-colors duration-150 hover:bg-worksheet-sage/20 sm:p-8"
+            >
+              <p className="text-base font-medium text-worksheet-primary">School Comparison</p>
+              {schoolComparisonDoc ? (
+                <p className="mt-1 text-xs text-worksheet-secondary">
+                  最終更新: {formatLastUpdated(schoolComparisonDoc.updated_at)}
+                </p>
+              ) : (
+                <>
+                  <p className="mt-2 text-sm leading-relaxed text-worksheet-secondary">
+                    提示された候補校を、あなたの条件と学校データをもとに比較します。
+                  </p>
+                  <p className="mt-1 text-xs text-worksheet-secondary">まだ作成されていません</p>
+                </>
+              )}
+              <p className="mt-3 text-xs font-medium text-worksheet-accent">
+                {schoolComparisonDoc ? "開く →" : "作成する →"}
               </p>
             </Link>
 
