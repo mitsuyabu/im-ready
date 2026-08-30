@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { DOCUMENT_ROLE_DEFINITIONS } from "@/lib/documentRoles";
+import ParentExplanationBody from "@/components/ParentExplanationBody";
 
 type GenerationStatus = "idle" | "generating" | "success" | "error";
 
@@ -89,22 +91,17 @@ export default function ParentExplanationGenerator({
 
   if (status === "success" && generatedBody) {
     return (
-      <div className="mt-10">
+      <div className="mt-8">
         <p className="text-xs text-worksheet-secondary">保存しました。</p>
-        {/* Step 4の保存済みDocument表示と同じTypography（whitespace-pre-wrap・プレーンテキスト表示。
-            dangerouslySetInnerHTMLは使わない。{generatedBody}はJSX内の文字列展開のみで、
-            Reactが自動エスケープするためHTMLとして解釈されない）。 */}
-        <div className="mt-4 whitespace-pre-wrap rounded-2xl border border-worksheet-border bg-worksheet-surface-2 p-5 text-sm leading-relaxed text-worksheet-primary sm:p-6">
-          {generatedBody}
-        </div>
+        {/* Step 27 の pure parser で家族向け資料として表示。解析できなければ元 body 全文へ fallback。 */}
+        <ParentExplanationBody body={generatedBody} />
       </div>
     );
   }
 
   return (
-    <div className="mt-10 rounded-2xl border border-worksheet-border p-6 sm:p-8">
-      <p className="text-base font-medium text-worksheet-primary">まだ資料は作られていません。</p>
-      <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
+    <div className="mt-8 rounded-2xl border border-worksheet-border p-6 sm:p-8">
+      <p className="text-sm leading-relaxed text-worksheet-secondary">
         この資料では、My Planに整理した内容をもとに、
         <br className="hidden sm:block" />
         今考えていることを家族に伝えられるようになります。
@@ -117,7 +114,9 @@ export default function ParentExplanationGenerator({
           disabled={status === "generating"}
           className="inline-flex items-center gap-2 rounded-full bg-worksheet-accent px-5 py-3 text-sm font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
         >
-          {status === "generating" ? "作成中…" : "資料を作る"}
+          {status === "generating"
+            ? "作成中…"
+            : DOCUMENT_ROLE_DEFINITIONS.parent_explanation.createLabel}
         </button>
       </div>
 

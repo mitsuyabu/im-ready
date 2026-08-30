@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { formatLastUpdated } from "@/lib/planActivity";
 import {
   parseSchoolComparisonDocumentResponse,
   schoolComparisonErrorMessageFor,
 } from "@/lib/schoolComparisonGenerator";
+import { DOCUMENT_ROLE_DEFINITIONS } from "@/lib/documentRoles";
+import SchoolComparisonBody from "@/components/SchoolComparisonBody";
 
 /**
  * School Comparison の生成 + 保存済み表示 + 作り直し（Step 26）。詳細ページ全体は Server
@@ -35,21 +36,16 @@ export default function SchoolComparisonGenerator({
   planId,
   canGenerate,
   initialBody,
-  initialUpdatedAt,
 }: {
   planId: string;
   canGenerate: boolean;
   initialBody?: string;
-  initialUpdatedAt?: string;
 }) {
   const [body, setBody] = useState<string | null>(initialBody ?? null);
-  const [updatedAt, setUpdatedAt] = useState<string | undefined>(initialUpdatedAt);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
-
-  const hasBody = body !== null;
 
   async function callGenerate(isRegenerate: boolean) {
     if (status === "generating") return; // 二重送信防止（button の disabled と二重防御）
@@ -92,7 +88,6 @@ export default function SchoolComparisonGenerator({
     }
 
     setBody(parsed.body);
-    setUpdatedAt(parsed.updatedAt);
     setStatus("idle");
     setConfirmingRegenerate(false);
     if (isRegenerate) setNotice("更新しました。");
@@ -104,11 +99,10 @@ export default function SchoolComparisonGenerator({
     "inline-flex items-center justify-center rounded-full border border-worksheet-border px-5 py-2.5 text-sm font-medium text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent";
 
   // ---- 未生成 ----
-  if (!hasBody) {
+  if (body === null) {
     return (
-      <div className="mt-10 rounded-2xl border border-worksheet-border p-6 sm:p-8">
-        <p className="text-base font-medium text-worksheet-primary">まだ School Comparison は作られていません。</p>
-        <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
+      <div className="mt-8 rounded-2xl border border-worksheet-border p-6 sm:p-8">
+        <p className="text-sm leading-relaxed text-worksheet-secondary">
           提示された候補校を、あなたが大切にしている条件と学校データをもとに比較します。
           <br className="hidden sm:block" />
           新しい学校をおすすめするのではなく、今ある候補の違いを整理します。
@@ -121,7 +115,9 @@ export default function SchoolComparisonGenerator({
             disabled={!canGenerate || status === "generating"}
             className={primaryButtonClass}
           >
-            {status === "generating" ? "School Comparisonを作成中…" : "作成する"}
+            {status === "generating"
+              ? "School Comparisonを作成中…"
+              : DOCUMENT_ROLE_DEFINITIONS.school_comparison.createLabel}
           </button>
         </div>
 
@@ -136,24 +132,17 @@ export default function SchoolComparisonGenerator({
     );
   }
 
-  // ---- 保存済み（read-only 表示 ＋ 作り直す） ----
+  // ---- 保存済み（read-only 表示 ＋ 最新の内容で更新） ----
   return (
     <div className="mt-8">
-      {updatedAt && (
-        <p className="text-xs text-worksheet-secondary">最終更新: {formatLastUpdated(updatedAt)}</p>
-      )}
-      {notice && <p className="mt-1 text-xs text-worksheet-secondary">{notice}</p>}
+      {notice && <p className="text-xs text-worksheet-secondary">{notice}</p>}
 
-      {/* plain text 表示。dangerouslySetInnerHTML は使わず、{body} は JSX 内の文字列展開のみ
-          （React が自動エスケープするため HTML として解釈されない）。Markdown renderer も
-          SchoolCard / 比較グリッド / table も使わず、「■ 見出し／項目：値／学校ごとのブロック」
-          という formatter 出力をそのまま whitespace-pre-wrap で表示する。 */}
-      <div className="mt-4 whitespace-pre-wrap rounded-2xl border border-worksheet-border bg-worksheet-surface-2 p-5 text-sm leading-relaxed text-worksheet-primary sm:p-6">
-        {body}
-      </div>
+      {/* Step 27 の pure parser で候補校・条件・比較表・合い方を表示。順位・おすすめ・
+          スコアは出さない。解析できなければ元 body 全文へ完全 fallback（部分 table 化しない）。 */}
+      <SchoolComparisonBody body={body} />
 
       {!confirmingRegenerate ? (
-        <div className="mt-4">
+        <div className="mt-6">
           <button
             type="button"
             onClick={() => {
@@ -163,12 +152,12 @@ export default function SchoolComparisonGenerator({
             }}
             className={secondaryButtonClass}
           >
-            作り直す
+            最新の内容で更新
           </button>
         </div>
       ) : (
-        <div className="mt-4 rounded-xl border border-worksheet-border bg-worksheet-surface-2 p-4">
-          <p className="text-sm text-worksheet-primary">今の内容を新しく作り直します。</p>
+        <div className="mt-6 rounded-xl border border-worksheet-border bg-worksheet-surface-2 p-4">
+          <p className="text-sm text-worksheet-primary">現在のPlanの内容を反映して更新します。</p>
           <p className="mt-1 text-xs leading-relaxed text-worksheet-secondary">前の内容は残りません。</p>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <button
@@ -185,7 +174,7 @@ export default function SchoolComparisonGenerator({
               disabled={status === "generating"}
               className={primaryButtonClass}
             >
-              {status === "generating" ? "作り直しています…" : "作り直す"}
+              {status === "generating" ? "更新しています…" : "更新する"}
             </button>
           </div>
         </div>

@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanKarte } from "@/lib/planChat";
 import { buildStudyPlanView } from "@/lib/studyPlanView";
 import { canGenerateStudyPlan } from "@/lib/studyPlanPrompt";
 import { parseStudyPlanContent } from "@/lib/studyPlanGenerator";
-import { planDocumentTypeLabel, type PlanDocumentType } from "@/lib/planDocuments";
+import { type PlanDocumentType } from "@/lib/planDocuments";
+import { DOCUMENT_ROLE_DEFINITIONS } from "@/lib/documentRoles";
 import BrandLogo from "@/components/BrandLogo";
+import DocumentDetailHeader from "@/components/DocumentDetailHeader";
 import StudyPlanGenerator from "@/components/StudyPlanGenerator";
 
 export const metadata: Metadata = {
@@ -86,35 +87,35 @@ export default async function StudyPlanPage({ params }: StudyPlanPageProps) {
     canGenerate = canGenerateStudyPlan(buildStudyPlanView(karte));
   }
 
+  const roleDef = DOCUMENT_ROLE_DEFINITIONS.study_plan;
+
   return (
     <div className="min-h-dvh bg-worksheet-surface">
-      <header className="flex items-center justify-between border-b border-worksheet-border px-4 py-3 sm:px-6">
-        {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ここでは隠す（戻る導線は残す） */}
-        <div className="lg:hidden">
-          <BrandLogo href="/mypage" />
-        </div>
-        <div className="hidden lg:block" />
-        <Link
-          href={`/plans/${planId}/documents`}
-          className="text-xs text-worksheet-secondary underline decoration-worksheet-secondary/40 underline-offset-2 transition-colors hover:text-worksheet-primary hover:decoration-worksheet-primary/40"
-        >
-          ← Documentsに戻る
-        </Link>
+      {/* lg以上ではAppNavの左sidebarにロゴがあるため、この上部barはmobileのみ。
+          Documentsへ戻る導線はDocumentDetailHeaderが持つ。 */}
+      <header className="flex items-center border-b border-worksheet-border px-4 py-3 sm:px-6 lg:hidden">
+        <BrandLogo href="/mypage" />
       </header>
 
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-        <h1 className="text-2xl font-bold text-worksheet-primary sm:text-3xl">Study Plan</h1>
-        <p className="mt-1 text-sm text-worksheet-secondary">{planDocumentTypeLabel(DOCUMENT_TYPE)}</p>
+        <DocumentDetailHeader
+          planId={planId}
+          role={roleDef.role}
+          title={roleDef.title}
+          description={roleDef.description}
+          isCreated={Boolean(parsedContent)}
+          updatedAt={parsedContent ? row?.updated_at : undefined}
+        />
 
         {docError ? (
-          <div className="mt-10 rounded-2xl border border-worksheet-border p-6 sm:p-8">
+          <div className="mt-8 rounded-2xl border border-worksheet-border p-6 sm:p-8">
             <p className="text-base font-medium text-worksheet-primary">Study Plan を読み込めませんでした。</p>
             <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
               しばらくしてから再度お試しください。
             </p>
           </div>
         ) : row && !parsedContent ? (
-          <div className="mt-10 rounded-2xl border border-worksheet-border p-6 sm:p-8">
+          <div className="mt-8 rounded-2xl border border-worksheet-border p-6 sm:p-8">
             <p className="text-base font-medium text-worksheet-primary">この Study Plan を表示できませんでした。</p>
           </div>
         ) : (
@@ -122,7 +123,6 @@ export default async function StudyPlanPage({ params }: StudyPlanPageProps) {
             planId={planId}
             canGenerate={canGenerate}
             initialBody={parsedContent?.body}
-            initialUpdatedAt={row?.updated_at}
           />
         )}
       </div>
