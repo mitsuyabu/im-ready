@@ -42,6 +42,11 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* HOMEの大見出しだけに使うeditorialなserifスタック。新しいfont packageは追加せず、
+     OS標準のserif（Mac/Winは明朝、他はGeorgia等）へフォールバックする。本文・UIはsansのまま。 */
+  --font-serif:
+    ui-serif, Georgia, Cambria, "Hiragino Mincho ProN", "Yu Mincho", YuMincho,
+    "Noto Serif JP", "Times New Roman", serif;
   --color-proposal-accent: var(--proposal-accent);
   --color-proposal-accent-soft: var(--proposal-accent-soft);
   --color-proposal-reference-border: var(--proposal-reference-border);
