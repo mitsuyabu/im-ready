@@ -1,27 +1,28 @@
 import Link from "next/link";
 
 /**
- * Documents トップの Document カード（presentation のみ）。My Note / Study Plan /
- * School Comparison / 親向け説明資料 を、参考デザインに寄せた紙・文具風の見た目で表示する。
+ * Documents トップの Document カード（presentation のみ）。共有デザインに寄せた紙・文具風。
  *
- * - カード全体が 1 つの Link（detail route へ）。内部に別の Link / button は置かない。
- *   CTA は <span> のバッジ表示で、クリック要素ではない。
- * - document が存在する場合だけ「更新日」と open CTA を、無ければ create CTA を出す（§53）。
- *   その判定は呼び出し側（page）が既存の plan_documents 取得結果から行い、ここは受け取るだけ。
- * - fake データは扱わない。装飾（罫線・パンチ穴・クリップ・落書き・"School A/B" の紙）は
- *   すべて aria-hidden で、role / title / description / CTA には重ねない（§49）。
- * - hooks を持たない純粋表示コンポーネント。
+ * - My Note（variant "note"）は左の縦カード：notebook paper・左のパンチ穴・中央寄せの
+ *   icon/title/underline/description・下寄り中央の coral CTA・落書き（pink scribble /
+ *   green starburst / "まずはここから！" 矢印 / title 下の緑下線）。
+ * - Study Plan / School Comparison / 親向け（"plan" / "compare" / "parent"）は横長の
+ *   3 ブロック（左: illustration ／ 中央: role・title・description（親向けは "共有できる" バッジと
+ *   metadata も）／ 右: outline CTA）。
+ *
+ * カード全体が 1 つの Link（detail route へ）。内部に別の Link / button は置かない（CTA は <span>）。
+ * document がある場合だけ「最終更新」と open CTA、無ければ create CTA（判定は呼び出し側）。
+ * fake データは扱わない。装飾（罫線・パンチ穴・クリップ・落書き・"School A/B" の紙・テープ）は
+ * すべて aria-hidden で、role / title / description / CTA には重ねない。
+ * hooks を持たない純粋表示コンポーネント。
  */
 
 export type DocumentWorkspaceVariant = "note" | "plan" | "compare" | "parent";
 
 export type DocumentWorkspaceCardProps = {
   href: string;
-  /** 「考える」等（lib/documentRoles の role をそのまま） */
   role: string;
-  /** 「My Note」等 */
   title: string;
-  /** トップ用の説明コピー（1〜2 行）。1 行目はやや強く、以降は補足として表示。 */
   lines: string[];
   variant: DocumentWorkspaceVariant;
   /** document がある場合の formatLastUpdated 済みテキスト。無ければ null。 */
@@ -35,294 +36,355 @@ export type DocumentWorkspaceCardProps = {
 };
 
 const SURFACE: Record<DocumentWorkspaceVariant, string> = {
-  note: "bg-[#fefdf9] border border-[#ece3cd]",
-  plan: "bg-[#eef2f7] border border-[#dbe3ec]",
-  compare: "bg-[#eef3ee] border border-[#dbe6db]",
-  parent: "bg-[#fdfcf8] border border-[#ece3cd]",
+  note: "bg-[#fefdf9] border border-[#e9e0c8]",
+  plan: "bg-[#eef2f6] border border-[#dae1ea]",
+  compare: "bg-[#eef2ee] border border-[#dae4da]",
+  parent: "bg-[#fdfcf7] border border-[#e9e0c8]",
 };
 
-function CardIcon({ variant, className }: { variant: DocumentWorkspaceVariant; className?: string }) {
-  const common = {
-    viewBox: "0 0 24 24",
-    fill: "none" as const,
-    stroke: "currentColor",
-    strokeWidth: 1.7,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    className,
-    "aria-hidden": true,
-  };
-  if (variant === "note") {
-    return (
-      <svg {...common}>
-        <path d="M4 20l1-4L16 5l3 3L8 19l-4 1Z" />
-        <path d="M14 7l3 3" />
-      </svg>
-    );
-  }
-  if (variant === "plan") {
-    return (
-      <svg {...common}>
-        <rect x="6" y="4" width="12" height="16" rx="2" />
-        <path d="M9 4V3h6v1" />
-        <path d="M8.5 10l1.4 1.4L13 9M8.5 15l1.4 1.4L13 14" />
-      </svg>
-    );
-  }
-  if (variant === "compare") {
-    return (
-      <svg {...common}>
-        <path d="M12 4v16M5 8h14" />
-        <path d="M5 8l-2.5 5h5zM19 8l-2.5 5h5z" />
-      </svg>
-    );
-  }
-  return (
-    <svg {...common}>
-      <path d="M4 5h16v10H9l-4 4V5Z" />
-      <path d="M8 9h8M8 12h5" />
-    </svg>
-  );
-}
+const CARD_BASE =
+  "group relative block overflow-hidden rounded-[18px] shadow-[0_2px_6px_rgba(0,0,0,0.05)] transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent";
 
-function Decoration({ variant }: { variant: DocumentWorkspaceVariant }) {
-  if (variant === "note") {
-    return (
-      <>
-        {/* 罫線 */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 top-24 opacity-70"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(43,42,39,0.06) 28px)",
-          }}
-        />
-        {/* パンチ穴 */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute left-2.5 top-10 flex flex-col gap-6"
-        >
-          <span className="h-3 w-3 rounded-full bg-[#fbfaf6] ring-1 ring-[#e5dcc4]" />
-          <span className="h-3 w-3 rounded-full bg-[#fbfaf6] ring-1 ring-[#e5dcc4]" />
-          <span className="h-3 w-3 rounded-full bg-[#fbfaf6] ring-1 ring-[#e5dcc4]" />
-        </span>
-        {/* coral の落書き（右上・テキストから離す） */}
-        <svg
-          aria-hidden
-          viewBox="0 0 60 30"
-          className="pointer-events-none absolute right-4 top-4 h-6 w-12 text-[#e07a5f]/70"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        >
-          <path d="M2 22c6-14 10 6 15-4s8 10 13-2 9 6 13-4" />
-        </svg>
-        {/* green の星（右下） */}
-        <svg
-          aria-hidden
-          viewBox="0 0 24 24"
-          className="pointer-events-none absolute bottom-4 right-4 h-4 w-4 text-[#8a9a86]"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-        >
-          <path d="M12 4v16M4 12h16M6.5 6.5l11 11M17.5 6.5l-11 11" />
-        </svg>
-      </>
-    );
-  }
-  if (variant === "plan") {
-    return (
-      <>
-        {/* ペーパークリップ（右上） */}
-        <svg
-          aria-hidden
-          viewBox="0 0 24 24"
-          className="pointer-events-none absolute right-4 top-3 h-8 w-8 text-[#9aa8b6]"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M9 6v9a3 3 0 0 0 6 0V6a4.5 4.5 0 0 0-9 0v9a6 6 0 0 0 12 0V7" />
-        </svg>
-        {/* チェックリストのメモ（右下） */}
-        <svg
-          aria-hidden
-          viewBox="0 0 48 56"
-          className="pointer-events-none absolute -bottom-2 right-3 h-20 w-16 text-[#c4cfdb]"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <rect x="6" y="4" width="36" height="46" rx="3" />
-          <path d="M12 16l3 3 5-6M12 30l3 3 5-6M26 15h10M26 31h10M12 43h24" />
-        </svg>
-      </>
-    );
-  }
-  if (variant === "compare") {
-    return (
-      <span aria-hidden className="pointer-events-none absolute bottom-3 right-3">
-        <span className="relative block h-20 w-24">
-          <span className="absolute right-6 top-1 h-16 w-14 -rotate-6 rounded-[3px] border border-[#c7d6c7] bg-white/70" />
-          <span className="absolute right-0 top-3 flex h-16 w-14 rotate-3 items-start justify-center rounded-[3px] border border-[#c7d6c7] bg-white/80 pt-2 text-[9px] font-medium text-[#8fa38f]">
-            School B
-          </span>
-          <span className="absolute right-10 top-6 text-[9px] font-medium text-[#8fa38f]">School A</span>
-        </span>
-      </span>
-    );
-  }
-  // parent
+const ROLE_TONE: Record<DocumentWorkspaceVariant, string> = {
+  note: "text-[#7a8a76]",
+  plan: "text-[#6b7d92]",
+  compare: "text-[#6f8a6f]",
+  parent: "text-[#7a8a76]",
+};
+
+function PencilIcon({ className }: { className?: string }) {
   return (
     <svg
-      aria-hidden
       viewBox="0 0 24 24"
-      className="pointer-events-none absolute right-4 top-4 h-10 w-10 text-[#d9d0bb] sm:hidden"
+      className={className}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth={1.7}
       strokeLinecap="round"
       strokeLinejoin="round"
+      aria-hidden
     >
-      <path d="M3 11l18-7-7 18-3-8-8-3Z" />
+      <path d="M4 20l1-4L16 5l3 3L8 19l-4 1Z" />
+      <path d="M14 7l3 3" />
     </svg>
   );
 }
 
-function Cta({ text, accent }: { text: string; accent: "coral" | "outline" | "outline-lg" }) {
-  if (accent === "coral") {
+function Cta({ text, kind }: { text: string; kind: "coral" | "pill" | "rect" }) {
+  if (kind === "coral") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#e07a5f] px-4 py-2 text-xs font-semibold text-white transition-transform duration-150 group-hover:translate-x-0.5">
+      <span className="inline-flex items-center gap-1 rounded-lg bg-[#e07a5f] px-4 py-2 text-sm font-semibold text-white transition-transform duration-150 group-hover:translate-x-0.5">
         {text}
       </span>
     );
   }
-  const size = accent === "outline-lg" ? "px-5 py-2.5 text-sm" : "px-4 py-2 text-xs";
+  if (kind === "rect") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-lg border border-worksheet-primary/30 px-5 py-2.5 text-sm font-medium text-worksheet-primary transition-transform duration-150 group-hover:translate-x-0.5">
+        {text}
+      </span>
+    );
+  }
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full border border-worksheet-primary/25 font-medium text-worksheet-primary transition-transform duration-150 group-hover:translate-x-0.5 ${size}`}
-    >
+    <span className="inline-flex items-center gap-1 rounded-full border border-worksheet-primary/25 px-4 py-1.5 text-xs font-medium text-worksheet-primary transition-transform duration-150 group-hover:translate-x-0.5">
       {text}
     </span>
   );
 }
 
-export default function DocumentWorkspaceCard({
-  href,
-  role,
-  title,
-  lines,
-  variant,
-  updatedText,
-  cta,
-  shareBadge = false,
-  className = "",
-}: DocumentWorkspaceCardProps) {
-  const ctaAccent = variant === "note" ? "coral" : variant === "parent" ? "outline-lg" : "outline";
-  const contentPad = variant === "note" ? "pl-8" : "";
-
-  const Meta = (
-    <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-      {shareBadge && (
-        <span className="rounded-full bg-worksheet-sage/60 px-2 py-0.5 text-[11px] font-medium text-[#4b5a48]">
-          共有できる
-        </span>
-      )}
-      {updatedText && <span className="text-xs text-worksheet-secondary">最終更新: {updatedText}</span>}
-      <span className={variant === "parent" ? "sm:ml-auto" : "ml-auto"}>
-        <Cta text={cta} accent={ctaAccent} />
-      </span>
-    </div>
+function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="4" y="5" width="16" height="16" rx="2" />
+      <path d="M4 9h16M9 3v4M15 3v4" />
+    </svg>
   );
+}
 
-  if (variant === "parent") {
+function ShareIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="6" r="2.5" />
+      <circle cx="18" cy="18" r="2.5" />
+      <path d="M8.3 10.8l7.4-3.6M8.3 13.2l7.4 3.6" />
+    </svg>
+  );
+}
+
+/** plan / compare / parent の左に置く illustration。 */
+function Illustration({ variant }: { variant: DocumentWorkspaceVariant }) {
+  if (variant === "plan") {
     return (
-      <Link
-        href={href}
-        className={`group relative flex h-full flex-col overflow-hidden rounded-[22px] p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent sm:flex-row sm:items-center sm:gap-6 sm:p-7 ${SURFACE.parent} ${className}`}
+      <svg
+        aria-hidden
+        viewBox="0 0 56 64"
+        className="h-16 w-14 text-[#a9b8c9]"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       >
-        <Decoration variant="parent" />
-        <span
-          aria-hidden
-          className="hidden shrink-0 items-center justify-center rounded-2xl bg-worksheet-sage/50 p-4 text-[#5f6b5a] sm:flex"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            className="h-8 w-8"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M3 11l18-7-7 18-3-8-8-3Z" />
-          </svg>
+        <rect x="8" y="5" width="40" height="54" rx="3" />
+        <path d="M15 18l3 3 5-6M15 33l3 3 5-6M15 48l3 3 5-6M28 17h13M28 32h13M28 47h13" />
+      </svg>
+    );
+  }
+  if (variant === "compare") {
+    return (
+      <span aria-hidden className="relative block h-16 w-20">
+        <span className="absolute left-1 top-1 flex h-14 w-12 -rotate-6 items-start justify-center rounded-[3px] border border-[#c6d5c6] bg-white/80 pt-1.5 text-[9px] font-medium text-[#7f957f]">
+          School A
         </span>
-        <div className="relative min-w-0 flex-1">
-          <p className="text-xs font-medium tracking-wide text-[#7a8a76]">{role}</p>
-          <p className="mt-0.5 text-lg font-bold text-worksheet-primary">{title}</p>
+        <span className="absolute right-0 top-2 flex h-14 w-12 rotate-6 items-start justify-center rounded-[3px] border border-[#c6d5c6] bg-white/95 pt-1.5 text-[9px] font-medium text-[#7f957f]">
+          School B
+        </span>
+      </span>
+    );
+  }
+  // parent: 紙飛行機 ＋ ブルーのテープ
+  return (
+    <span aria-hidden className="relative block h-16 w-16">
+      <span className="absolute -left-1 top-3 h-4 w-9 -rotate-12 rounded-[2px] bg-[#a9c3d6]/60" />
+      <svg
+        viewBox="0 0 24 24"
+        className="relative h-16 w-16 text-[#c9bfa6]"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M3 11l18-7-7 18-3-8-8-3Z" />
+        <path d="M11 13l4-4" />
+      </svg>
+    </span>
+  );
+}
+
+function HorizontalCard(props: DocumentWorkspaceCardProps) {
+  const { href, role, title, lines, variant, updatedText, cta, shareBadge, className = "" } = props;
+  return (
+    <Link
+      href={href}
+      className={`${CARD_BASE} ${SURFACE[variant]} ${className} h-full ${
+        variant === "parent" ? "min-h-[132px]" : "min-h-[150px] sm:min-h-[164px]"
+      }`}
+    >
+      {variant === "plan" && (
+        <svg
+          aria-hidden
+          viewBox="0 0 24 24"
+          className="pointer-events-none absolute right-3 top-2 h-9 w-9 text-[#8ea3ba]"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M9 6v9a3 3 0 0 0 6 0V6a4.5 4.5 0 0 0-9 0v10a6.5 6.5 0 0 0 13 0V7" />
+        </svg>
+      )}
+
+      <div className="relative flex h-full flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
+        <span className="flex shrink-0 items-center justify-center">
+          <Illustration variant={variant} />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className={`text-xs font-medium tracking-wide ${ROLE_TONE[variant]}`}>{role}</span>
+            {shareBadge && (
+              <span className="rounded-full bg-worksheet-sage/60 px-2 py-0.5 text-[11px] font-medium text-[#4b5a48]">
+                共有できる
+              </span>
+            )}
+          </div>
+
+          <p className="mt-1 text-2xl font-bold leading-tight text-worksheet-primary sm:text-3xl">
+            {title}
+          </p>
+
           {lines.map((line, i) => (
             <p
               key={i}
               className={
                 i === 0
-                  ? "mt-1.5 text-sm leading-relaxed text-worksheet-primary/90"
+                  ? "mt-1.5 text-sm leading-relaxed text-worksheet-primary/85"
                   : "mt-1 text-xs leading-relaxed text-worksheet-secondary"
               }
             >
               {line}
             </p>
           ))}
-          {Meta}
-        </div>
-      </Link>
-    );
-  }
 
-  return (
-    <Link
-      href={href}
-      className={`group relative flex h-full flex-col overflow-hidden rounded-[22px] p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent ${
-        variant === "note" ? "min-h-[240px] lg:min-h-[420px]" : "min-h-[180px]"
-      } ${SURFACE[variant]} ${className}`}
-    >
-      <Decoration variant={variant} />
-
-      <div className={`relative flex h-full flex-col ${contentPad}`}>
-        <div className="flex items-center gap-2.5">
-          <span
-            aria-hidden
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-worksheet-sage/60 text-[#5f6b5a]"
-          >
-            <CardIcon variant={variant} className="h-4 w-4" />
-          </span>
-          <span className="text-xs font-medium tracking-wide text-[#7a8a76]">{role}</span>
+          {variant === "parent" && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-worksheet-secondary">
+              {updatedText && (
+                <>
+                  <span className="inline-flex items-center gap-1">
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    最終更新: {updatedText}
+                  </span>
+                  <span aria-hidden>·</span>
+                </>
+              )}
+              <span className="inline-flex items-center gap-1">
+                <ShareIcon className="h-3.5 w-3.5" />
+                家族と共有できます
+              </span>
+            </div>
+          )}
         </div>
 
-        <p className="mt-3 text-lg font-bold text-worksheet-primary">{title}</p>
-        {lines.map((line, i) => (
-          <p
-            key={i}
-            className={
-              i === 0
-                ? "mt-1.5 text-sm leading-relaxed text-worksheet-primary/90"
-                : "mt-1 text-xs leading-relaxed text-worksheet-secondary"
-            }
-          >
-            {line}
-          </p>
-        ))}
-
-        <div className="mt-auto">{Meta}</div>
+        <div className="shrink-0 sm:self-center sm:text-right">
+          <Cta text={cta} kind={variant === "parent" ? "rect" : "pill"} />
+          {updatedText && variant !== "parent" && (
+            <span className="mt-1.5 block text-[11px] text-worksheet-secondary">最終更新: {updatedText}</span>
+          )}
+        </div>
       </div>
     </Link>
   );
+}
+
+function NoteCard(props: DocumentWorkspaceCardProps) {
+  const { href, role, title, lines, updatedText, cta, className = "" } = props;
+  return (
+    <Link
+      href={href}
+      className={`${CARD_BASE} ${SURFACE.note} ${className} flex h-full min-h-[300px] flex-col lg:min-h-[360px]`}
+    >
+      {/* パンチ穴（左端・少しはみ出す） */}
+      <span aria-hidden className="pointer-events-none absolute -left-1.5 top-12 flex flex-col gap-7">
+        <span className="h-3.5 w-3.5 rounded-full bg-[#fbfaf6] ring-1 ring-[#e5dcc4]" />
+        <span className="h-3.5 w-3.5 rounded-full bg-[#fbfaf6] ring-1 ring-[#e5dcc4]" />
+        <span className="h-3.5 w-3.5 rounded-full bg-[#fbfaf6] ring-1 ring-[#e5dcc4]" />
+        <span className="h-3.5 w-3.5 rounded-full bg-[#fbfaf6] ring-1 ring-[#e5dcc4]" />
+      </span>
+
+      {/* 罫線 */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 top-28 opacity-60"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(43,42,39,0.06) 28px)",
+        }}
+      />
+
+      {/* pink scribble（左上） */}
+      <svg
+        aria-hidden
+        viewBox="0 0 60 26"
+        className="pointer-events-none absolute left-8 top-4 h-5 w-12 text-[#e39aa4]"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      >
+        <path d="M2 18c5-13 9 5 14-4s8 9 13-2 9 5 13-4" />
+      </svg>
+
+      {/* green starburst（右上） */}
+      <svg
+        aria-hidden
+        viewBox="0 0 24 24"
+        className="pointer-events-none absolute right-4 top-4 h-5 w-5 text-[#8a9a86]"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      >
+        <path d="M12 3v18M3 12h18M6.5 6.5l11 11M17.5 6.5l-11 11" />
+      </svg>
+
+      {/* handwritten arrow ＋ まずはここから！（右下） */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute bottom-4 right-3 flex items-end gap-1 text-[#8a9a86]"
+      >
+        <span className="font-serif text-[13px] italic leading-none">まずはここから！</span>
+        <svg
+          viewBox="0 0 28 28"
+          className="h-7 w-7"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 8c7 9 14 11 20 5" />
+          <path d="M18 15l6-2 1 5" />
+        </svg>
+      </span>
+
+      <div className="relative z-[1] flex flex-1 flex-col items-center px-6 py-2 text-center">
+        <div className="mt-2 flex items-center gap-3">
+          <span
+            aria-hidden
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-worksheet-sage/60 text-[#5f6b5a]"
+          >
+            <PencilIcon className="h-5 w-5" />
+          </span>
+          <span className="text-left">
+            <span className={`block text-xs font-medium tracking-wide ${ROLE_TONE.note}`}>{role}</span>
+            <span className="block text-2xl font-bold leading-tight text-worksheet-primary sm:text-3xl lg:text-4xl">
+              {title}
+            </span>
+          </span>
+        </div>
+
+        {/* title 下の緑の手描き下線 */}
+        <svg
+          aria-hidden
+          viewBox="0 0 120 8"
+          className="mt-1.5 h-2 w-28 text-[#7a9a76]"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
+          <path d="M2 5c18-5 36 4 54 0s36-5 62-1" />
+        </svg>
+
+        <p className="mt-4 max-w-[17rem] text-sm font-medium leading-7 text-worksheet-primary/90">
+          {lines[0]}
+        </p>
+        {lines[1] && (
+          <p className="mt-2 max-w-[19rem] text-xs leading-6 text-worksheet-secondary">{lines[1]}</p>
+        )}
+
+        <div className="mt-auto flex flex-col items-center pt-6">
+          <Cta text={cta} kind="coral" />
+          {updatedText && (
+            <span className="mt-2 text-[11px] text-worksheet-secondary">最終更新: {updatedText}</span>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+export default function DocumentWorkspaceCard(props: DocumentWorkspaceCardProps) {
+  return props.variant === "note" ? <NoteCard {...props} /> : <HorizontalCard {...props} />;
 }

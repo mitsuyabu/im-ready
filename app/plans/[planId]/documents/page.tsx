@@ -153,11 +153,11 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
         </Link>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:py-16">
+      <div className="mx-auto max-w-7xl px-4 pt-8 pb-12 sm:px-6 sm:pt-10 sm:pb-14 lg:pt-10 lg:pb-16">
         <DocumentsWorkspaceHeader planTitle={plan.title} />
 
         {documentsError ? (
-          <div className="mt-10 rounded-2xl border border-black/[0.08] bg-worksheet-surface p-6 sm:p-8">
+          <div className="mt-8 rounded-2xl border border-black/[0.08] bg-worksheet-surface p-6 sm:p-8">
             <p className="text-base font-medium text-worksheet-primary">資料を読み込めませんでした。</p>
             <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
               しばらくしてから再度お試しください。
@@ -165,11 +165,11 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
           </div>
         ) : (
           <>
-            <div className="mt-10">
+            <div className="mt-6">
               <DocumentsJourney />
             </div>
 
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-12 lg:gap-5">
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-12 lg:gap-5">
               {DOCUMENT_ORDER.map((key) => {
                 const def = DOCUMENT_ROLE_DEFINITIONS[key];
                 const presentation = CARD_PRESENTATION[key];
@@ -192,7 +192,7 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
             </div>
 
             {otherRows.length > 0 && (
-              <div className="mt-14">
+              <div className="mt-12">
                 <h2 className="text-sm font-medium text-worksheet-secondary">その他の資料</h2>
                 <div className="mt-4 divide-y divide-black/[0.06] rounded-2xl border border-black/[0.07] bg-worksheet-surface">
                   {otherRows.map((doc) => (

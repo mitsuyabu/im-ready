@@ -1,12 +1,12 @@
 /**
  * Documents トップの「考える → 整理する → 比べる → 伝える」4 ステップの帯（presentation のみ）。
+ * 共有デザインに寄せ、横長・低め（Desktop で概ね 80〜100px 相当）・4 枚均等、間を破線 connector で繋ぐ。
  *
- * これは Documents の役割説明であり、進捗ではない。番号 1〜4 は journey の順序を示すだけで、
- * completed / 1-4 complete / progress % / チェックマークは一切付けない（§52）。
- * どのステップもリンクではなく、クリック要素を持たない。装飾（番号・アイコン・connector）は
- * すべて aria-hidden。hooks を持たない純粋表示コンポーネント。
+ * これは Documents の役割説明であり、進捗ではない。番号 1〜4 は順序を示すだけで、
+ * completed / progress % / チェックマークは付けない。ステップはリンクではなくクリック要素を持たない。
+ * 装飾（番号・アイコン・connector）はすべて aria-hidden。hooks を持たない純粋表示コンポーネント。
  *
- * responsive: Desktop は横 4 列＋破線 connector、Tablet / Mobile は 2×2。
+ * responsive: Desktop は横 4 列＋connector、Tablet / Mobile は 2×2。
  */
 
 type StepKey = "think" | "organize" | "compare" | "tell";
@@ -30,7 +30,6 @@ function StepIcon({ name, className }: { name: StepKey; className?: string }) {
     "aria-hidden": true,
   };
   if (name === "think") {
-    // 芽（アイデア・育てる）
     return (
       <svg {...common}>
         <path d="M12 21v-8" />
@@ -40,17 +39,15 @@ function StepIcon({ name, className }: { name: StepKey; className?: string }) {
     );
   }
   if (name === "organize") {
-    // クリップボード
     return (
       <svg {...common}>
         <rect x="6" y="4" width="12" height="16" rx="2" />
         <path d="M9 4V3h6v1" />
-        <path d="M8.5 10l1.5 1.5L13 9M8.5 15l1.5 1.5L13 13" />
+        <path d="M8.5 10l1.5 1.5L13 9M8.5 15l1.5 1.5L13 14" />
       </svg>
     );
   }
   if (name === "compare") {
-    // 天秤
     return (
       <svg {...common}>
         <path d="M12 4v16M5 8h14" />
@@ -58,7 +55,6 @@ function StepIcon({ name, className }: { name: StepKey; className?: string }) {
       </svg>
     );
   }
-  // 吹き出し（伝える）
   return (
     <svg {...common}>
       <path d="M4 5h16v10H9l-4 4V5Z" />
@@ -69,18 +65,20 @@ function StepIcon({ name, className }: { name: StepKey; className?: string }) {
 
 function Step({ n, title, desc, icon }: { n: number; title: string; desc: string; icon: StepKey }) {
   return (
-    <div className="rounded-2xl border border-black/[0.06] bg-white/60 p-4 lg:flex-1">
-      <div className="flex items-center gap-2">
-        <span
-          aria-hidden
-          className="flex h-7 w-7 items-center justify-center rounded-full bg-worksheet-sage text-xs font-semibold text-worksheet-primary"
-        >
-          {n}
-        </span>
-        <StepIcon name={icon} className="h-4 w-4 text-[#7a8a76]" />
+    <div className="relative rounded-[16px] border border-black/[0.07] bg-white/80 px-4 py-3 lg:flex-1">
+      <span
+        aria-hidden
+        className="absolute left-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-worksheet-sage text-[11px] font-semibold text-worksheet-primary"
+      >
+        {n}
+      </span>
+      <div className="flex items-center gap-3 pl-7">
+        <StepIcon name={icon} className="h-6 w-6 shrink-0 text-[#7a8a76]" />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-worksheet-primary">{title}</p>
+          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-worksheet-secondary">{desc}</p>
+        </div>
       </div>
-      <p className="mt-2.5 text-sm font-semibold text-worksheet-primary">{title}</p>
-      <p className="mt-1 text-xs leading-relaxed text-worksheet-secondary">{desc}</p>
     </div>
   );
 }
@@ -89,7 +87,7 @@ function Connector() {
   return (
     <span
       aria-hidden
-      className="hidden self-center lg:mx-1 lg:block lg:w-7 lg:border-t lg:border-dashed lg:border-black/20"
+      className="hidden self-center lg:mx-1.5 lg:block lg:w-8 lg:border-t lg:border-dashed lg:border-[#aebfae]"
     />
   );
 }
