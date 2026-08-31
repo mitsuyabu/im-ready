@@ -148,7 +148,7 @@ export default function HomePlanCard({ plan }: { plan: HomePlanCardData }) {
   return (
     <Link
       href={`/plans/${plan.id}`}
-      className={`group relative flex min-h-[248px] flex-col overflow-hidden rounded-[22px] p-6 transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent sm:min-h-[320px] sm:p-7 lg:min-h-[380px] ${t.surface}`}
+      className={`group relative flex min-h-[225px] flex-col overflow-hidden rounded-[22px] p-6 transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent sm:min-h-[285px] sm:p-7 lg:min-h-[345px] ${t.surface}`}
     >
       <Decoration variant={variant} />
 
