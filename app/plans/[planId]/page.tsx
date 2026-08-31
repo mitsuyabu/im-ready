@@ -23,21 +23,23 @@ interface PlanPageProps {
 const CARD =
   "relative rounded-[18px] border border-[#e7ddc9] bg-[#fdfbf4] shadow-[0_2px_6px_rgba(0,0,0,0.08)]";
 
+/** 吹き出し2つ（AI相談）。線はやや細く・丸く、手描き寄りのやわらかいタッチ。 */
 function SpeechIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M4 5h16v10H9l-4 4V5Z" />
-      <path d="M8 9h8M8 12h5" />
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M3.5 5.5A1.5 1.5 0 0 1 5 4h8a1.5 1.5 0 0 1 1.5 1.5v4A1.5 1.5 0 0 1 13 11H8l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5v-4Z" />
+      <path d="M10.5 13.5a1.5 1.5 0 0 1 1.5-1.5h6a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5v2l-2.6-2H12a1.5 1.5 0 0 1-1.5-1.5v-3Z" />
     </svg>
   );
 }
 
-function ClipboardIcon({ className }: { className?: string }) {
+/** リングノート＋チェック（Worksheet）。線はやや細く・丸く。 */
+function NotebookIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <rect x="6" y="4" width="12" height="16" rx="2" />
-      <path d="M9 4V3h6v1" />
-      <path d="M9 10h6M9 14h4" />
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="7" y="4" width="12" height="16" rx="2" />
+      <path d="M5 7h3M5 10.5h3M5 14h3M5 17.5h3" />
+      <path d="M10.5 12l2 2 4-4.5" />
     </svg>
   );
 }
@@ -194,9 +196,12 @@ export default async function PlanPage({ params }: PlanPageProps) {
           {/* 左カラム（広め）: AI相談 → Worksheet */}
           <div className="flex flex-col gap-4">
             {/* AI相談 */}
-            <section className={`${CARD} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-5 sm:p-6 lg:min-h-[160px]`}>
-              <span aria-hidden className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#8a9a86]/25 text-[#5f6b5a]">
-                <SpeechIcon className="h-6 w-6" />
+            <section className={`${CARD} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:min-h-[160px]`}>
+              <span
+                aria-hidden
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[20px] bg-[#e6efe3] text-[#5a6b55] shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-inset ring-black/[0.04]"
+              >
+                <SpeechIcon className="h-7 w-7" />
               </span>
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-bold text-[#2b3a55]">AI相談</h2>
@@ -214,9 +219,12 @@ export default async function PlanPage({ params }: PlanPageProps) {
             </section>
 
             {/* Worksheet */}
-            <section className={`${CARD} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-5 sm:p-6 lg:min-h-[160px]`}>
-              <span aria-hidden className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#9db2cd]/30 text-[#4d647e]">
-                <ClipboardIcon className="h-6 w-6" />
+            <section className={`${CARD} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:min-h-[160px]`}>
+              <span
+                aria-hidden
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[20px] bg-[#e4ebf2] text-[#4d647e] shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-inset ring-black/[0.04]"
+              >
+                <NotebookIcon className="h-7 w-7" />
               </span>
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-bold text-[#2b3a55]">Worksheet</h2>
