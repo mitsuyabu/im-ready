@@ -9,6 +9,11 @@ import {
   type DocumentRoleKey,
 } from "@/lib/documentRoles";
 import BrandLogo from "@/components/BrandLogo";
+import DocumentsWorkspaceHeader from "@/components/DocumentsWorkspaceHeader";
+import DocumentsJourney from "@/components/DocumentsJourney";
+import DocumentWorkspaceCard, {
+  type DocumentWorkspaceVariant,
+} from "@/components/DocumentWorkspaceCard";
 
 export const metadata: Metadata = {
   title: "Documents",
@@ -34,22 +39,64 @@ const ROLE_ROUTE_SLUG: Record<DocumentRoleKey, string> = {
 };
 
 /**
- * Documents（＝画面上は "My Study Abroad"）一覧（Step 28）。My Plan・Worksheet と同じ
- * 所有者確認パターンを踏襲し、plan_documents を読むだけで一切書き込まない。
+ * Documents トップ用の presentation 設定（この画面だけの見た目・コピー）。
+ * role / title / createLabel は lib/documentRoles.ts をそのまま使い、トップの説明文（lines）と
+ * カードの visual variant・grid 配置・open CTA だけをここで参考デザインに合わせて持つ。
+ * lib/documentRoles.ts 自体は変更しない。
+ */
+const CARD_PRESENTATION: Record<
+  DocumentRoleKey,
+  { variant: DocumentWorkspaceVariant; lines: string[]; openCta: string; grid: string; shareBadge?: boolean }
+> = {
+  my_note: {
+    variant: "note",
+    lines: [
+      "いまの気持ちを、ここに残そう。",
+      "留学したい理由、楽しみなこと、不安なこと。ぜんぶ書き出して、自分の気持ちを整理しよう。",
+    ],
+    openCta: "ひらく →",
+    grid: "sm:col-span-2 lg:col-span-5 lg:row-span-2",
+  },
+  study_plan: {
+    variant: "plan",
+    lines: ["やることリストやスケジュールを整理して、留学までの流れをつくろう。"],
+    openCta: "ひらく →",
+    grid: "sm:col-span-1 lg:col-span-7",
+  },
+  school_comparison: {
+    variant: "compare",
+    lines: ["気になる学校を比較して、自分の条件に合うか整理しよう。"],
+    openCta: "ひらく →",
+    grid: "sm:col-span-1 lg:col-span-7",
+  },
+  parent_explanation: {
+    variant: "parent",
+    lines: ["家族に、留学の理由と現在の計画を伝えるための資料です。"],
+    openCta: "内容をみる →",
+    grid: "sm:col-span-2 lg:col-span-12",
+    shareBadge: true,
+  },
+};
+
+/** journey 順の固定 4 種。 */
+const DOCUMENT_ORDER: DocumentRoleKey[] = [
+  "my_note",
+  "study_plan",
+  "school_comparison",
+  "parent_explanation",
+];
+
+/**
+ * Documents（＝画面上は "My Study Abroad"）トップ。所有者確認 → plan_documents を読むだけで
+ * 一切書き込まない。見せ方は参考デザインに寄せた「考える → 整理する → 比べる → 伝える」の
+ * 紙・文具風ワークスペース。
  *
- * 見せ方は「考える → 整理する → 比べる → 伝える」の順に並ぶワークスペース。
- * My Note（考える）／Study Plan（整理する）／School Comparison（比べる）は本人向けとして
- * まとめ、その下に親向け説明資料（伝える）。DB 行の有無に関係なく常設カードとして表示し
- * （未生成でも詳細 route へ入れて「各 Document → 作成」の導線を成立させる）、通常の row
- * 一覧（other document types 向け）からはこの 4 type を除外して二重表示を防ぐ。役割ラベル・
- * 説明・作成 CTA の文言は lib/documentRoles.ts の DOCUMENT_ROLE_DEFINITIONS に集約。
+ * DB 行の有無に関係なく 4 カードを常設し（未生成でも detail route へ入って作成できる）、
+ * document がある type だけ「更新日」と open CTA を、無ければ createLabel を出す。生成ロジック・
+ * 詳細画面・API・DB・role metadata（lib/documentRoles.ts）は変更しない。fake データは出さない。
  *
- * 残りの type（agent_summary）はまだ生成機能・詳細 route が無いため、DB 行が実在する場合のみ
- * 「その他の資料」として一覧表示し、リンクは付けない。
- *
- * plan_documents は migration が remote Supabase へ未適用の可能性があるため、「テーブルが
- * 存在しない」エラーと「document がまだ 0 件」を区別する。DB error 時は常設カードを含め
- * 通常状態の UI を一切出さず、error 表示だけを出す。
+ * その他の type（agent_summary）は DB 行が実在する場合のみ「その他の資料」に一覧表示する。
+ * plan_documents の error 時は常設カードを出さず error 表示のみ。
  */
 export default async function PlanDocumentsPage({ params }: PlanDocumentsPageProps) {
   const { planId } = await params;
@@ -91,9 +138,9 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
   );
 
   return (
-    <div className="min-h-dvh bg-worksheet-surface">
-      <header className="flex items-center justify-between border-b border-worksheet-border px-4 py-3 sm:px-6">
-        {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ここでは隠す（戻る導線は残す） */}
+    <div className="min-h-dvh bg-[#fbfaf6]">
+      <header className="flex items-center justify-between border-b border-black/[0.06] bg-worksheet-surface px-4 py-3 sm:px-6">
+        {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ここでは隠す（戻る導線は残す。BrandLogoサイズは変更しない） */}
         <div className="lg:hidden">
           <BrandLogo href="/mypage" />
         </div>
@@ -106,49 +153,50 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
         </Link>
       </header>
 
-      <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-        <h1 className="text-2xl font-bold text-worksheet-primary sm:text-3xl">My Study Abroad</h1>
-        <p className="mt-2 text-sm leading-relaxed text-worksheet-secondary">
-          留学について考えたことを、少しずつ形にしていきます。
-        </p>
-        <p className="mt-1 text-xs text-worksheet-secondary">{plan.title}</p>
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:py-16">
+        <DocumentsWorkspaceHeader planTitle={plan.title} />
 
         {documentsError ? (
-          <div className="mt-10 rounded-2xl border border-worksheet-border p-6 sm:p-8">
+          <div className="mt-10 rounded-2xl border border-black/[0.08] bg-worksheet-surface p-6 sm:p-8">
             <p className="text-base font-medium text-worksheet-primary">資料を読み込めませんでした。</p>
-            <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">しばらくしてから再度お試しください。</p>
+            <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
+              しばらくしてから再度お試しください。
+            </p>
           </div>
         ) : (
           <>
-            <div className="mt-8">
-              {/* 本人向け: 考える → 整理する → 比べる。PC は横 3 カラム、Mobile は縦（↓ でつなぐ）。 */}
-              <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3 sm:gap-4">
-                <RoleCard planId={planId} roleKey="my_note" doc={docByType("my_note")} />
-                <StepArrow />
-                <RoleCard planId={planId} roleKey="study_plan" doc={docByType("study_plan")} />
-                <StepArrow />
-                <RoleCard planId={planId} roleKey="school_comparison" doc={docByType("school_comparison")} />
-              </div>
-
-              {/* 本人向け 3 種 → 外部へ伝える資料、という段差を出す。 */}
-              <StepArrow className="my-3" />
-              <div className="sm:mt-4">
-                <RoleCard
-                  planId={planId}
-                  roleKey="parent_explanation"
-                  doc={docByType("parent_explanation")}
-                />
-              </div>
+            <div className="mt-10">
+              <DocumentsJourney />
             </div>
 
-            {/* 他typeはまだ生成機能・詳細routeが無いため、DB行が実在する場合のみ一覧表示する
-                （未生成の先出しカードは作らない。存在しないrouteへリンクもしない）。 */}
+            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-12 lg:gap-5">
+              {DOCUMENT_ORDER.map((key) => {
+                const def = DOCUMENT_ROLE_DEFINITIONS[key];
+                const presentation = CARD_PRESENTATION[key];
+                const doc = docByType(key);
+                return (
+                  <DocumentWorkspaceCard
+                    key={key}
+                    href={`/plans/${planId}/documents/${ROLE_ROUTE_SLUG[key]}`}
+                    role={def.role}
+                    title={def.title}
+                    lines={presentation.lines}
+                    variant={presentation.variant}
+                    updatedText={doc ? formatLastUpdated(doc.updated_at) : null}
+                    cta={doc ? presentation.openCta : `${def.createLabel} →`}
+                    shareBadge={presentation.shareBadge}
+                    className={presentation.grid}
+                  />
+                );
+              })}
+            </div>
+
             {otherRows.length > 0 && (
-              <div className="mt-12">
+              <div className="mt-14">
                 <h2 className="text-sm font-medium text-worksheet-secondary">その他の資料</h2>
-                <div className="mt-4 divide-y divide-worksheet-border">
+                <div className="mt-4 divide-y divide-black/[0.06] rounded-2xl border border-black/[0.07] bg-worksheet-surface">
                   {otherRows.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between gap-4 py-4 first:pt-0">
+                    <div key={doc.id} className="flex items-center justify-between gap-4 px-4 py-4">
                       <div>
                         <p className="text-sm font-medium text-worksheet-primary">{doc.title}</p>
                         <p className="mt-0.5 text-xs text-worksheet-secondary">
@@ -166,44 +214,6 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
           </>
         )}
       </div>
-    </div>
-  );
-}
-
-/** 役割 eyebrow ＋ タイトル ＋ 説明 ＋ 状態 ＋ CTA を持つ常設カード。Link 全体がクリック領域。 */
-function RoleCard({
-  planId,
-  roleKey,
-  doc,
-}: {
-  planId: string;
-  roleKey: DocumentRoleKey;
-  doc: PlanDocumentRow | null;
-}) {
-  const def = DOCUMENT_ROLE_DEFINITIONS[roleKey];
-  return (
-    <Link
-      href={`/plans/${planId}/documents/${ROLE_ROUTE_SLUG[roleKey]}`}
-      className="block rounded-2xl border border-worksheet-border p-5 transition-colors duration-150 hover:bg-worksheet-sage/20 sm:p-6"
-    >
-      <p className="text-xs tracking-wide text-worksheet-secondary">{def.role}</p>
-      <p className="mt-1 text-base font-medium text-worksheet-primary">{def.title}</p>
-      <p className="mt-2 text-sm leading-relaxed text-worksheet-secondary">{def.description}</p>
-      <p className="mt-3 text-xs text-worksheet-secondary">
-        {doc ? `最終更新 ${formatLastUpdated(doc.updated_at)}` : "まだ作成されていません"}
-      </p>
-      <p className="mt-3 text-xs font-medium text-worksheet-accent">
-        {doc ? "開く →" : `${def.createLabel} →`}
-      </p>
-    </Link>
-  );
-}
-
-/** Mobile だけに出る、順序を示す控えめな矢印（PC の 3+1 レイアウトでは非表示）。 */
-function StepArrow({ className = "" }: { className?: string }) {
-  return (
-    <div aria-hidden className={`flex justify-center text-xs text-worksheet-secondary sm:hidden ${className}`}>
-      ↓
     </div>
   );
 }
