@@ -206,7 +206,9 @@ function Sidebar({
 
   return (
     <aside className="hidden shrink-0 lg:sticky lg:top-0 lg:flex lg:h-dvh lg:w-60 lg:flex-col lg:border-r lg:border-worksheet-border lg:bg-worksheet-surface lg:px-4 lg:py-6">
-      <BrandLogo href="/mypage" />
+      {/* nav項目・画面タイトルよりロゴが目立ちすぎないよう、PC sidebarのロゴだけ既定より少し小さくする（このasideはlg以上のみ表示）。
+          mx-auto: 全幅にstretchするflex item（Linkの<a>）の中でロゴ画像をsidebar横幅の左右中央に置く。縦位置・padding・navのmt-8は不変。 */}
+      <BrandLogo href="/mypage" className="mx-auto h-[42px] w-auto" />
 
       <nav className="mt-8 flex flex-col gap-1">
         <SidebarLink
