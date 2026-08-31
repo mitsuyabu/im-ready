@@ -136,7 +136,8 @@ export default async function ParentExplanationDocumentPage({ params }: ParentEx
       {/* lg以上ではAppNavの左sidebarにロゴがあるため、この上部barはmobileのみ。
           Documentsへ戻る導線はDocumentDetailHeaderが持つ。 */}
       <header className="flex items-center border-b border-worksheet-border px-4 py-3 sm:px-6 lg:hidden">
-        <BrandLogo href="/mypage" />
+        {/* 本文・role・title を先に目に入れるため、mobile 上部ロゴだけ既定より少し小さくする */}
+        <BrandLogo href="/mypage" className="h-[35px] w-auto sm:h-[43px]" />
       </header>
 
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
