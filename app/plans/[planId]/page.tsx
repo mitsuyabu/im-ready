@@ -165,6 +165,19 @@ export default async function PlanPage({ params }: PlanPageProps) {
 
   const journeyIndex = karte.proposals.presented.some((p) => p.type === "school") ? 1 : 0;
 
+  // Hero 画像切り替え用の「行き先として選択されている都市」。表示用の summary.city（自由記述で
+  // 理由が続くことがある）ではなく、Karte の正式な行き先 field を使う。現状 Karte に構造化された
+  // destination/city フィールドは schoolPrefs.preferredCity（自由記述・kind:"string"）しか無いため
+  // それを採用し、certainty=stated かつ conflict 中でない場合だけ渡す（DB 変更はしない）。
+  const preferredCity = karte.schoolPrefs?.preferredCity;
+  const preferredCityInConflict = (karte.handoff?.conflicts ?? []).some(
+    (c) => c.block === "schoolPrefs" && c.key === "preferredCity",
+  );
+  const destinationCity =
+    !preferredCityInConflict && preferredCity?.certainty === "stated" && preferredCity.value
+      ? preferredCity.value
+      : null;
+
   return (
     <div className="min-h-dvh bg-[#fbf8f1]">
       {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、mobileのみこのheader（サイズは変更しない） */}
@@ -184,6 +197,7 @@ export default async function PlanPage({ params }: PlanPageProps) {
           <PlanTravelHero
             title={typedPlan.title}
             city={summary.city}
+            destinationCity={destinationCity}
             departureTiming={summary.departureTiming}
           />
         </div>

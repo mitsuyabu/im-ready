@@ -36,15 +36,34 @@ const FALLBACK_CHIP = "行き先・時期はこれから整理";
 
 type HeroProps = {
   title: string;
+  /** 表示用の都市テキスト（stated の schoolPrefs.preferredCity。自由記述・説明文込みのことがある）。 */
   city: string | null;
+  /**
+   * Hero 画像の切り替え判定にだけ使う「行き先として選択されている都市」。
+   * page.tsx が Karte の正式な行き先 field（schoolPrefs.preferredCity、certainty=stated かつ
+   * conflict 中でない）から渡す。無ければ null。表示には使わない。
+   */
+  destinationCity?: string | null;
   departureTiming: string | null;
 };
 
-/** 今回試験対象の Gold Coast のみ判定（汎用 registry は作らない）。 */
-function isGoldCoast(city: string | null): boolean {
-  if (!city) return false;
-  const c = city.trim().toLowerCase();
-  return c === "gold coast" || c === "ゴールドコースト";
+/**
+ * 今回試験対象の Gold Coast のみ判定（汎用 registry は作らない）。
+ *
+ * 判定は「行き先 field の先頭の都市名トークン」だけを見る。schoolPrefs.preferredCity は
+ * 自由記述で `ゴールドコースト。都会すぎず海が近く…` のように理由が続くことがあるため、
+ * 説明文が始まる区切り（。、，,.．（(／/・ 改行）で切った先頭部分を trim + lowercase して
+ * **完全一致**で比較する。説明文への includes() は使わない
+ *（例:「ゴールドコーストが気になる理由は…」のように区切り無しで続く文は一致しない）。
+ */
+function isGoldCoast(destinationCity: string | null | undefined): boolean {
+  if (!destinationCity) return false;
+  const head = destinationCity
+    .trim()
+    .split(/[。、，,.．（(／/・\n]/)[0]
+    .trim()
+    .toLowerCase();
+  return head === "gold coast" || head === "ゴールドコースト";
 }
 
 function PinIcon({ className }: { className?: string }) {
@@ -107,7 +126,13 @@ function Chips({
 }
 
 export default function PlanTravelHero(props: HeroProps) {
-  return isGoldCoast(props.city) ? <GoldCoastImageHero {...props} /> : <CollageHero {...props} />;
+  // Hero 画像は「行き先として選ばれている都市」(destinationCity) だけで決める。
+  // 表示用の自由記述 city は判定に使わない。
+  return isGoldCoast(props.destinationCity) ? (
+    <GoldCoastImageHero {...props} />
+  ) : (
+    <CollageHero {...props} />
+  );
 }
 
 /* ------------------------------------------------------------------ */
