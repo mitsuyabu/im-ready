@@ -1,17 +1,16 @@
+import Image from "next/image";
+
 /**
- * Plan 選択後トップのヒーロー（presentation のみ）。共有デザインの「紙を重ねたコラージュ／旅の
- * しおり」感にできる限り寄せる：
- *   deep navy の地 → 大きく手でちぎったような生成り紙 → 上辺にサーモンのちぎり紙 →
- *   下部右寄りに水色のちぎり紙／波 → 右に夕日・短い放射線・波線・ヤシ → 右上に消印スタンプ →
- *   左に手描きの星 → 右下に方眼テープ → 左上に少し傾いたテープ風ラベル → 全体に薄い紙ノイズ。
+ * Plan 選択後トップのヒーロー（presentation のみ）。
  *
- * ちぎれた縁は clip-path ＋ SVG feDisplacementMap（#pth-torn）で有機的に荒らす。紙ノイズは
- * data-URI の feTurbulence を低 opacity で重ねる（外部画像なし）。装飾はすべて aria-hidden・
- * pointer-events-none で、本文は生成り紙の上に置いて可読性を最優先する。
+ * Gold Coast の Plan だけ都市画像（/plan-hero/gold-coast.webp）を背景に使う試験実装。
+ *   Gold Coast     → GoldCoastImageHero（next/image で全面表示・左に warm overlay・装飾は最小限）
+ *   それ以外        → CollageHero（既存の navy ＋ 手ちぎり紙のコラージュ Hero。削除しない）
+ * 今回は他都市へは広げない（汎用 city registry は作らない）。
  *
- * 表示する実データは plan.title と stated の city / departureTiming だけ。どちらも無ければ
- * 穏やかな UI fallback pill を 1 つ。"MY PLAN" は固定 decorative ラベル（国名・WH 等は創作しない）。
- * hooks を持たない純粋表示コンポーネント。
+ * 表示する実データは plan.title と stated の city / departureTiming だけ。fake data は追加しない
+ *（画像が Gold Coast でも Australia / Working Holiday / beach lifestyle 等は一切創作しない）。
+ * 装飾はすべて aria-hidden・pointer-events-none。hooks を持たない純粋表示コンポーネント。
  */
 
 const PAPER_TORN =
@@ -27,19 +26,142 @@ const WAVE_TORN =
 const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
-export default function PlanTravelHero({
-  title,
-  city,
-  departureTiming,
-}: {
+const CHIP_CLASS_COLLAGE =
+  "inline-flex items-center gap-1 rounded-full border border-[#2b2a27]/20 bg-white/85 px-2.5 py-1 text-[11px] font-medium text-[#1f2430]";
+const CHIP_CLASS_IMAGE =
+  "inline-flex items-center gap-1 rounded-full border border-[#2b2a27]/20 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-[#1f2430] shadow-[0_1px_2px_rgba(0,0,0,0.08)]";
+
+const SUBTITLE = "このPlanの条件や考えを整理していこう。";
+const FALLBACK_CHIP = "行き先・時期はこれから整理";
+
+type HeroProps = {
   title: string;
   city: string | null;
   departureTiming: string | null;
-}) {
-  const hasChips = Boolean(city || departureTiming);
-  const chipClass =
-    "inline-flex items-center gap-1 rounded-full border border-[#2b2a27]/20 bg-white/85 px-2.5 py-1 text-[11px] font-medium text-[#1f2430]";
+};
 
+/** 今回試験対象の Gold Coast のみ判定（汎用 registry は作らない）。 */
+function isGoldCoast(city: string | null): boolean {
+  if (!city) return false;
+  const c = city.trim().toLowerCase();
+  return c === "gold coast" || c === "ゴールドコースト";
+}
+
+function PinIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z" />
+      <circle cx="12" cy="9" r="2.5" />
+    </svg>
+  );
+}
+
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v4l2.5 2.5" />
+    </svg>
+  );
+}
+
+function MyPlanLabel({ className = "" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={`z-10 -rotate-2 bg-[#f4e7c4] px-2 py-0.5 text-[9px] font-semibold tracking-[0.18em] text-[#4a3f22] shadow-[0_1px_2px_rgba(0,0,0,0.2)] ${className}`}
+      style={{ clipPath: "polygon(0 26%, 6% 0, 92% 8%, 100% 76%, 94% 100%, 4% 90%)" }}
+    >
+      MY PLAN
+    </span>
+  );
+}
+
+function Chips({
+  city,
+  departureTiming,
+  chipClass,
+}: HeroProps & { chipClass: string }) {
+  const hasChips = Boolean(city || departureTiming);
+  return (
+    <div className="mt-5 flex flex-wrap gap-2.5">
+      {!hasChips && (
+        <span className="rounded-full border border-[#2b2a27]/20 bg-white/85 px-2.5 py-1 text-[11px] text-[#3f3d38]">
+          {FALLBACK_CHIP}
+        </span>
+      )}
+      {city && (
+        <span className={chipClass}>
+          <PinIcon className="h-3 w-3" />
+          {city}
+        </span>
+      )}
+      {departureTiming && (
+        <span className={chipClass}>
+          <ClockIcon className="h-3 w-3" />
+          出発の目安：{departureTiming}
+        </span>
+      )}
+    </div>
+  );
+}
+
+export default function PlanTravelHero(props: HeroProps) {
+  return isGoldCoast(props.city) ? <GoldCoastImageHero {...props} /> : <CollageHero {...props} />;
+}
+
+/* ------------------------------------------------------------------ */
+/* Gold Coast: 都市画像 Hero                                           */
+/* ------------------------------------------------------------------ */
+
+function GoldCoastImageHero({ title, city, departureTiming }: HeroProps) {
+  return (
+    <div className="relative overflow-hidden rounded-[24px] bg-[#eef2f4]">
+      <div className="relative min-h-[248px] sm:min-h-[280px]">
+        {/* 背景：Gold Coast の都市画像（左に明るい余白・右に街/海/ヤシ）。このページの主要画像。 */}
+        <Image
+          src="/plan-hero/gold-coast.webp"
+          alt=""
+          fill
+          priority
+          sizes="(min-width: 1024px) 1024px, 100vw"
+          className="object-cover object-[58%_center] sm:object-[54%_center] lg:object-center"
+        />
+
+        {/* 左側だけの warm overlay（文字の可読性用。画像が元々明るいので強くしすぎない）。 */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#fffaf0]/95 via-[#fffaf0]/58 to-transparent sm:from-[#fffaf0]/88 sm:via-[#fffaf0]/42"
+        />
+
+        {/* ごく薄い紙ノイズ */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-overlay"
+          style={{ backgroundImage: GRAIN }}
+        />
+
+        {/* 左上の小さな MY PLAN ラベル（画像より目立たせない） */}
+        <MyPlanLabel className="absolute left-4 top-4 sm:left-[5%]" />
+
+        {/* 本文（左・明るい余白の上） */}
+        <div className="relative z-10 flex min-h-[248px] max-w-[86%] flex-col justify-center px-5 py-12 sm:min-h-[280px] sm:max-w-[52%] sm:py-14 sm:pl-[8%]">
+          <h1 className="text-[1.9rem] font-bold leading-[1.08] tracking-tight text-[#182233] drop-shadow-[0_1px_2px_rgba(255,250,240,0.7)] sm:text-4xl lg:text-[3.2rem]">
+            {title}
+          </h1>
+          <p className="mt-4 max-w-md text-sm leading-relaxed text-[#3f3a33] sm:text-[15px]">{SUBTITLE}</p>
+          <Chips city={city} departureTiming={departureTiming} title={title} chipClass={CHIP_CLASS_IMAGE} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* それ以外: 既存コラージュ Hero（fallback・削除しない）               */
+/* ------------------------------------------------------------------ */
+
+function CollageHero({ title, city, departureTiming }: HeroProps) {
   return (
     <div className="relative overflow-hidden rounded-[24px] bg-[#223650]">
       {/* ちぎれ縁を荒らす SVG フィルタ定義 */}
@@ -60,25 +182,22 @@ export default function PlanTravelHero({
           preserveAspectRatio="xMidYMid slice"
           className="pointer-events-none absolute right-0 top-0 h-full w-[46%] opacity-60 sm:w-[36%] sm:opacity-95"
         >
-          {/* 夕日 */}
           <circle cx="112" cy="128" r="30" fill="#e8a486" opacity="0.5" />
           <g stroke="#e8a486" strokeWidth="2.6" strokeLinecap="round" opacity="0.75">
             <path d="M112 84v-11M132 92l7-8M92 92l-7-8M148 108l10-6M76 108l-10-6" />
           </g>
-          {/* 波線（手描き風・水平） */}
           <g stroke="#7d94b5" strokeWidth="2.6" fill="none" strokeLinecap="round" opacity="0.8">
             <path d="M-6 184c26-12 48 10 74 2s50-10 76 0 44 8 70-2" />
             <path d="M-6 202c26-10 48 8 74 0s50-8 76 2 44 6 70-2" />
             <path d="M-6 220c26-8 48 8 74 2s50-8 76 0 44 6 70-2" />
           </g>
-          {/* ヤシ（夕日の右） */}
           <g stroke="#8a9a86" strokeWidth="2.4" fill="none" strokeLinecap="round">
             <path d="M182 210c-2-22-3-40-2-56" />
             <path d="M180 154c-14-8-24-6-32 2M180 154c14-9 26-8 34 1M180 154c-7-15-6-27 2-37M180 154c9-13 21-16 33-12" opacity="0.9" />
           </g>
         </svg>
 
-        {/* 右上の消印スタンプ（少し存在感を出す） */}
+        {/* 右上の消印スタンプ */}
         <svg
           aria-hidden
           viewBox="0 0 96 68"
@@ -107,13 +226,13 @@ export default function PlanTravelHero({
           <path d="M12 3l2.4 5.6 6 .6-4.5 4 1.3 5.9L12 21l-5.2 3.1 1.3-5.9-4.5-4 6-.6L12 3z" />
         </svg>
 
-        {/* 読みやすさ用の横グラデーション（navy → 透明） */}
+        {/* 読みやすさ用の横グラデーション */}
         <span
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#223650] via-[#223650]/8 to-transparent"
         />
 
-        {/* 下部右寄りの水色ちぎり紙／波（大きな面） */}
+        {/* 下部右寄りの水色ちぎり紙／波 */}
         <span
           aria-hidden
           className="pointer-events-none absolute bottom-1 left-[8%] h-12 w-[70%] bg-[#7d94b5]/45 sm:left-auto sm:right-[8%] sm:w-[52%]"
@@ -125,7 +244,7 @@ export default function PlanTravelHero({
           style={{ clipPath: WAVE_TORN, filter: "url(#pth-torn)" }}
         />
 
-        {/* 大きく手でちぎった生成り紙（わずかに傾け・落ち影） */}
+        {/* 大きく手でちぎった生成り紙 */}
         <span
           aria-hidden
           className="pointer-events-none absolute inset-y-3 left-[3%] right-[6%] -rotate-[0.6deg] bg-gradient-to-br from-[#fefdf6] to-[#f6efdf] sm:left-[5%] sm:right-[30%]"
@@ -149,7 +268,7 @@ export default function PlanTravelHero({
           style={{ backgroundImage: GRAIN }}
         />
 
-        {/* 右下の方眼テープ（斜め） */}
+        {/* 右下の方眼テープ */}
         <span
           aria-hidden
           className="pointer-events-none absolute bottom-4 right-4 hidden h-9 w-24 -rotate-[7deg] border border-[#d8cfb8] bg-[#fbf7ea] shadow-[0_1px_3px_rgba(0,0,0,0.18)] sm:block"
@@ -159,67 +278,16 @@ export default function PlanTravelHero({
           }}
         />
 
-        {/* 左上のテープ風ラベル（小さめ・少し黄み・傾き・淡い影） */}
-        <span
-          aria-hidden
-          className="absolute left-4 top-4 z-10 -rotate-2 bg-[#f4e7c4] px-2 py-0.5 text-[9px] font-semibold tracking-[0.18em] text-[#4a3f22] shadow-[0_1px_2px_rgba(0,0,0,0.2)] sm:left-[5%]"
-          style={{ clipPath: "polygon(0 26%, 6% 0, 92% 8%, 100% 76%, 94% 100%, 4% 90%)" }}
-        >
-          MY PLAN
-        </span>
+        {/* 左上のテープ風ラベル */}
+        <MyPlanLabel className="absolute left-4 top-4 sm:left-[5%]" />
 
-        {/* 本文（生成り紙の上・左寄せ・余白たっぷり） */}
+        {/* 本文（生成り紙の上） */}
         <div className="relative z-10 flex min-h-[248px] flex-col justify-center px-5 py-12 sm:min-h-[280px] sm:py-14 sm:pl-[8%] sm:pr-[38%]">
           <h1 className="text-[1.9rem] font-bold leading-[1.08] tracking-tight text-[#182233] sm:text-4xl lg:text-[3.2rem]">
             {title}
           </h1>
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-[#4a4740] sm:text-[15px]">
-            このPlanの条件や考えを整理していこう。
-          </p>
-
-          <div className="mt-5 flex flex-wrap gap-2.5">
-            {!hasChips && (
-              <span className="rounded-full border border-[#2b2a27]/20 bg-white/85 px-2.5 py-1 text-[11px] text-[#3f3d38]">
-                行き先・時期はこれから整理
-              </span>
-            )}
-            {city && (
-              <span className={chipClass}>
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-3 w-3"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z" />
-                  <circle cx="12" cy="9" r="2.5" />
-                </svg>
-                {city}
-              </span>
-            )}
-            {departureTiming && (
-              <span className={chipClass}>
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-3 w-3"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <circle cx="12" cy="12" r="8" />
-                  <path d="M12 8v4l2.5 2.5" />
-                </svg>
-                出発の目安：{departureTiming}
-              </span>
-            )}
-          </div>
+          <p className="mt-4 max-w-md text-sm leading-relaxed text-[#4a4740] sm:text-[15px]">{SUBTITLE}</p>
+          <Chips city={city} departureTiming={departureTiming} title={title} chipClass={CHIP_CLASS_COLLAGE} />
         </div>
       </div>
     </div>
