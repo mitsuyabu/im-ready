@@ -17,7 +17,7 @@ export default function PlanJourneyRibbon({ currentIndex }: { currentIndex: numb
 
   return (
     <section
-      aria-label="いまの現在地"
+      aria-label="現在地"
       className="relative border-y border-[#d9d2c0] bg-[#fcfbf6] px-5 py-4 sm:px-7"
       style={{
         backgroundImage:
@@ -25,7 +25,7 @@ export default function PlanJourneyRibbon({ currentIndex }: { currentIndex: numb
         clipPath: "polygon(0 3px, 100% 0, calc(100% - 3px) 100%, 3px calc(100% - 4px))",
       }}
     >
-      <h2 className="text-xs font-bold tracking-wide text-[#3f3d38]">いまの現在地</h2>
+      <h2 className="text-xs font-bold tracking-wide text-[#3f3d38]">現在地</h2>
 
       <div className="relative mt-3">
         <span
