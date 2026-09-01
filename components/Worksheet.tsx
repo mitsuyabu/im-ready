@@ -507,9 +507,10 @@ export interface QuestionCardProps {
   /**
    * "card"（既定）: 匿名Worksheetのアコーディオン表示。従来通りタップで開閉し、閉時は本文を描画しない。
    * "inline": I'm ready!セクション詳細の「連続したワークエリア」表示。開閉トグルを持たず、常に本文を表示する。
-   * どちらも回答UI・保存・Karte同期に関わるprops/ロジックは完全に共通で、見た目の出し分けのみ行う。
+   * "bare": 見出し・補足・番号を呼び出し側（テーマ詳細のカード）が持つ場合の、回答UI（answerBody）だけの表示。
+   * いずれも回答UI・保存・Karte同期に関わるprops/ロジックは完全に共通で、見た目の出し分けのみ行う。
    */
-  layout?: "card" | "inline";
+  layout?: "card" | "inline" | "bare";
   /** layout="inline"のときだけ使う「1 / 5」のような通し番号表示。省略時はcard表示の丸番号バッジを使う */
   stepLabel?: string;
 }
@@ -620,16 +621,23 @@ export function QuestionCard({
         />
       )}
 
-      <Link
-        href="/widget"
-        className="mt-3 inline-block text-xs text-worksheet-accent underline decoration-worksheet-accent/40 underline-offset-2 transition-colors hover:decoration-worksheet-accent"
-      >
-        {question.kind === "freeText"
-          ? "うまく書けないときは、AIと話しながら整理する"
-          : "迷ったときは、AIと話しながら整理する"}
-      </Link>
+      {layout !== "bare" && (
+        <Link
+          href="/widget"
+          className="mt-3 inline-block text-xs text-worksheet-accent underline decoration-worksheet-accent/40 underline-offset-2 transition-colors hover:decoration-worksheet-accent"
+        >
+          {question.kind === "freeText"
+            ? "うまく書けないときは、AIと話しながら整理する"
+            : "迷ったときは、AIと話しながら整理する"}
+        </Link>
+      )}
     </>
   );
+
+  if (layout === "bare") {
+    // 見出し・補足・ステップ番号はテーマ詳細カード側が描画するため、ここでは回答UIだけを返す。
+    return <div ref={cardRef}>{answerBody}</div>;
+  }
 
   if (layout === "inline") {
     return (
