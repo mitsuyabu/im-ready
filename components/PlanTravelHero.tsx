@@ -1,15 +1,19 @@
 import Image from "next/image";
+import { getPlanHeroImage } from "@/lib/planHeroImage";
 
 /**
  * Plan 選択後トップのヒーロー（presentation のみ）。
  *
- * Gold Coast の Plan だけ都市画像（/plan-hero/gold-coast.webp）を背景に使う試験実装。
- *   Gold Coast     → GoldCoastImageHero（next/image で全面表示・左に warm overlay・装飾は最小限）
- *   それ以外        → CollageHero（既存の navy ＋ 手ちぎり紙のコラージュ Hero。削除しない）
- * 今回は他都市へは広げない（汎用 city registry は作らない）。
+ * 行き先として選択されている都市（destinationCity）が対応 6 都市
+ *（Gold Coast / Sydney / Melbourne / Brisbane / Cairns / Perth）のいずれかなら、その都市画像を
+ * 背景に使う（CityImageHero：next/image で全面表示・左に warm overlay・装飾は最小限）。
+ * 対応が無い / 未設定なら CollageHero（既存の navy ＋ 手ちぎり紙のコラージュ Hero。削除しない）。
+ *
+ * 画像の切り替えは lib/planHeroImage.ts の getPlanHeroImage(destinationCity) に集約
+ *（都市ごとの分岐関数は増やさない）。表示用の自由記述 city は判定に使わない。
  *
  * 表示する実データは plan.title と stated の city / departureTiming だけ。fake data は追加しない
- *（画像が Gold Coast でも Australia / Working Holiday / beach lifestyle 等は一切創作しない）。
+ *（画像が都市別になっても Australia / Working Holiday / beach lifestyle 等は一切創作しない）。
  * 装飾はすべて aria-hidden・pointer-events-none。hooks を持たない純粋表示コンポーネント。
  */
 
@@ -46,25 +50,6 @@ type HeroProps = {
   destinationCity?: string | null;
   departureTiming: string | null;
 };
-
-/**
- * 今回試験対象の Gold Coast のみ判定（汎用 registry は作らない）。
- *
- * 判定は「行き先 field の先頭の都市名トークン」だけを見る。schoolPrefs.preferredCity は
- * 自由記述で `ゴールドコースト。都会すぎず海が近く…` のように理由が続くことがあるため、
- * 説明文が始まる区切り（。、，,.．（(／/・ 改行）で切った先頭部分を trim + lowercase して
- * **完全一致**で比較する。説明文への includes() は使わない
- *（例:「ゴールドコーストが気になる理由は…」のように区切り無しで続く文は一致しない）。
- */
-function isGoldCoast(destinationCity: string | null | undefined): boolean {
-  if (!destinationCity) return false;
-  const head = destinationCity
-    .trim()
-    .split(/[。、，,.．（(／/・\n]/)[0]
-    .trim()
-    .toLowerCase();
-  return head === "gold coast" || head === "ゴールドコースト";
-}
 
 function PinIcon({ className }: { className?: string }) {
   return (
@@ -127,25 +112,32 @@ function Chips({
 
 export default function PlanTravelHero(props: HeroProps) {
   // Hero 画像は「行き先として選ばれている都市」(destinationCity) だけで決める。
-  // 表示用の自由記述 city は判定に使わない。
-  return isGoldCoast(props.destinationCity) ? (
-    <GoldCoastImageHero {...props} />
+  // 表示用の自由記述 city は判定に使わない。対応都市が無ければ既存 CollageHero。
+  const heroImage = getPlanHeroImage(props.destinationCity);
+  return heroImage ? (
+    <CityImageHero {...props} src={heroImage} />
   ) : (
     <CollageHero {...props} />
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Gold Coast: 都市画像 Hero                                           */
+/* 対応都市: 都市画像 Hero（6 都市共通の presentation）                 */
 /* ------------------------------------------------------------------ */
 
-function GoldCoastImageHero({ title, city, departureTiming }: HeroProps) {
+function CityImageHero({
+  title,
+  city,
+  departureTiming,
+  src,
+}: HeroProps & { src: string }) {
   return (
     <div className="relative overflow-hidden rounded-[24px] bg-[#eef2f4]">
       <div className="relative min-h-[248px] sm:min-h-[280px]">
-        {/* 背景：Gold Coast の都市画像（左に明るい余白・右に街/海/ヤシ）。このページの主要画像。 */}
+        {/* 背景：行き先都市の画像（左に明るい余白・右に景色）。このページの主要画像。
+            object-position は当面 6 都市共通（Desktop は center、狭い画面だけ少し右寄せ）。 */}
         <Image
-          src="/plan-hero/gold-coast.webp"
+          src={src}
           alt=""
           fill
           priority
