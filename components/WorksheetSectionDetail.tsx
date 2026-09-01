@@ -1,19 +1,19 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { QuestionCard, useWorksheetAnswers } from "@/components/Worksheet";
 import { CATEGORIES } from "@/lib/worksheetQuestions";
 import { WORKSHEET_SECTION_META } from "@/lib/worksheetSectionMeta";
 
 /**
- * 「I'm ready!」のテーマ詳細画面（presentation のみ刷新）。
+ * 「I'm ready!」のテーマ詳細画面（presentation のみ）。
  *
- * 共有デザインに合わせて「大見出し＋横並びステップ＋大きな設問カード＋右サマリー」の構成にした。
- * 設問は1問ずつ表示し、上部ステップと「保存して次へ」で移動する。ただしこれは表示上の位置
- * （currentIndex という描画専用の state）だけで、回答 state・localStorage 保存・Karte 同期・
+ * カテゴリ内の設問を1問ずつ切り替えるのではなく、共有デザインどおり **全設問を縦に並べ**、
+ * 最後の設問の下にだけ「次のテーマへ」CTA を置く。回答 state・localStorage 保存・Karte 同期・
  * completion 判定・ルーティングは useWorksheetAnswers（既存ロジック）のまま一切変更していない。
- * 入力は従来どおり1文字ごとに自動保存される（「保存して次へ」は保存操作を伴わず表示位置を進めるだけ）。
+ * 入力は従来どおり1文字ごとに自動保存され、CTA は次カテゴリへの遷移のみで保存処理を持たない。
+ * route は /plans/[planId]/worksheet/[sectionId] のままで、設問ごとの URL は作らない。
  */
 
 /* ---------- icons ---------- */
@@ -64,13 +64,6 @@ const SECTION_HEADER: Record<string, { bg: string; numeral: string }> = {
 };
 const NEUTRAL_HEADER = { bg: "#5b5a55", numeral: "rgba(255,255,255,0.18)" };
 
-/** 設問見出しから機械的に短いステップ用ラベルを作る（先頭の一節だけ・最大14文字）。新しい文言は作らない。 */
-function shortStepLabel(heading: string): string {
-  const head = heading.split(/[、。？?！!\n]/)[0].trim();
-  if (head.length === 0) return heading.trim().slice(0, 14);
-  return head.length > 14 ? `${head.slice(0, 14)}…` : head;
-}
-
 /** その場の入力（このテーマの freeText 回答）から、機械的に短いチップを切り出す。AI 要約はしない。 */
 function deriveWrittenChips(texts: string[]): string[] {
   const out: string[] = [];
@@ -92,6 +85,8 @@ export default function WorksheetSectionDetail({
   sectionId: string;
 }) {
   const category = CATEGORIES.find((c) => c.id === sectionId);
+  const categoryIndex = CATEGORIES.findIndex((c) => c.id === sectionId);
+  const nextCategory = categoryIndex >= 0 ? CATEGORIES[categoryIndex + 1] ?? null : null;
 
   const {
     answers,
@@ -111,8 +106,6 @@ export default function WorksheetSectionDetail({
   } = useWorksheetAnswers(planId);
 
   const [openExamples, setOpenExamples] = useState<Record<string, boolean>>({});
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const cardRef = useRef<HTMLDivElement | null>(null);
 
   // priorities 専用「判断軸を確認する」。ロジックは既存のまま（Worksheet.tsx と同一）。
   const [axisSummary, setAxisSummary] = useState<string | null>(null);
@@ -125,12 +118,8 @@ export default function WorksheetSectionDetail({
   const theme = SECTION_HEADER[category.id] ?? NEUTRAL_HEADER;
   const total = category.questions.length;
   const answeredCount = category.questions.filter((q) => isQuestionAnswered(q)).length;
+  const categoryNum = String(categoryIndex + 1).padStart(2, "0");
   const canGenerateAxisSummary = (rankings["priority-ranking"] ?? []).length > 0;
-
-  const idx = Math.min(Math.max(currentIndex, 0), total - 1);
-  const question = category.questions[idx];
-  const isLast = idx >= total - 1;
-  const questionNum = String(idx + 1).padStart(2, "0");
 
   const writtenChips = deriveWrittenChips(
     category.questions
@@ -138,13 +127,6 @@ export default function WorksheetSectionDetail({
       .map((q) => (answers[q.id] ?? "").trim())
       .filter((t) => t.length > 0),
   );
-
-  function goTo(next: number) {
-    setCurrentIndex(Math.min(Math.max(next, 0), total - 1));
-    requestAnimationFrame(() => {
-      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }
 
   async function handleGenerateAxisSummary() {
     setAxisLoading(true);
@@ -180,181 +162,114 @@ export default function WorksheetSectionDetail({
     setOpenExamples((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
-  const currentAnswered = isQuestionAnswered(question);
-
   return (
     <div>
-      {/* (b) セクション番号 / 英語ラベル + (c) メインタイトル */}
-      <p className="text-sm font-medium tracking-wide text-[#5f7050]">
-        {questionNum} <span className="text-[#b7b1a6]">/</span> {meta.enName}
-      </p>
-      <h1 className="mt-1.5 text-[34px] font-bold leading-[1.15] tracking-tight text-[#151515] sm:text-[42px]">
-        {category.title}
-      </h1>
-
-      {/* 3. 上部ステップ表示 */}
-      <div className="mt-7 flex items-start gap-4">
-        <ol className="flex min-w-0 flex-1 items-start">
-          {category.questions.map((q, i) => {
-            const done = isQuestionAnswered(q);
-            const current = i === idx;
-            return (
-              <li key={q.id} className="flex min-w-0 flex-1 flex-col items-center">
-                <div className="flex w-full items-center">
-                  <span
-                    aria-hidden
-                    className={`h-px flex-1 ${i === 0 ? "opacity-0" : "bg-[#d9d3c8]"}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => goTo(i)}
-                    aria-current={current ? "step" : undefined}
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold transition-colors ${
-                      current
-                        ? "border-[#3f5142] bg-[#3f5142] text-white"
-                        : done
-                          ? "border-[#cdddc5] bg-[#e7efe1] text-[#4b5b3e]"
-                          : "border-[#d9d3c8] bg-white text-[#9a948a]"
-                    }`}
-                  >
-                    {done && !current ? <CheckIcon className="h-3.5 w-3.5" /> : i + 1}
-                  </button>
-                  <span
-                    aria-hidden
-                    className={`h-px flex-1 ${i === total - 1 ? "opacity-0" : "bg-[#d9d3c8]"}`}
-                  />
-                </div>
-                <span
-                  className={`mt-2 hidden max-w-[7.5rem] text-center text-[11px] leading-tight sm:line-clamp-2 sm:block ${
-                    current ? "font-medium text-[#3f3a34]" : "text-[#8a8578]"
-                  }`}
-                >
-                  {shortStepLabel(q.heading)}
-                </span>
-              </li>
-            );
-          })}
-        </ol>
-        <span className="shrink-0 whitespace-nowrap pt-1 text-xs text-[#8a8578]">
+      {/* ページ上部: ラベル + タイトル（左） / completion（右） */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div>
+          <p className="text-sm font-medium tracking-wide text-[#5f7050]">
+            {categoryNum} <span className="text-[#b7b1a6]">/</span> {meta.enName}
+          </p>
+          <h1 className="mt-1.5 text-[34px] font-bold leading-[1.15] tracking-tight text-[#151515] sm:text-[42px]">
+            {category.title}
+          </h1>
+        </div>
+        <span className="shrink-0 whitespace-nowrap rounded-full bg-[#eef2e8] px-3 py-1 text-xs font-medium text-[#4b5b3e] sm:mt-2">
           {answeredCount} / {total} 回答済み
         </span>
       </div>
 
-      {/* 2カラム: 左=設問カード, 右=サマリー */}
-      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8">
-        <div className="min-w-0">
-          {/* 4. メインの設問カード */}
-          <article
-            ref={cardRef}
-            className="overflow-hidden rounded-[22px] border border-[#e5dfd6] bg-white shadow-[0_1px_3px_rgba(30,28,24,0.05)] scroll-mt-24"
-          >
-            {/* (a) ビジュアル帯 */}
-            <div
-              className="relative overflow-hidden px-6 py-6 sm:px-8"
-              style={{ backgroundColor: theme.bg }}
-            >
-              <svg
-                aria-hidden
-                viewBox="0 0 200 120"
-                preserveAspectRatio="none"
-                className="pointer-events-none absolute right-0 top-0 h-full w-1/2"
+      {/* 自動保存の状態 + AI相談導線（カテゴリ内で1回だけ） */}
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#8a8578]">
+        <span className="inline-flex items-center gap-1.5">
+          <CheckIcon className="h-3.5 w-3.5 text-[#5f7050]" />
+          {hasRestored && answeredCount > 0 ? "下書き保存済み" : "回答は自動保存されます"}
+        </span>
+        <Link
+          href="/widget"
+          className="inline-flex items-center gap-1.5 text-[#3f3a34] transition-colors hover:text-[#111]"
+        >
+          <ChatIcon className="h-4 w-4 text-[#6f6a64]" />
+          AIと話しながら整理する
+        </Link>
+      </div>
+
+      {/* 2カラム: 左=設問カードの縦並び, 右=sticky サマリー */}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8">
+        <div className="min-w-0 space-y-8">
+          {category.questions.map((q, i) => {
+            const num = String(i + 1).padStart(2, "0");
+            return (
+              <article
+                key={q.id}
+                className="overflow-hidden rounded-[22px] border border-[#e5dfd6] bg-white shadow-[0_1px_3px_rgba(30,28,24,0.05)]"
               >
-                <path d="M40 130 C 120 120, 150 40, 210 -10" fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="1.4" />
-                <circle cx="196" cy="14" r="3" fill="rgba(255,255,255,0.5)" />
-              </svg>
-              <div className="relative flex items-center gap-4 sm:gap-5">
-                <span
-                  aria-hidden
-                  className="select-none font-serif text-[52px] font-semibold leading-none sm:text-[64px]"
-                  style={{ color: theme.numeral }}
+                {/* header 帯（縦に並ぶので少しコンパクトに。デザインは維持） */}
+                <div
+                  className="relative overflow-hidden px-6 py-5 sm:px-7"
+                  style={{ backgroundColor: theme.bg }}
                 >
-                  {questionNum}
-                </span>
-                <h2 className="text-lg font-bold leading-snug text-white sm:text-[22px]">
-                  {question.heading}
-                </h2>
-              </div>
-            </div>
-
-            {/* (c) 本文エリア */}
-            <div className="px-6 py-6 sm:px-8 sm:py-8">
-              <p className="whitespace-pre-line text-sm leading-relaxed text-[#6f6a64]">
-                {question.supplement}
-              </p>
-
-              {/* (d)(e) 記入例トグル + 回答入力欄（既存の回答UI・保存ロジックをそのまま利用） */}
-              <div className="mt-5">
-                <QuestionCard
-                  layout="bare"
-                  question={question}
-                  index={idx}
-                  isOpen
-                  hasAnswer={currentAnswered}
-                  examplesOpen={openExamples[question.id] ?? false}
-                  onToggle={() => {}}
-                  onToggleExamples={() => toggleExamples(question.id)}
-                  cardRef={() => {}}
-                  textValue={answers[question.id] ?? ""}
-                  onTextChange={(value) => handleChange(question.id, value)}
-                  ratingValues={ratings[question.id] ?? {}}
-                  onRate={(itemId, value) => handleRate(question.id, itemId, value)}
-                  rankOrder={rankings[question.id] ?? []}
-                  onToggleRank={(itemId) => handleToggleRank(question.id, itemId)}
-                  compromiseSelected={compromises[question.id] ?? []}
-                  onToggleCompromise={(itemId) => handleToggleCompromise(question.id, itemId)}
-                  singleSelected={singleSelections[question.id] ?? null}
-                  onSelectSingle={(optionId) => handleSelectSingle(question.id, optionId)}
-                  multiSelected={multiSelections[question.id] ?? []}
-                  onToggleMulti={(optionId) => handleToggleMulti(question.id, optionId)}
-                />
-              </div>
-
-              {/* 5. カード下部アクション行 */}
-              <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-[#ece7dd] pt-5">
-                <Link
-                  href="/widget"
-                  className="inline-flex items-center gap-1.5 text-sm text-[#3f3a34] transition-colors hover:text-[#111]"
-                >
-                  <ChatIcon className="h-4 w-4 text-[#6f6a64]" />
-                  AIと話しながら整理する
-                </Link>
-
-                <span className="inline-flex items-center gap-1.5 text-xs text-[#8a8578]">
-                  {hasRestored && currentAnswered ? (
-                    <>
-                      <CheckIcon className="h-3.5 w-3.5 text-[#5f7050]" />
-                      下書き保存済み
-                    </>
-                  ) : (
-                    "入力すると自動で保存されます"
-                  )}
-                </span>
-
-                {isLast ? (
-                  <Link
-                    href={`/plans/${planId}/worksheet`}
-                    className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#161616] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#000]"
+                  <svg
+                    aria-hidden
+                    viewBox="0 0 200 110"
+                    preserveAspectRatio="none"
+                    className="pointer-events-none absolute right-0 top-0 h-full w-1/2"
                   >
-                    整理を終える
-                    <ArrowRightIcon className="h-4 w-4" />
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => goTo(idx + 1)}
-                    className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#161616] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#000]"
-                  >
-                    保存して次へ
-                    <ArrowRightIcon className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-          </article>
+                    <path d="M40 120 C 120 110, 150 35, 210 -10" fill="none" stroke="rgba(255,255,255,0.26)" strokeWidth="1.4" />
+                    <circle cx="196" cy="13" r="2.6" fill="rgba(255,255,255,0.45)" />
+                  </svg>
+                  <div className="relative flex items-center gap-4">
+                    <span
+                      aria-hidden
+                      className="select-none font-serif text-[40px] font-semibold leading-none sm:text-[48px]"
+                      style={{ color: theme.numeral }}
+                    >
+                      {num}
+                    </span>
+                    <h2 className="text-base font-bold leading-snug text-white sm:text-lg">
+                      {q.heading}
+                    </h2>
+                  </div>
+                </div>
 
-          {/* priorities 専用「判断軸を確認する」（ロジック不変・位置のみカード下へ） */}
+                {/* 本文: supplement + 既存の回答UI（記入例トグル・textarea・kind別body） */}
+                <div className="px-6 py-6 sm:px-7">
+                  <p className="whitespace-pre-line text-sm leading-relaxed text-[#6f6a64]">
+                    {q.supplement}
+                  </p>
+                  <div className="mt-4">
+                    <QuestionCard
+                      layout="bare"
+                      question={q}
+                      index={i}
+                      isOpen
+                      hasAnswer={isQuestionAnswered(q)}
+                      examplesOpen={openExamples[q.id] ?? false}
+                      onToggle={() => {}}
+                      onToggleExamples={() => toggleExamples(q.id)}
+                      cardRef={() => {}}
+                      textValue={answers[q.id] ?? ""}
+                      onTextChange={(value) => handleChange(q.id, value)}
+                      ratingValues={ratings[q.id] ?? {}}
+                      onRate={(itemId, value) => handleRate(q.id, itemId, value)}
+                      rankOrder={rankings[q.id] ?? []}
+                      onToggleRank={(itemId) => handleToggleRank(q.id, itemId)}
+                      compromiseSelected={compromises[q.id] ?? []}
+                      onToggleCompromise={(itemId) => handleToggleCompromise(q.id, itemId)}
+                      singleSelected={singleSelections[q.id] ?? null}
+                      onSelectSingle={(optionId) => handleSelectSingle(q.id, optionId)}
+                      multiSelected={multiSelections[q.id] ?? []}
+                      onToggleMulti={(optionId) => handleToggleMulti(q.id, optionId)}
+                    />
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+
+          {/* priorities 専用「判断軸を確認する」（ロジック不変・全設問の下） */}
           {category.id === "priorities" && (
-            <div className="mt-6 rounded-[18px] border border-[#e5dfd6] bg-white p-5 sm:p-6">
+            <div className="rounded-[18px] border border-[#e5dfd6] bg-white p-5 sm:p-6">
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
@@ -382,9 +297,20 @@ export default function WorksheetSectionDetail({
               )}
             </div>
           )}
+
+          {/* カテゴリ最下部の CTA（最後の設問の下だけ）。遷移のみ・保存処理は持たない */}
+          <div className="pt-1">
+            <Link
+              href={nextCategory ? `/plans/${planId}/worksheet/${nextCategory.id}` : `/plans/${planId}/worksheet`}
+              className="inline-flex items-center gap-2 rounded-full bg-[#161616] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#000]"
+            >
+              {nextCategory ? "次のテーマへ" : "Worksheetを終える"}
+              <ArrowRightIcon className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
 
-        {/* 6. 右サマリーカード */}
+        {/* 右サマリーカード（カテゴリ内すべての回答から機械的に抽出） */}
         <aside className="lg:sticky lg:top-8 lg:self-start">
           <div className="rounded-[18px] border border-[#e5dfd6] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
             <div className="flex items-center gap-2.5">
