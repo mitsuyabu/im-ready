@@ -20,8 +20,9 @@ interface PlanPageProps {
   params: Promise<{ planId: string }>;
 }
 
+/** カード共通の枠・角丸・影（背景色は各カード側で指定する）。 */
 const CARD =
-  "relative rounded-[18px] border border-[#e7ddc9] bg-[#fdfbf4] shadow-[0_2px_6px_rgba(0,0,0,0.08)]";
+  "relative rounded-[18px] border border-[#e7ddc9] shadow-[0_2px_6px_rgba(0,0,0,0.08)]";
 
 /** 吹き出し2つ（AI相談）。線はやや細く・丸く、手描き寄りのやわらかいタッチ。 */
 function SpeechIcon({ className }: { className?: string }) {
@@ -210,7 +211,7 @@ export default async function PlanPage({ params }: PlanPageProps) {
           {/* 左カラム（広め）: AI相談 → Worksheet */}
           <div className="flex flex-col gap-4">
             {/* AI相談 */}
-            <section className={`${CARD} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:min-h-[160px]`}>
+            <section className={`${CARD} bg-white flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:min-h-[160px]`}>
               <span
                 aria-hidden
                 className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[20px] bg-[#e6efe3] text-[#5a6b55] shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-inset ring-black/[0.04]"
@@ -233,7 +234,7 @@ export default async function PlanPage({ params }: PlanPageProps) {
             </section>
 
             {/* Worksheet */}
-            <section className={`${CARD} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:min-h-[160px]`}>
+            <section className={`${CARD} bg-white flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:min-h-[160px]`}>
               <span
                 aria-hidden
                 className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[20px] bg-[#e4ebf2] text-[#4d647e] shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-inset ring-black/[0.04]"
@@ -261,7 +262,7 @@ export default async function PlanPage({ params }: PlanPageProps) {
           <div className="flex flex-col gap-4">
             {/* このPlanについて（pinned note 風・下辺が破れ） */}
             <section
-              className={`${CARD} p-5 sm:p-6 lg:min-h-[270px]`}
+              className={`${CARD} bg-[#fdfbf4] p-5 sm:p-6 lg:min-h-[270px]`}
               style={{ clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 4px), 86% 100%, 62% calc(100% - 5px), 38% 100%, 14% calc(100% - 5px), 0 100%)" }}
             >
               <span aria-hidden className="absolute left-[58%] top-0 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#8a9a86] shadow-[0_1px_2px_rgba(0,0,0,0.25)] ring-2 ring-[#fdfbf4]" />
@@ -309,7 +310,7 @@ export default async function PlanPage({ params }: PlanPageProps) {
             </section>
 
             {/* Documents（右上に青い masking tape） */}
-            <section className={`${CARD} overflow-hidden p-5 sm:p-6 lg:min-h-[165px]`}>
+            <section className={`${CARD} bg-white overflow-hidden p-5 sm:p-6 lg:min-h-[165px]`}>
               <span
                 aria-hidden
                 className="pointer-events-none absolute -right-4 top-3 h-6 w-20 rotate-45 border-y border-dashed border-[#7d94b5]/70 bg-[#9db2cd]/45"
