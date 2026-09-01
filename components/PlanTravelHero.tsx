@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { getPlanHeroImage } from "@/lib/planHeroImage";
+import { getPlanHeroImage, toCityChipText, toDepartureHeroText } from "@/lib/planHeroImage";
 
 /**
  * Plan 選択後トップのヒーロー（presentation のみ）。
@@ -36,25 +36,8 @@ const GRAIN =
 const CHIP_CLASS =
   "inline-flex items-center gap-2 rounded-full border border-[#b8ad9d] bg-[#f7f2e8] px-4 py-2.5 text-sm font-medium leading-none text-[#24324a] shadow-[0_1px_2px_rgba(66,55,42,0.08)] sm:text-base";
 
-/** 説明文が続く行き先／時期の free text から、chip 表示用の短い文言を作る。 */
-const CHIP_DESC_DELIM = /[。、，,.．（(／/・\n]/;
-
-/** 都市名だけ（`ゴールドコースト。都会すぎず…` → `ゴールドコースト`）。 */
-function toCityChipText(city: string): string {
-  const head = city.trim().split(CHIP_DESC_DELIM)[0].trim();
-  return head.length > 0 ? head : city.trim();
-}
-
-/** `出発まであと◯ヶ月`。テキストから月数が読み取れないときは先頭の短い表現をそのまま出す
- *（数値を創作しない）。 */
-function toDepartureChipText(departureTiming: string): string {
-  const t = departureTiming.trim();
-  const m = t.match(/(\d+)\s*(?:ヶ|ケ|か|カ|箇)?月/);
-  if (m) return `出発まであと${m[1]}ヶ月`;
-  if (/半年/.test(t) && !/\d/.test(t)) return "出発まであと6ヶ月";
-  const head = t.split(CHIP_DESC_DELIM)[0].trim();
-  return head.length > 0 ? head : t;
-}
+// chip 表示用の短文化（都市名だけ／出発まであと◯ヶ月）は lib/planHeroImage.ts の
+// toCityChipText / toDepartureHeroText を共通利用する（「このPlanについて」カードも同じ helper）。
 
 const SUBTITLE = "このPlanの条件や考えを整理していこう。";
 const FALLBACK_CHIP = "行き先・時期はこれから整理";
@@ -117,7 +100,7 @@ function Chips({ city, departureTiming }: Pick<HeroProps, "city" | "departureTim
       {departureTiming && (
         <span className={CHIP_CLASS}>
           <CalendarIcon className="h-4 w-4 shrink-0" />
-          {toDepartureChipText(departureTiming)}
+          {toDepartureHeroText(departureTiming)}
         </span>
       )}
     </div>

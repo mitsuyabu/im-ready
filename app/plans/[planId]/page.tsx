@@ -10,6 +10,7 @@ import PlanTravelHero from "@/components/PlanTravelHero";
 import PlanJourneyRibbon from "@/components/PlanJourneyRibbon";
 import PlanWorksheetProgress from "@/components/PlanWorksheetProgress";
 import BrandLogo from "@/components/BrandLogo";
+import { toCityChipText, toDeparturePlanInfoText, toThemeText } from "@/lib/planHeroImage";
 
 export const metadata: Metadata = {
   title: "プラン",
@@ -246,33 +247,39 @@ export default async function PlanPage({ params }: PlanPageProps) {
                 <path d="M12 4v16M4 12h16M6.5 6.5l11 11M17.5 6.5l-11 11" />
               </svg>
 
-              <h2 className="text-lg font-bold text-[#2b3a55]">このPlanについて</h2>
-              <svg aria-hidden viewBox="0 0 130 8" className="mt-1 h-2 w-28 text-[#7a9a76]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <h2 className="text-[22px] font-bold leading-tight text-[#1f2d43] sm:text-2xl">このPlanについて</h2>
+              <svg aria-hidden viewBox="0 0 130 8" className="mt-1.5 h-2 w-28 text-[#8ba086]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M2 5c20-6 40 5 60 1s45-6 68-2" />
               </svg>
 
-              <dl className="mt-4 divide-y divide-[#ece3cd]">
-                <div className="flex items-center justify-between gap-3 py-2.5 first:pt-0">
-                  <dt className="inline-flex items-center gap-1.5 text-xs font-medium text-[#8b857a]">
-                    <PinIcon className="h-3.5 w-3.5" />
+              <dl className="mt-4 divide-y divide-[#d8d0c3]">
+                <div className="flex items-center justify-between gap-3 py-4 first:pt-3">
+                  <dt className="inline-flex shrink-0 items-center gap-2 text-base font-medium text-[#625c54]">
+                    <PinIcon className="h-5 w-5 text-[#2f2d2a]" />
                     行き先
                   </dt>
-                  <dd className="min-w-0 truncate text-right text-sm text-[#2b3a55]">{summary.city ?? "これから整理"}</dd>
+                  <dd className="min-w-0 text-right text-base font-semibold text-[#1f2d43] sm:text-lg">
+                    {destinationCity ? toCityChipText(destinationCity) : "これから整理"}
+                  </dd>
                 </div>
-                <div className="flex items-center justify-between gap-3 py-2.5">
-                  <dt className="inline-flex items-center gap-1.5 text-xs font-medium text-[#8b857a]">
-                    <ClockIcon className="h-3.5 w-3.5" />
+                <div className="flex items-center justify-between gap-3 py-4">
+                  <dt className="inline-flex shrink-0 items-center gap-2 text-base font-medium text-[#625c54]">
+                    <ClockIcon className="h-5 w-5 text-[#2f2d2a]" />
                     出発の目安
                   </dt>
-                  <dd className="min-w-0 truncate text-right text-sm text-[#2b3a55]">{summary.departureTiming ?? "これから整理"}</dd>
+                  <dd className="min-w-0 text-right text-base font-semibold text-[#1f2d43] sm:text-lg">
+                    {summary.departureTiming ? toDeparturePlanInfoText(summary.departureTiming) : "これから整理"}
+                  </dd>
                 </div>
                 {summary.stage && (
-                  <div className="flex items-center justify-between gap-3 py-2.5">
-                    <dt className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-[#8b857a]">
-                      <TagIcon className="h-3.5 w-3.5" />
+                  <div className="flex items-center justify-between gap-3 py-4">
+                    <dt className="inline-flex shrink-0 items-center gap-2 text-base font-medium text-[#625c54]">
+                      <TagIcon className="h-5 w-5 text-[#2f2d2a]" />
                       いまのテーマ
                     </dt>
-                    <dd className="min-w-0 truncate text-right text-sm text-[#2b3a55]">{summary.stage}</dd>
+                    <dd className="min-w-0 text-right text-base font-semibold text-[#1f2d43] sm:text-lg">
+                      {toThemeText(summary.stage)}
+                    </dd>
                   </div>
                 )}
               </dl>
@@ -285,12 +292,8 @@ export default async function PlanPage({ params }: PlanPageProps) {
               </Link>
             </section>
 
-            {/* Documents（右上に青い masking tape） */}
+            {/* Documents */}
             <section className={`${CARD} bg-white overflow-hidden p-5 sm:p-6 lg:min-h-[165px]`}>
-              <span
-                aria-hidden
-                className="pointer-events-none absolute -right-4 top-3 h-6 w-20 rotate-45 border-y border-dashed border-[#7d94b5]/70 bg-[#9db2cd]/45"
-              />
               <div className="flex items-start gap-4">
                 <Image
                   src="/plan-icons/documents.webp"
