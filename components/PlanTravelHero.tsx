@@ -30,10 +30,11 @@ const WAVE_TORN =
 const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
-const CHIP_CLASS_COLLAGE =
-  "inline-flex items-center gap-1 rounded-full border border-[#2b2a27]/20 bg-white/85 px-2.5 py-1 text-[11px] font-medium text-[#1f2430]";
-const CHIP_CLASS_IMAGE =
-  "inline-flex items-center gap-1 rounded-full border border-[#2b2a27]/20 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-[#1f2430] shadow-[0_1px_2px_rgba(0,0,0,0.08)]";
+/** 参考デザインの chip に寄せた共通 pill（location / departure / fallback すべて同じルール）。
+ * しっかり丸み・淡いグレージュの細枠・ごく白い生成り地・ほぼ無影・やや柔らかい濃いグレー文字。
+ * 軽く上品で繊細な印象になるよう、枠と影はごく淡く、文字と icon は主張しすぎない濃度にする。 */
+const CHIP_CLASS =
+  "inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c2] bg-[#fdfcf8] px-3.5 py-1.5 text-[13px] font-medium leading-none text-[#514f49] shadow-[0_1px_1.5px_rgba(23,38,63,0.05)]";
 
 const SUBTITLE = "このPlanの条件や考えを整理していこう。";
 const FALLBACK_CHIP = "行き先・時期はこれから整理";
@@ -53,18 +54,18 @@ type HeroProps = {
 
 function PinIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z" />
       <circle cx="12" cy="9" r="2.5" />
     </svg>
   );
 }
 
-function ClockIcon({ className }: { className?: string }) {
+function CalendarIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="12" cy="12" r="8" />
-      <path d="M12 8v4l2.5 2.5" />
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="4" y="5" width="16" height="16" rx="2" />
+      <path d="M4 9h16M8 3v4M16 3v4" />
     </svg>
   );
 }
@@ -81,28 +82,21 @@ function MyPlanLabel({ className = "" }: { className?: string }) {
   );
 }
 
-function Chips({
-  city,
-  departureTiming,
-  chipClass,
-}: HeroProps & { chipClass: string }) {
+function Chips({ city, departureTiming }: Pick<HeroProps, "city" | "departureTiming">) {
   const hasChips = Boolean(city || departureTiming);
   return (
-    <div className="mt-5 flex flex-wrap gap-2.5">
-      {!hasChips && (
-        <span className="rounded-full border border-[#2b2a27]/20 bg-white/85 px-2.5 py-1 text-[11px] text-[#3f3d38]">
-          {FALLBACK_CHIP}
-        </span>
-      )}
+    // 横並びではなく縦積み。2 つある場合は上下に。
+    <div className="mt-5 flex flex-col items-start gap-3">
+      {!hasChips && <span className={CHIP_CLASS}>{FALLBACK_CHIP}</span>}
       {city && (
-        <span className={chipClass}>
-          <PinIcon className="h-3 w-3" />
+        <span className={CHIP_CLASS}>
+          <PinIcon className="h-3 w-3 text-[#4a4843]" />
           {city}
         </span>
       )}
       {departureTiming && (
-        <span className={chipClass}>
-          <ClockIcon className="h-3 w-3" />
+        <span className={CHIP_CLASS}>
+          <CalendarIcon className="h-3 w-3 text-[#4a4843]" />
           出発の目安：{departureTiming}
         </span>
       )}
@@ -167,7 +161,7 @@ function CityImageHero({
             {title}
           </h1>
           <p className="mt-4 max-w-md text-sm leading-relaxed text-[#3f3a33] sm:text-[15px]">{SUBTITLE}</p>
-          <Chips city={city} departureTiming={departureTiming} title={title} chipClass={CHIP_CLASS_IMAGE} />
+          <Chips city={city} departureTiming={departureTiming} />
         </div>
       </div>
     </div>
@@ -304,7 +298,7 @@ function CollageHero({ title, city, departureTiming }: HeroProps) {
             {title}
           </h1>
           <p className="mt-4 max-w-md text-sm leading-relaxed text-[#4a4740] sm:text-[15px]">{SUBTITLE}</p>
-          <Chips city={city} departureTiming={departureTiming} title={title} chipClass={CHIP_CLASS_COLLAGE} />
+          <Chips city={city} departureTiming={departureTiming} />
         </div>
       </div>
     </div>
