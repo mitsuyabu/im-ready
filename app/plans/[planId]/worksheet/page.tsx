@@ -42,24 +42,24 @@ export default async function PlanWorksheetPage({ params }: PlanWorksheetPagePro
   }
 
   return (
-    <div className="min-h-dvh bg-worksheet-surface">
+    <div className="min-h-dvh bg-[#f7f4ec]">
       {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ロゴだけの単独headerは二重表示を避けて隠す */}
-      <header className="border-b border-worksheet-border px-4 py-4 sm:px-6 lg:hidden">
+      <header className="border-b border-[#e4ddcf] px-4 py-4 sm:px-6 lg:hidden">
         <BrandLogo href="/mypage" />
       </header>
 
-      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:px-10">
         <Link
           href={`/plans/${planId}`}
-          className="text-xs text-worksheet-accent underline decoration-worksheet-accent/40 underline-offset-2 transition-colors hover:decoration-worksheet-accent"
+          className="inline-flex items-center gap-1 text-sm text-[#8a8578] transition-colors hover:text-[#3f3d38]"
         >
-          ← Plan Homeに戻る
+          <span aria-hidden>←</span> Plan Homeに戻る
         </Link>
 
-        <h1 className="mt-4 text-[26px] font-semibold leading-snug text-worksheet-primary">
+        <h1 className="mt-4 text-[32px] font-bold leading-[1.15] tracking-tight text-[#26251f] sm:text-[44px]">
           テーマから整理する
         </h1>
-        <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
+        <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-[#6f6b62] sm:text-sm">
           留学を考えるうえで、自分の気持ちや条件をテーマごとに整理していきます。気になるテーマから始めてください。
         </p>
 
