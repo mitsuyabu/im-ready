@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -24,35 +25,8 @@ interface PlanPageProps {
 const CARD =
   "relative rounded-[18px] border border-[#e7ddc9] shadow-[0_2px_6px_rgba(0,0,0,0.08)]";
 
-/** 吹き出し2つ（AI相談）。線はやや細く・丸く、手描き寄りのやわらかいタッチ。 */
-function SpeechIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M3.5 5.5A1.5 1.5 0 0 1 5 4h8a1.5 1.5 0 0 1 1.5 1.5v4A1.5 1.5 0 0 1 13 11H8l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5v-4Z" />
-      <path d="M10.5 13.5a1.5 1.5 0 0 1 1.5-1.5h6a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5v2l-2.6-2H12a1.5 1.5 0 0 1-1.5-1.5v-3Z" />
-    </svg>
-  );
-}
-
-/** リングノート＋チェック（Worksheet）。線はやや細く・丸く。 */
-function NotebookIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <rect x="7" y="4" width="12" height="16" rx="2" />
-      <path d="M5 7h3M5 10.5h3M5 14h3M5 17.5h3" />
-      <path d="M10.5 12l2 2 4-4.5" />
-    </svg>
-  );
-}
-
-function FileIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />
-      <path d="M14 3v5h5M9 13h6M9 17h6" />
-    </svg>
-  );
-}
+/** AI相談 / Worksheet / Documents の左アイコンは提供画像（背景色・角丸・線画込み）。共通サイズ。 */
+const CARD_ICON_CLASS = "h-16 w-16 shrink-0 sm:h-20 sm:w-20 lg:h-24 lg:w-24";
 
 function CalendarIcon({ className }: { className?: string }) {
   return (
@@ -212,12 +186,13 @@ export default async function PlanPage({ params }: PlanPageProps) {
           <div className="flex flex-col gap-4">
             {/* AI相談 */}
             <section className={`${CARD} bg-white flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:min-h-[160px]`}>
-              <span
-                aria-hidden
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[20px] bg-[#e6efe3] text-[#5a6b55] shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-inset ring-black/[0.04]"
-              >
-                <SpeechIcon className="h-7 w-7" />
-              </span>
+              <Image
+                src="/plan-icons/ai-chat.webp"
+                alt=""
+                width={96}
+                height={96}
+                className={CARD_ICON_CLASS}
+              />
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-bold text-[#2b3a55]">AI相談</h2>
                 <p className="mt-1 text-sm leading-relaxed text-[#6b6357]">このPlanについて、続きを話そう。</p>
@@ -235,12 +210,13 @@ export default async function PlanPage({ params }: PlanPageProps) {
 
             {/* Worksheet */}
             <section className={`${CARD} bg-white flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:min-h-[160px]`}>
-              <span
-                aria-hidden
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[20px] bg-[#e4ebf2] text-[#4d647e] shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-inset ring-black/[0.04]"
-              >
-                <NotebookIcon className="h-7 w-7" />
-              </span>
+              <Image
+                src="/plan-icons/worksheet.webp"
+                alt=""
+                width={96}
+                height={96}
+                className={CARD_ICON_CLASS}
+              />
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-bold text-[#2b3a55]">Worksheet</h2>
                 <p className="mt-1 text-sm leading-relaxed text-[#6b6357]">気持ちや条件を、自分のペースで整理する。</p>
@@ -316,9 +292,13 @@ export default async function PlanPage({ params }: PlanPageProps) {
                 className="pointer-events-none absolute -right-4 top-3 h-6 w-20 rotate-45 border-y border-dashed border-[#7d94b5]/70 bg-[#9db2cd]/45"
               />
               <div className="flex items-start gap-4">
-                <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#efe4c4] text-[#8a7a4a]">
-                  <FileIcon className="h-5 w-5" />
-                </span>
+                <Image
+                  src="/plan-icons/documents.webp"
+                  alt=""
+                  width={96}
+                  height={96}
+                  className={CARD_ICON_CLASS}
+                />
                 <div className="min-w-0 flex-1">
                   <h2 className="text-lg font-bold text-[#2b3a55]">Documents</h2>
                   <p className="mt-1 text-sm leading-relaxed text-[#6b6357]">考えたことを、資料に残す。</p>
