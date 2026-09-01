@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from "react";
+import {
+  Fragment,
+  FormEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Message, { AiSparkIcon } from "./Message";
@@ -9,6 +16,12 @@ import { ProposalMessage } from "./proposal/ProposalMessage";
 import KarteSummary from "./KarteSummary";
 import BrandLogo from "./BrandLogo";
 import ChatStartScreen from "./ChatStartScreen";
+import PlanChatMessage from "./PlanChatMessage";
+import PlanChatInsightNote, {
+  PlanChatDivider,
+  LeafIcon,
+  PLAN_CHAT_SUGGESTIONS,
+} from "./PlanChatInsightNote";
 import { fallbackGradientForPlan } from "./PlanCard";
 import { getPlanCoverImage } from "@/lib/planCover";
 import { summarizeKarteForCard } from "@/lib/planCardSummary";
@@ -638,69 +651,126 @@ export default function Chat({
   // 会話開始後に画面下部へ固定する場合とで、外側の<form>だけを出し分けて再利用する
   // （textarea/ボタン自体・ref・イベントハンドラは完全に同一のJSXを共有し、二重定義しない）。
   const sageInputCapsule = (
-    <div className="flex w-full items-end gap-2 rounded-[24px] border border-worksheet-border bg-worksheet-surface p-2 pl-4 shadow-sm transition-colors duration-150 focus-within:border-worksheet-sage-hover focus-within:ring-2 focus-within:ring-worksheet-sage-hover/40">
+    <div
+      className="flex w-full items-end gap-2 rounded-[28px] border border-[#e7dfce] bg-white px-3 py-3 shadow-[0_2px_10px_rgba(60,50,30,0.06)] transition-colors duration-150 focus-within:border-[#e6c3b8] focus-within:ring-2 focus-within:ring-[#efccc0]/60 sm:gap-3 sm:px-5"
+      style={{ minHeight: 72 }}
+    >
       <textarea
         ref={textareaRef}
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleTextareaKeyDown}
-        placeholder="留学について、何でも話してください"
+        placeholder="留学について、いま思っていることをそのまま書いてください"
         rows={1}
         disabled={isSending}
-        className="max-h-32 flex-1 resize-none bg-transparent py-2 text-sm text-worksheet-primary placeholder:text-worksheet-secondary focus:outline-none disabled:opacity-60"
+        aria-label="メッセージを入力"
+        className="max-h-40 min-h-[44px] flex-1 resize-none self-center bg-transparent py-2 text-[15px] leading-6 text-[#2b2a26] placeholder:text-[#a7a08f] focus:outline-none disabled:opacity-60 sm:text-base"
       />
       <button
         type="submit"
         disabled={isSending || !input.trim()}
         aria-label="送信"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-worksheet-accent text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.04] active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+        className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-[#ef8069] text-white shadow-[0_2px_6px_rgba(214,105,79,0.35)] transition-colors duration-150 hover:bg-[#e2694f] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[#ef8069]"
       >
-        <ArrowUpIcon className="h-4 w-4" />
+        <ArrowUpIcon className="h-5 w-5" />
       </button>
     </div>
   );
 
+  // Plan Chat 会話本文（PlanChatMessage カード＋一度きりの区切り装飾＋紙/セージ調のローディング）。
+  // /widget 側は既存の messageListContent をそのまま使い、この分岐には一切関与しない。
+  const firstAssistantIdx = messages.findIndex((m) => m.role === "assistant");
+  const planMessageListContent = (
+    <>
+      {messages.map((m, i) => (
+        <Fragment key={i}>
+          {m.proposalData ? (
+            <ProposalMessage
+              situation={m.proposalData.situation}
+              introNote={m.proposalData.introNote}
+              proposals={m.proposalData.proposals}
+              variant="document"
+            />
+          ) : (
+            <PlanChatMessage role={m.role} content={m.content} />
+          )}
+          {i === firstAssistantIdx && i < messages.length - 1 && <PlanChatDivider />}
+        </Fragment>
+      ))}
+      {isSending && (
+        <div className="flex items-start gap-3 sm:gap-4">
+          <span
+            aria-hidden
+            className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#dbe5d0] bg-white text-[#7c9068]"
+          >
+            <AiSparkIcon className="h-4 w-4" />
+          </span>
+          <div className="flex items-center gap-1.5 rounded-[15px] border border-[#dde7d2] bg-[#f1f5ec] px-5 py-4">
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#9caf88] [animation-delay:-0.3s]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#9caf88] [animation-delay:-0.15s]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#9caf88]" />
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   return (
-    <div className={isPlanChat ? "flex h-full flex-col bg-worksheet-surface" : "flex h-full flex-col"}>
+    <div
+      className={isPlanChat ? "flex h-full flex-col bg-[#faf8f3]" : "flex h-full flex-col"}
+      style={
+        isPlanChat
+          ? {
+              backgroundImage:
+                "radial-gradient(rgba(120,100,60,0.025) 1px, transparent 1px)",
+              backgroundSize: "22px 22px",
+            }
+          : undefined
+      }
+    >
       {isPlanChat && (
-        <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-worksheet-border bg-worksheet-surface px-3 py-2.5 sm:px-6 sm:py-3">
-          {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ここでは隠す（sticky・Plan情報は維持） */}
-          <BrandLogo href="/mypage" className="h-8 w-auto shrink-0 sm:h-9 lg:hidden" />
+        <header className="sticky top-0 z-20 border-b border-[#e7dfce] bg-[#faf8f3]/95 backdrop-blur-sm">
+          <div className="flex items-center gap-3 px-3 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
+            {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ここでは隠す（sticky・戻る導線は維持） */}
+            <BrandLogo href="/mypage" className="h-8 w-auto shrink-0 sm:h-9 lg:hidden" />
+            <span aria-hidden className="hidden h-6 w-px shrink-0 bg-[#e0d8c5] sm:block lg:hidden" />
 
-          {/* 薄いvertical divider。1行に収まらない場合は自然に折り返すため、狭い画面では非表示にする */}
-          <span aria-hidden className="hidden h-6 w-px shrink-0 bg-worksheet-border sm:block lg:hidden" />
-
-          <div className="flex min-w-0 flex-1 items-center gap-3">
             <Link
               href={`/plans/${planId}`}
               aria-label="Plan Homeに戻る"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-worksheet-secondary transition-colors hover:bg-worksheet-sage hover:text-worksheet-primary"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#8a8578] transition-colors hover:bg-[#efe9db] hover:text-[#2b2a26]"
             >
               <ChevronLeftIcon className="h-5 w-5" />
             </Link>
 
-            <div
-              className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-linear-to-br ${fallbackGradientForPlan(planId ?? "")}`}
-            >
-              {headerCover.imageSrc && (
-                <Image
-                  src={headerCover.imageSrc}
-                  alt=""
-                  fill
-                  sizes="40px"
-                  className="object-cover"
-                />
-              )}
+            {/* ポラロイド風サムネイル。都市画像があれば再利用し、無ければ中立のグラデ（架空の都市画像は出さない）。 */}
+            <div aria-hidden className="relative shrink-0 -rotate-[2.5deg]">
+              <span className="absolute -top-1.5 left-1/2 z-10 h-3 w-9 -translate-x-1/2 -rotate-[4deg] rounded-[1px] bg-[#d8c7a6]/70" />
+              <div
+                className={`relative h-14 w-14 overflow-hidden rounded-[2px] border-[3px] border-white bg-linear-to-br ${fallbackGradientForPlan(
+                  planId ?? "",
+                )} shadow-[0_3px_8px_rgba(50,40,20,0.18)] sm:h-[68px] sm:w-[68px]`}
+              >
+                {headerCover.imageSrc && (
+                  <Image src={headerCover.imageSrc} alt="" fill sizes="68px" className="object-cover" />
+                )}
+              </div>
             </div>
 
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-worksheet-primary sm:text-base">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-bold text-[#25324a] sm:text-base">
                 留学プランの相談
               </p>
               {planTitle && (
-                <p className="truncate text-xs text-worksheet-secondary">{planTitle}</p>
+                <p className="truncate text-xs text-[#8a8578] sm:text-[13px]">{planTitle}</p>
               )}
             </div>
+
+            {/* 固定UIコピーのピル。狭い画面では省略。 */}
+            <span className="hidden shrink-0 items-center gap-1.5 rounded-full border border-[#cfdcc4] bg-[#eef3e8] px-3 py-1.5 text-xs font-medium text-[#5f7050] sm:inline-flex">
+              <LeafIcon className="h-3.5 w-3.5" />
+              考えを整理する時間
+            </span>
           </div>
         </header>
       )}
@@ -712,12 +782,27 @@ export default function Chat({
             // （会話開始前だけ、入力欄をスクロール領域の外＝画面下部固定ではなくここに置く）。
             <div className="flex h-full flex-col items-center justify-center gap-6 px-4 py-8 sm:px-6">
               <ChatStartScreen onQuickStart={handleQuickStart} />
-              <form onSubmit={handleSubmit} className="w-full max-w-3xl">
+              <form onSubmit={handleSubmit} className="w-full max-w-[820px]">
                 {sageInputCapsule}
               </form>
             </div>
           ) : (
-            <div className="mx-auto max-w-3xl space-y-3 p-4 sm:p-6">{messageListContent}</div>
+            <>
+              {/* Desktop: 左に会話（720〜850px相当）＋右に付箋メモ。Tablet/Mobile: 付箋は会話の下へ。 */}
+              <div className="mx-auto flex w-full max-w-6xl gap-6 px-4 py-6 sm:px-6 lg:gap-10 lg:py-10">
+                <div className="min-w-0 flex-1">
+                  <div className="mx-auto max-w-[820px] space-y-6">{planMessageListContent}</div>
+                </div>
+                <aside className="hidden w-[264px] shrink-0 lg:block">
+                  <div className="sticky top-6">
+                    <PlanChatInsightNote karte={karte} />
+                  </div>
+                </aside>
+              </div>
+              <div className="mx-auto w-full max-w-[820px] px-4 pb-2 sm:px-6 lg:hidden">
+                <PlanChatInsightNote karte={karte} variant="inline" />
+              </div>
+            </>
           )
         ) : (
           <>
@@ -737,7 +822,7 @@ export default function Chat({
 
       {/* Plan Chatでは会話本文（max-w-3xl）と横幅・左右marginを揃える。/widgetは既存のmx-4のまま */}
       {showSummary && (
-        <div className={isPlanChat ? "mx-auto w-full max-w-3xl px-4 sm:px-6" : undefined}>
+        <div className={isPlanChat ? "mx-auto w-full max-w-[820px] px-4 sm:px-6" : undefined}>
           <KarteSummary
             karte={karte}
             onConfirm={handleConfirmSummary}
@@ -748,7 +833,7 @@ export default function Chat({
       )}
 
       {!showSummary && karte.schoolPrefs.preferredCity.value && (
-        <div className={isPlanChat ? "mx-auto mb-2 flex w-full max-w-3xl justify-end px-4 sm:px-6" : "mx-4 mb-2 flex justify-end"}>
+        <div className={isPlanChat ? "mx-auto mb-2 flex w-full max-w-[820px] justify-end px-4 sm:px-6" : "mx-4 mb-2 flex justify-end"}>
           <button
             type="button"
             onClick={handleRequestProposalCard}
@@ -766,7 +851,7 @@ export default function Chat({
         <div
           className={
             isPlanChat
-              ? "mx-auto mb-2 flex w-full max-w-3xl items-center justify-between gap-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300 sm:px-6"
+              ? "mx-auto mb-2 flex w-full max-w-[820px] items-center justify-between gap-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300 sm:px-6"
               : "mx-4 mb-2 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
           }
         >
@@ -787,9 +872,30 @@ export default function Chat({
         !showStartScreen && (
           <form
             onSubmit={handleSubmit}
-            className="border-t border-worksheet-border bg-worksheet-surface px-4 py-4 sm:px-6 sm:py-6"
+            className="border-t border-[#e7dfce] bg-[#faf8f3] px-4 pb-5 pt-4 sm:px-6"
           >
-            <div className="mx-auto max-w-3xl">{sageInputCapsule}</div>
+            <div className="mx-auto max-w-[820px]">
+              {/* サジェストチップ。押すと入力欄に文言を入れるだけ（既存 handleQuickStart と同じ。送信はしない）。 */}
+              <div className="mb-3 flex flex-wrap gap-2">
+                {PLAN_CHAT_SUGGESTIONS.map((label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => handleQuickStart(label)}
+                    disabled={isSending}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#e0d7c4] bg-[#fdfcf8] px-3.5 py-1.5 text-[13px] text-[#5f5a4e] shadow-[0_1px_2px_rgba(60,50,30,0.05)] transition-colors hover:border-[#cdbfa4] hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <LeafIcon className="h-3.5 w-3.5 text-[#9aa98a]" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {sageInputCapsule}
+              <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-[#a7a08f]">
+                <LeafIcon className="h-3.5 w-3.5" />
+                答えを急がなくて大丈夫です。
+              </p>
+            </div>
           </form>
         )
       ) : (

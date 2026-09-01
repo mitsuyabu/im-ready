@@ -48,7 +48,7 @@ export default async function PlanChatPage({ params }: PlanChatPageProps) {
   ]);
 
   return (
-    <div className="flex h-dvh flex-1 flex-col bg-white dark:bg-zinc-950">
+    <div className="flex h-dvh flex-1 flex-col bg-[#faf8f3]">
       <Chat
         planId={planId}
         sessionId={session.id}
