@@ -31,10 +31,30 @@ const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
 /** 参考デザインの chip に寄せた共通 pill（location / departure / fallback すべて同じルール）。
- * しっかり丸み・淡いグレージュの細枠・ごく白い生成り地・ほぼ無影・やや柔らかい濃いグレー文字。
- * 軽く上品で繊細な印象になるよう、枠と影はごく淡く、文字と icon は主張しすぎない濃度にする。 */
+ * Hero の紙面になじむ薄い生成り地・背景より少し濃い warm greige の細枠・navy 寄りの文字と icon・
+ * ごく軽い紙の浮き。白／半透明白は使わない。 */
 const CHIP_CLASS =
-  "inline-flex items-center gap-1.5 rounded-full border border-[#dcd3c2] bg-[#fdfcf8] px-3.5 py-1.5 text-[13px] font-medium leading-none text-[#514f49] shadow-[0_1px_1.5px_rgba(23,38,63,0.05)]";
+  "inline-flex items-center gap-2 rounded-full border border-[#b8ad9d] bg-[#f7f2e8] px-4 py-2.5 text-sm font-medium leading-none text-[#24324a] shadow-[0_1px_2px_rgba(66,55,42,0.08)] sm:text-base";
+
+/** 説明文が続く行き先／時期の free text から、chip 表示用の短い文言を作る。 */
+const CHIP_DESC_DELIM = /[。、，,.．（(／/・\n]/;
+
+/** 都市名だけ（`ゴールドコースト。都会すぎず…` → `ゴールドコースト`）。 */
+function toCityChipText(city: string): string {
+  const head = city.trim().split(CHIP_DESC_DELIM)[0].trim();
+  return head.length > 0 ? head : city.trim();
+}
+
+/** `出発まであと◯ヶ月`。テキストから月数が読み取れないときは先頭の短い表現をそのまま出す
+ *（数値を創作しない）。 */
+function toDepartureChipText(departureTiming: string): string {
+  const t = departureTiming.trim();
+  const m = t.match(/(\d+)\s*(?:ヶ|ケ|か|カ|箇)?月/);
+  if (m) return `出発まであと${m[1]}ヶ月`;
+  if (/半年/.test(t) && !/\d/.test(t)) return "出発まであと6ヶ月";
+  const head = t.split(CHIP_DESC_DELIM)[0].trim();
+  return head.length > 0 ? head : t;
+}
 
 const SUBTITLE = "このPlanの条件や考えを整理していこう。";
 const FALLBACK_CHIP = "行き先・時期はこれから整理";
@@ -85,19 +105,19 @@ function MyPlanLabel({ className = "" }: { className?: string }) {
 function Chips({ city, departureTiming }: Pick<HeroProps, "city" | "departureTiming">) {
   const hasChips = Boolean(city || departureTiming);
   return (
-    // 横並びではなく縦積み。2 つある場合は上下に。
+    // 横並びではなく縦積み。上に location、下に departure。
     <div className="mt-5 flex flex-col items-start gap-3">
       {!hasChips && <span className={CHIP_CLASS}>{FALLBACK_CHIP}</span>}
       {city && (
         <span className={CHIP_CLASS}>
-          <PinIcon className="h-3 w-3 text-[#4a4843]" />
-          {city}
+          <PinIcon className="h-4 w-4 shrink-0" />
+          {toCityChipText(city)}
         </span>
       )}
       {departureTiming && (
         <span className={CHIP_CLASS}>
-          <CalendarIcon className="h-3 w-3 text-[#4a4843]" />
-          出発の目安：{departureTiming}
+          <CalendarIcon className="h-4 w-4 shrink-0" />
+          {toDepartureChipText(departureTiming)}
         </span>
       )}
     </div>
