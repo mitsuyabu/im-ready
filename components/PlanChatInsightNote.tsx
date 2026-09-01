@@ -2,23 +2,44 @@ import { firstPhrase, firstSentence } from "@/lib/planHeroImage";
 import type { BlockName, Karte } from "@/lib/karte";
 
 /**
- * Plan Chat（/plans/[planId]/chat）右側の付箋メモ「会話から見えてきたこと」（presentation のみ）。
+ * Plan Chat（/plans/[planId]/chat）右側のサマリーカード「会話から見えてきたこと」（presentation のみ）。
+ *
+ * 最新の共有画像に合わせて、以前の付箋（黄色い紙・青マスキングテープ・傾き・葉の落書き）をやめ、
+ * 白〜ごく薄い生成りのシンプルなカードにしている。
  *
  * 重要: 要約を新しく作らない・新しい API を叩かない。既存の Karte から **本人が明言した事実
- * （certainty === "stated"）だけ** を拾い、機械的に短くして最大 3 つの付箋チップにするだけ。
+ * （certainty === "stated"）だけ** を拾い、機械的に短くして最大 3 つのチップにするだけ。
  * - inferred / unknown は使わない
  * - motivation.trueGoalHypothesis は使わない（常に仮説）
  * - handoff.conflicts に載っている項目（Chat と Worksheet で食い違い）は使わない
- * 拾える stated 事実が 1 つも無ければ、desktop では空状態メッセージ、mobile/tablet の inline では
- * 何も描かない（会話の邪魔をしない）。
+ * 拾える stated 事実が 1 つも無ければ、desktop（sticky）では空状態メッセージ、
+ * mobile/tablet の inline では何も描画しない（会話の邪魔をしない）。
  */
 
-/** 小さな葉のアイコン。ヘッダーのピル・フッター文・付箋の装飾で共用する。 */
+/** 小さな葉のアイコン。ヘッダーのピル・サジェストチップ・フッター文で共用する。 */
 export function LeafIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
       <path d="M20 4c0 8-4.5 13-11 13a7 7 0 0 1-1-.07C8.6 12 12.2 8.2 17 6.7 12.9 7.6 8.9 10 6.6 14.3 4.4 12.2 4 7.9 5 4c3 .9 6 .5 9-.3S18 3.1 20 4Z" />
       <path d="M4 20c1.5-4 3.4-6.6 6-8.4" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" fill="none" />
+    </svg>
+  );
+}
+
+/** 吹き出しのアウトラインアイコン（サマリーカードのタイトル左）。 */
+function SpeechBubbleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H9l-4 3.5V16H5.5A1.5 1.5 0 0 1 4 14.5Z" />
     </svg>
   );
 }
@@ -42,29 +63,10 @@ function PencilDoodleIcon({ className }: { className?: string }) {
   );
 }
 
-/** 付箋の下の芽（装飾）。 */
-function SproutDoodleIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M12 20v-7" />
-      <path d="M12 13c0-3 2-5 6-5 0 3-2 5-6 5Z" />
-      <path d="M12 15c0-2.6-1.7-4.5-5-4.5 0 2.6 1.7 4.5 5 4.5Z" />
-    </svg>
-  );
-}
-
 /**
  * 会話の区切りの装飾行。参考デザインの「ひとつずつ、言葉にしよう」＋両側の点線＋鉛筆。
  * 固定の UI コピーで、手書きフォントは使わず serif italic のみ。装飾なので aria-hidden。
+ * （最新画像でも一致しているため変更しない。）
  */
 export function PlanChatDivider() {
   return (
@@ -116,7 +118,7 @@ export default function PlanChatInsightNote({
   variant = "sticky",
 }: {
   karte: Karte;
-  /** "sticky": desktop 右カラム（少し傾ける・空でも空状態を出す）。"inline": tablet/mobile（傾けない・空なら描かない）。 */
+  /** "sticky": desktop 右カラム（空でも空状態を出す）。"inline": tablet/mobile（空なら描かない）。見た目は同じシンプルな白カード。 */
   variant?: "sticky" | "inline";
 }) {
   const facts = statedFacts(karte);
@@ -124,48 +126,28 @@ export default function PlanChatInsightNote({
   if (variant === "inline" && facts.length === 0) return null;
 
   return (
-    <div
-      className={`relative rounded-[4px] border border-[#e7dccb] bg-[#fbf3da] px-5 pb-6 pt-7 shadow-[0_6px_18px_rgba(60,50,25,0.12)] ${
-        variant === "sticky" ? "-rotate-[1.4deg]" : ""
-      }`}
-      style={{
-        backgroundImage:
-          "repeating-linear-gradient(0deg, transparent, transparent 25px, rgba(120,95,45,0.05) 26px)",
-      }}
-    >
-      {/* 上のマスキングテープ（青）。装飾。 */}
-      <span
-        aria-hidden
-        className="absolute -top-3 left-1/2 h-6 w-24 -translate-x-1/2 -rotate-3 rounded-[1px] bg-[#9db9d8]/70 shadow-[0_1px_2px_rgba(40,60,90,0.15)]"
-      />
+    <div className="rounded-[16px] border border-[#8f8b84] bg-[#fffdf9] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      {/* title row: 吹き出しアイコン + 見出し（左揃え） */}
+      <div className="flex items-center gap-2">
+        <SpeechBubbleIcon className="h-5 w-5 shrink-0 text-[#57544e]" />
+        <p className="text-base font-medium text-[#3c3a36]">会話から見えてきたこと</p>
+      </div>
 
-      <p className="text-center text-[15px] font-bold text-[#25324a]">会話から見えてきたこと</p>
-      <svg
-        aria-hidden
-        viewBox="0 0 120 8"
-        className="mx-auto mt-1 h-2 w-28 text-[#8ba086]"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      >
-        <path d="M2 5c14-5 28-5 42 0s28 5 42 0 24-3 32-1" />
-      </svg>
+      {/* title 下の細い divider（以前の手書き風波線は廃止） */}
+      <div className="mt-3 border-t border-[#cfcac2]" />
 
       {facts.length === 0 ? (
-        <p className="mt-4 text-[13px] leading-6 text-[#7c745f]">
+        <p className="mt-3 text-sm leading-6 text-[#77736d]">
           会話を続けると、ここに考えが整理されていきます。
         </p>
       ) : (
         <>
-          <p className="mt-4 text-[12px] font-medium text-[#8a7f66]">あなたが話したこと</p>
-          <ul className="mt-2 flex flex-col gap-2">
-            {facts.map((fact, i) => (
+          <p className="mt-3 text-sm text-[#77736d]">あなたが話したこと</p>
+          <ul className="mt-3 space-y-3">
+            {facts.map((fact) => (
               <li
                 key={fact}
-                className={`self-start rounded-[3px] border border-[#c6d4e6] bg-[#e9f0f8] px-2.5 py-1.5 text-[12.5px] leading-snug text-[#33465f] shadow-[0_1px_2px_rgba(45,60,85,0.08)] ${
-                  i % 2 === 0 ? "-rotate-1" : "rotate-1"
-                }`}
+                className="rounded-xl border border-[#ddd8cf] bg-[#fbfaf6] px-3 py-2 text-sm font-normal leading-snug text-[#403d38]"
               >
                 {fact}
               </li>
@@ -173,9 +155,6 @@ export default function PlanChatInsightNote({
           </ul>
         </>
       )}
-
-      {/* 下の芽（装飾）。 */}
-      <SproutDoodleIcon className="absolute bottom-2 right-3 h-5 w-5 text-[#9bb28c]" />
     </div>
   );
 }
