@@ -288,7 +288,7 @@ export default function WorksheetSectionDetail({
                 </p>
               )}
 
-              {axisError && <p className="mt-3 text-xs text-red-600 dark:text-red-400">{axisError}</p>}
+              {axisError && <p className="mt-3 text-xs text-red-600">{axisError}</p>}
 
               {axisSummary && (
                 <div className="mt-4 whitespace-pre-wrap rounded-[16px] border border-[#e5dfd6] bg-[#fcfbf8] p-5 text-sm leading-relaxed text-[#3f3a34]">

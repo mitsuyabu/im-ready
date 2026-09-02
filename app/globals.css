@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 :root {
+  /* アプリ全体を light 固定にする（OS / ブラウザの dark mode・自動配色の影響を受けない）。
+     これで form 部品・スクロールバー・UA 既定色も light で描画される。 */
+  color-scheme: light;
+
   --background: #ffffff;
   --foreground: #171717;
 
@@ -63,34 +67,31 @@
   --color-worksheet-sage-hover: var(--worksheet-sage-hover);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-
-    --proposal-accent: #60a5fa;
-    --proposal-accent-soft: #1e293b;
-    --proposal-reference-border: #3f3f46;
-    --proposal-reference-bg: #18181b;
-    --proposal-caveat-bg: #27272a;
-
-    /* ダークモードでは黒アクセントをそのまま使うとカード面に埋もれるため、明るい面に反転する */
-    --worksheet-surface: #0a0a0a;
-    --worksheet-surface-2: #18181b;
-    --worksheet-border: #3f3f46;
-    --worksheet-primary: #f4f4f5;
-    --worksheet-secondary: #a1a1aa;
-    --worksheet-accent: #f4f4f5;
-    --worksheet-accent-contrast: #18181b;
-
-    /* 明るいセージをそのまま出すと浮くため、深いグリーンの低opacityに置き換える */
-    --worksheet-sage: rgba(52, 94, 76, 0.28);
-    --worksheet-sage-hover: rgba(52, 94, 76, 0.45);
-  }
-}
+/*
+ * I'm ready! は light トーン固定の UI。OS / ブラウザが dark mode でも昼夜で同じ配色に
+ * 見せるため、prefers-color-scheme: dark でのトークン上書きは行わない。
+ * （匿名 /widget が別仕様で残している dark: クラスには手を入れていない）
+ */
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background-color: #fcfbf8;
+  color: #172033;
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/*
+ * form 部品は OS dark mode でも白地・濃色文字で固定する（特にモバイル Safari の夜間表示）。
+ * コンポーネント側で bg-* / text-* を当てている箇所はクラスの詳細度が上なのでそちらが優先される
+ * （例: Plan Chat の bg-transparent な textarea はカプセルの白が透ける挙動を維持）。
+ */
+input,
+textarea,
+select {
+  background-color: #ffffff;
+  color: #2b2a26;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9b9488;
 }

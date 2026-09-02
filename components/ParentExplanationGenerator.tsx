@@ -120,7 +120,7 @@ export default function ParentExplanationGenerator({
         </button>
       </div>
 
-      {errorMessage && <p className="mt-3 text-xs text-red-600 dark:text-red-400">{errorMessage}</p>}
+      {errorMessage && <p className="mt-3 text-xs text-red-600">{errorMessage}</p>}
     </div>
   );
 }

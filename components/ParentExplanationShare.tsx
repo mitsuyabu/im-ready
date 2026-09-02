@@ -230,7 +230,7 @@ export default function ParentExplanationShare({
                 : "共有リンクを作成"}
           </button>
           {errorMessage && (
-            <p className="mt-3 text-xs text-red-600 dark:text-red-400">{errorMessage}</p>
+            <p className="mt-3 text-xs text-red-600">{errorMessage}</p>
           )}
         </div>
       )}
@@ -296,7 +296,7 @@ export default function ParentExplanationShare({
           )}
 
           {errorMessage && (
-            <p className="mt-3 text-xs text-red-600 dark:text-red-400">{errorMessage}</p>
+            <p className="mt-3 text-xs text-red-600">{errorMessage}</p>
           )}
         </div>
       )}
@@ -332,7 +332,7 @@ export default function ParentExplanationShare({
             <p className="mt-2 text-xs text-[#817b71]">コピーしました。</p>
           )}
           {copyStatus === "failed" && (
-            <p className="mt-2 text-xs text-red-600 dark:text-red-400">
+            <p className="mt-2 text-xs text-red-600">
               コピーできませんでした。リンクを選択してコピーしてください。
             </p>
           )}

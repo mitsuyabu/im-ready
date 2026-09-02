@@ -851,7 +851,7 @@ export default function Chat({
         <div
           className={
             isPlanChat
-              ? "mx-auto mb-2 flex w-full max-w-[820px] items-center justify-between gap-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300 sm:px-6"
+              ? "mx-auto mb-2 flex w-full max-w-[820px] items-center justify-between gap-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 sm:px-6"
               : "mx-4 mb-2 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
           }
         >

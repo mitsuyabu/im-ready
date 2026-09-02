@@ -120,7 +120,7 @@ export default function MyNoteGenerator({
             My Note を作るには、Chat や Worksheet でもう少し考えを整理してください。
           </p>
         )}
-        {errorMessage && <p className="mt-3 text-xs text-red-600 dark:text-red-400">{errorMessage}</p>}
+        {errorMessage && <p className="mt-3 text-xs text-red-600">{errorMessage}</p>}
       </div>
     );
   }
@@ -175,7 +175,7 @@ export default function MyNoteGenerator({
         </div>
       )}
 
-      {errorMessage && <p className="mt-3 text-xs text-red-600 dark:text-red-400">{errorMessage}</p>}
+      {errorMessage && <p className="mt-3 text-xs text-red-600">{errorMessage}</p>}
     </div>
   );
 }

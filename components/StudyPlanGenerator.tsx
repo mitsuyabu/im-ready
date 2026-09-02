@@ -122,7 +122,7 @@ export default function StudyPlanGenerator({
             Study Plan を作るには、Chat や Worksheet でもう少し条件を整理してください。
           </p>
         )}
-        {errorMessage && <p className="mt-3 text-xs text-red-600 dark:text-red-400">{errorMessage}</p>}
+        {errorMessage && <p className="mt-3 text-xs text-red-600">{errorMessage}</p>}
       </div>
     );
   }
@@ -178,7 +178,7 @@ export default function StudyPlanGenerator({
         </div>
       )}
 
-      {errorMessage && <p className="mt-3 text-xs text-red-600 dark:text-red-400">{errorMessage}</p>}
+      {errorMessage && <p className="mt-3 text-xs text-red-600">{errorMessage}</p>}
     </div>
   );
 }

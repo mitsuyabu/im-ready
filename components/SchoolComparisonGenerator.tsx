@@ -127,7 +127,7 @@ export default function SchoolComparisonGenerator({
             Chat や Study Plan で条件を整理し、候補校が提示されたあとに作成できます。
           </p>
         )}
-        {errorMessage && <p className="mt-3 text-xs text-red-600 dark:text-red-400">{errorMessage}</p>}
+        {errorMessage && <p className="mt-3 text-xs text-red-600">{errorMessage}</p>}
       </div>
     );
   }
@@ -183,7 +183,7 @@ export default function SchoolComparisonGenerator({
         </div>
       )}
 
-      {errorMessage && <p className="mt-3 text-xs text-red-600 dark:text-red-400">{errorMessage}</p>}
+      {errorMessage && <p className="mt-3 text-xs text-red-600">{errorMessage}</p>}
     </div>
   );
 }
