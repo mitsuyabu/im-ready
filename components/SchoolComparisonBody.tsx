@@ -237,7 +237,9 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
                     - 学校名/英語名/都市名: カード左端の約30%から。左中央の学校アイコン(縦40〜54%)の上の帯に置き重ねない
                     - CTA: 学校アイコンの左端（約20%）に揃え、下部に配置 */}
                 <div className="absolute inset-0">
-                  <div className="absolute left-[30%] right-[14%] top-[12%] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+                  {/* 学校名・日本語名・都市名は背景画像の学校イラスト（左端〜約36%）・番号・右の波線に
+                      重ならないよう、テキストブロック全体を右へ寄せる（アイコン右端との間に明確な余白）。 */}
+                  <div className="absolute left-[38%] right-[6%] top-[11%] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)] sm:left-[40%] sm:right-[8%]">
                     <p className="line-clamp-2 text-base font-semibold leading-snug sm:text-lg">
                       {school.name}
                     </p>
