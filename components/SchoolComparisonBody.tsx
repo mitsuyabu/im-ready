@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   parseSchoolComparisonBodyView,
@@ -19,8 +20,9 @@ import DocumentPlainText from "@/components/DocumentPlainText";
  *  - 「条件に合っている」バッジは、fit の verdict とテーブル項目ラベルが完全一致したときだけ出す
  *    （データに無い match 判定は作らない）
  *
- * フォントは他画面と統一して基本 sans。serif は装飾的な番号（01〜03）だけ。
- * hooks を持たない純粋表示コンポーネント。
+ * 候補校カード（01〜03）は共有画像（public/school-comparison-cards/*.webp）を背景に使い、
+ * 番号・学校アイコン・波線・背景色・texture は画像側が持つ（コードでは描かない）。
+ * フォントは他画面と統一して基本 sans。hooks を持たない純粋表示コンポーネント。
  */
 
 const TABLE_ANCHOR = "school-comparison-table";
@@ -47,11 +49,6 @@ function svgProps(className?: string) {
     "aria-hidden": true,
   };
 }
-const SchoolIcon = ({ className }: IconProps) => (
-  <svg {...svgProps(className)}>
-    <path d="M4 21V9l8-5 8 5v12M4 21h16M9 21v-5h6v5M8 12h.01M12 12h.01M16 12h.01" />
-  </svg>
-);
 const YenIcon = ({ className }: IconProps) => (
   <svg {...svgProps(className)}>
     <path d="M7 5l5 7 5-7M12 12v7M8.5 14h7M8.5 17h7" />
@@ -79,11 +76,16 @@ const HelpIcon = ({ className }: IconProps) => (
   </svg>
 );
 
-/** 候補校カードの配色（sage / pale blue / ochre）。白文字が乗る中間トーン。 */
-const SCHOOL_CARD = [
-  { bg: "#5f7355", wave: "rgba(255,255,255,0.28)" },
-  { bg: "#5c7890", wave: "rgba(255,255,255,0.3)" },
-  { bg: "#8a7350", wave: "rgba(255,255,255,0.3)" },
+/**
+ * 候補校カードの背景ビジュアル。共有された3枚のデザインカード画像をそのまま使う
+ * （背景色・大きな 01〜03・学校アイコン・波線・texture・角丸はすべて画像側が持つ）。
+ * index（＝候補校の並び順）で sage / blue / sand を割り当てるだけで、色に意味は持たせない。
+ * 画像はいずれも 1676×938（同一比率）。
+ */
+const SCHOOL_CARD_IMAGE = [
+  "/school-comparison-cards/school-01-sage.webp",
+  "/school-comparison-cards/school-02-blue.webp",
+  "/school-comparison-cards/school-03-sand.webp",
 ];
 
 function VerdictChip({ verdict }: { verdict: string }) {
@@ -183,46 +185,42 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
         </div>
       )}
 
-      {/* 候補校カード 01〜03 */}
+      {/* 候補校カード 01〜03: 共有画像を背景ビジュアルとして使い、学校情報だけを上に重ねる */}
       {topSchools.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {topSchools.map((school, i) => {
-            const c = SCHOOL_CARD[i] ?? SCHOOL_CARD[0];
+            const cardImage = SCHOOL_CARD_IMAGE[i] ?? SCHOOL_CARD_IMAGE[0];
             const meta = [school.city, school.category].filter((v): v is string => Boolean(v));
             return (
               <a
                 key={i}
                 href={`#${TABLE_ANCHOR}`}
-                style={{ backgroundColor: c.bg }}
-                className="group relative overflow-hidden rounded-[18px] p-5 text-white shadow-[0_1px_3px_rgba(30,28,24,0.08)] transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e2b3d]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fcfbf8] sm:p-6"
+                className="group relative block aspect-[1676/938] overflow-hidden rounded-[20px] shadow-[0_1px_2px_rgba(30,28,24,0.06)] transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e2b3d]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fcfbf8]"
               >
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute right-3 top-1 select-none font-serif text-[52px] font-normal leading-none text-white/20"
-                >
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <svg
-                  aria-hidden
-                  viewBox="0 0 200 60"
-                  preserveAspectRatio="none"
-                  className="pointer-events-none absolute inset-x-0 bottom-2 h-6 w-full"
-                >
-                  <path d="M0 30 C 40 10, 70 50, 110 30 S 180 10, 210 26" fill="none" stroke={c.wave} strokeWidth="1.3" />
-                </svg>
-
-                <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white/15">
-                  <SchoolIcon className="h-4 w-4" />
-                </span>
-                <p className="relative mt-3 text-base font-semibold leading-snug">{school.name}</p>
-                {school.nameJa && <p className="relative mt-0.5 text-xs text-white/80">{school.nameJa}</p>}
-                {meta.length > 0 && (
-                  <p className="relative mt-1 text-xs text-white/75">{meta.join(" ・ ")}</p>
-                )}
-                <span className="relative mt-3 inline-flex items-center gap-1 text-xs font-medium text-white/90">
-                  詳細を見る
-                  <ArrowRightIcon className="h-3.5 w-3.5" />
-                </span>
+                <Image
+                  src={cardImage}
+                  alt=""
+                  fill
+                  sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 92vw"
+                  className="object-cover"
+                  priority={i < 3}
+                />
+                {/* 画像の左中央〜中央の空きスペースに学校情報を重ねる（左の番号・アイコン、右の波線に被らない位置） */}
+                <div className="absolute inset-y-0 left-[30%] right-[16%] flex flex-col justify-center text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.28)]">
+                  <p className="line-clamp-3 text-base font-semibold leading-snug sm:text-lg">
+                    {school.name}
+                  </p>
+                  {school.nameJa && (
+                    <p className="mt-0.5 line-clamp-1 text-xs text-white/85">{school.nameJa}</p>
+                  )}
+                  {meta.length > 0 && (
+                    <p className="mt-1 line-clamp-2 text-sm text-white/85">{meta.join(" ・ ")}</p>
+                  )}
+                  <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-white">
+                    比較表を見る
+                    <ArrowRightIcon className="h-3.5 w-3.5" />
+                  </span>
+                </div>
               </a>
             );
           })}
