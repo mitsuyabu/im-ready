@@ -128,9 +128,36 @@ function FactValue({ value }: { value: string }) {
   return <span className="whitespace-pre-wrap">{value}</span>;
 }
 
-function CardHeading({ children }: { children: string }) {
-  return <h2 className="text-lg font-semibold text-[#172033]">{children}</h2>;
+function CardHeading({ children, accent }: { children: string; accent?: string }) {
+  return (
+    <h2 className="flex items-baseline gap-2 text-lg font-semibold text-[#172033]">
+      {children}
+      {accent && (
+        <span aria-hidden className="text-xs font-medium tracking-wide text-[#b7b1a6]">
+          / {accent}
+        </span>
+      )}
+    </h2>
+  );
 }
+
+/** 条件チップのニュアンス配色（sage / pale blue / beige / ivory）を順番に割り当てる。 */
+const CRITERIA_CHIP = [
+  { bg: "#eef2e8", border: "#dbe3d0" },
+  { bg: "#e9eef3", border: "#d5dfe8" },
+  { bg: "#f4efe4", border: "#e6dcc7" },
+  { bg: "#faf8f2", border: "#e8e2d5" },
+];
+
+/** テーブル行の強弱づけ用（値の意味は解釈しない。行ラベルの見出し語だけで判定）。 */
+const MONEY_LABEL_RE = /授業料|料金|費用|学費|入学金|コスト/;
+const SOURCE_LABEL_RE = /参照|出典|ソース|source/i;
+
+const DotIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 8 8" fill="currentColor" className={className} aria-hidden>
+    <circle cx="4" cy="4" r="2.4" />
+  </svg>
+);
 
 /** facts に出現するラベルを「最初に body に現れた順」で集める（sort しない）。 */
 function orderedFactLabels(facts: SchoolComparisonBodySchool[]): string[] {
@@ -174,7 +201,7 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
     fitVerdictBySchool.get(schoolName)?.get(label) === "条件に合っている";
 
   return (
-    <div className="mt-8 space-y-8">
+    <div className="mt-8 space-y-10">
       {preambleNotes.length > 0 && (
         <div className="space-y-1 text-xs leading-relaxed text-[#8a8578]">
           {preambleNotes.map((line, i) => (
@@ -227,49 +254,63 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
         </div>
       )}
 
-      {/* あなたが大切にしている条件 */}
+      {/* あなたが大切にしている条件（やわらかい横長 pill を並べる） */}
       {criteria.length > 0 && (
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#5f7050]">
+        <div className="sm:flex sm:items-center sm:gap-5">
+          <p className="shrink-0 text-xs font-semibold tracking-[0.12em] text-[#5f7050]">
             あなたが大切にしている条件
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {criteria.map((c, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#e0d7c4] bg-[#f6f2e8] px-3 py-1.5 text-[13px] text-[#3f3a34]"
-                title={c.label}
-              >
-                {c.label.includes("予算") && <YenIcon className="h-3.5 w-3.5 text-[#8a8578]" />}
-                {c.value}
-              </span>
-            ))}
+          <div className="mt-3 flex flex-wrap gap-3 sm:mt-0">
+            {criteria.map((c, i) => {
+              const chip = CRITERIA_CHIP[i % CRITERIA_CHIP.length];
+              const isBudget = c.label.includes("予算");
+              return (
+                <span
+                  key={i}
+                  style={{ backgroundColor: chip.bg, borderColor: chip.border }}
+                  className="inline-flex items-center gap-2.5 rounded-full border px-4 py-2.5 text-sm font-medium text-[#3f3a34]"
+                  title={c.label}
+                >
+                  {isBudget ? (
+                    <YenIcon className="h-4 w-4 shrink-0 text-[#8a8578]" />
+                  ) : (
+                    <DotIcon className="h-2 w-2 shrink-0 text-[#a9a28f]" />
+                  )}
+                  {c.value}
+                </span>
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* 2カラム: 左=比較テーブル / 右=確認したいこと */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10">
         <div className="min-w-0 space-y-6">
           {/* 学校ごとの比較 */}
           <section
             id={TABLE_ANCHOR}
-            className="scroll-mt-6 rounded-[18px] border border-[#e5dfd6] bg-white p-5 shadow-[0_1px_3px_rgba(30,28,24,0.05)] sm:p-6"
+            className="scroll-mt-6 rounded-[24px] border border-[#ece7dd] bg-white p-6 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-8"
           >
-            <CardHeading>学校ごとの比較</CardHeading>
+            <CardHeading accent="02">学校ごとの比較</CardHeading>
 
             {view.facts.length > 0 && factLabels.length > 0 ? (
               <>
-                <div className="mt-4 hidden overflow-x-auto md:block">
+                <div className="mt-5 hidden overflow-x-auto rounded-2xl border border-[#f0ebe0] md:block">
                   <table className="w-full border-collapse text-sm">
                     <thead>
-                      <tr>
-                        <th scope="col" className="border-b border-[#e5dfd6] p-2 text-left" />
+                      <tr className="bg-[#faf8f2]">
+                        <th
+                          scope="col"
+                          className="border-b border-[#f0ebe0] px-4 py-3 text-left text-xs font-semibold text-[#8a8578]"
+                        >
+                          比べること
+                        </th>
                         {view.facts.map((school, i) => (
                           <th
                             key={i}
                             scope="col"
-                            className="border-b border-[#e5dfd6] p-2 text-left text-sm font-semibold text-[#172033]"
+                            className="border-b border-l border-[#f0ebe0] px-4 py-3 text-center text-sm font-semibold text-[#172033]"
                           >
                             {school.name}
                           </th>
@@ -277,71 +318,97 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
                       </tr>
                     </thead>
                     <tbody>
-                      {factLabels.map((label, ri) => (
-                        <tr key={ri}>
-                          <th
-                            scope="row"
-                            className="border-b border-[#efe9dc] p-2 text-left align-top text-xs font-normal text-[#8a8578]"
-                          >
-                            {label}
-                          </th>
-                          {view.facts.map((school, ci) => {
-                            const value = factValue(school, label);
-                            return (
-                              <td
-                                key={ci}
-                                className="border-b border-[#efe9dc] p-2 align-top text-[#2f2c26]"
-                              >
-                                {value === null ? (
-                                  <span className="text-[#c9c4b8]" aria-hidden>
-                                    —
-                                  </span>
-                                ) : (
-                                  <span className="flex flex-col gap-1">
-                                    <FactValue value={value} />
-                                    {hasMatchBadge(school.name, label) && (
-                                      <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[#e7efe1] px-2 py-0.5 text-[11px] text-[#3c4a33]">
-                                        <CheckIcon className="h-2.5 w-2.5" />
-                                        条件に合っている
+                      {factLabels.map((label, ri) => {
+                        const isMoney = MONEY_LABEL_RE.test(label);
+                        const isSource = SOURCE_LABEL_RE.test(label);
+                        return (
+                          <tr key={ri} className="last:[&>*]:border-b-0">
+                            <th
+                              scope="row"
+                              className="border-b border-[#f0ebe0] bg-[#fcfbf8] px-4 py-3.5 text-left align-top text-xs font-medium leading-relaxed text-[#4a4640]"
+                            >
+                              {label}
+                            </th>
+                            {view.facts.map((school, ci) => {
+                              const value = factValue(school, label);
+                              return (
+                                <td
+                                  key={ci}
+                                  className="border-b border-l border-[#f0ebe0] px-4 py-3.5 align-top leading-relaxed text-[#2f2c26]"
+                                >
+                                  {value === null ? (
+                                    <span className="text-[#c9c4b8]" aria-hidden>
+                                      —
+                                    </span>
+                                  ) : (
+                                    <span className="flex flex-col gap-1.5">
+                                      <span
+                                        className={
+                                          isMoney
+                                            ? "text-[15px] font-semibold text-[#172033]"
+                                            : isSource
+                                              ? "text-xs text-[#a09a8c]"
+                                              : "text-sm"
+                                        }
+                                      >
+                                        <FactValue value={value} />
                                       </span>
-                                    )}
-                                  </span>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
+                                      {hasMatchBadge(school.name, label) && (
+                                        <span className="inline-flex w-fit items-center gap-1 rounded-full border border-[#d7e2cc] bg-[#eef2e8] px-2 py-0.5 text-[10px] font-medium text-[#4a5b3e]">
+                                          <CheckIcon className="h-2.5 w-2.5" />
+                                          条件に合っている
+                                        </span>
+                                      )}
+                                    </span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
 
-                <div className="mt-4 space-y-4 md:hidden">
+                <div className="mt-5 space-y-4 md:hidden">
                   {view.facts.map((school, i) => (
-                    <div key={i} className="rounded-xl border border-[#e5dfd6] p-4">
+                    <div key={i} className="rounded-2xl border border-[#f0ebe0] bg-[#fcfbf8] p-4">
                       <p className="text-sm font-semibold text-[#172033]">{school.name}</p>
-                      <dl className="mt-2 space-y-1.5">
-                        {school.items.map((item, j) => (
-                          <div key={j} className="flex flex-col">
-                            <dt className="text-xs text-[#8a8578]">{item.label}</dt>
-                            <dd className="text-sm text-[#2f2c26]">
-                              <FactValue value={item.value} />
-                              {hasMatchBadge(school.name, item.label) && (
-                                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-[#e7efe1] px-2 py-0.5 text-[11px] text-[#3c4a33]">
-                                  <CheckIcon className="h-2.5 w-2.5" />
-                                  条件に合っている
-                                </span>
-                              )}
-                            </dd>
-                          </div>
-                        ))}
+                      <dl className="mt-3 space-y-2.5">
+                        {school.items.map((item, j) => {
+                          const isMoney = MONEY_LABEL_RE.test(item.label);
+                          const isSource = SOURCE_LABEL_RE.test(item.label);
+                          return (
+                            <div key={j} className="flex flex-col gap-0.5">
+                              <dt className="text-xs font-medium text-[#8a8578]">{item.label}</dt>
+                              <dd
+                                className={
+                                  isMoney
+                                    ? "text-[15px] font-semibold leading-relaxed text-[#172033]"
+                                    : isSource
+                                      ? "text-xs leading-relaxed text-[#a09a8c]"
+                                      : "text-sm leading-relaxed text-[#2f2c26]"
+                                }
+                              >
+                                <FactValue value={item.value} />
+                                {hasMatchBadge(school.name, item.label) && (
+                                  <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-[#d7e2cc] bg-[#eef2e8] px-2 py-0.5 text-[10px] font-medium text-[#4a5b3e]">
+                                    <CheckIcon className="h-2.5 w-2.5" />
+                                    条件に合っている
+                                  </span>
+                                )}
+                              </dd>
+                            </div>
+                          );
+                        })}
                       </dl>
                     </div>
                   ))}
                 </div>
               </>
             ) : (
-              <p className="mt-4 text-sm text-[#8a8578]">
+              <p className="mt-5 text-sm text-[#8a8578]">
                 比較できる項目は、まだ十分に整理されていません。
               </p>
             )}
@@ -349,7 +416,7 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
 
           {/* 条件との合い方 */}
           {view.fits.length > 0 && (
-            <section className="rounded-[18px] border border-[#e5dfd6] bg-white p-5 shadow-[0_1px_3px_rgba(30,28,24,0.05)] sm:p-6">
+            <section className="rounded-[24px] border border-[#ece7dd] bg-white p-6 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-8">
               <CardHeading>条件との合い方</CardHeading>
               <div className="mt-4 space-y-5">
                 {view.fits.map((school, i) => (
@@ -378,7 +445,7 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
 
           {/* 候補として提示された理由・メモ */}
           {view.reasonMemoText.length > 0 && (
-            <section className="rounded-[18px] border border-[#e5dfd6] bg-white p-5 shadow-[0_1px_3px_rgba(30,28,24,0.05)] sm:p-6">
+            <section className="rounded-[24px] border border-[#ece7dd] bg-white p-6 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-8">
               <CardHeading>候補として提示された理由・メモ</CardHeading>
               <div className="mt-3 space-y-1.5 text-sm leading-relaxed text-[#6f6a64]">
                 {view.reasonMemoText.map((line, i) => (
@@ -394,7 +461,7 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
           {view.otherSections.map((section, i) => (
             <section
               key={i}
-              className="rounded-[18px] border border-[#e5dfd6] bg-white p-5 shadow-[0_1px_3px_rgba(30,28,24,0.05)] sm:p-6"
+              className="rounded-[24px] border border-[#ece7dd] bg-white p-6 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-8"
             >
               <CardHeading>{section.heading}</CardHeading>
               <div className="mt-3 space-y-1.5 text-sm leading-relaxed text-[#6f6a64]">
@@ -410,37 +477,53 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
           ))}
         </div>
 
-        {/* 右: 確認したいこと */}
+        {/* 右: 確認したいこと（外側カードの中に小カードを積む） */}
         <aside className="lg:sticky lg:top-8 lg:self-start">
-          <div className="rounded-[18px] border border-[#e5dfd6] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-            <CardHeading>確認したいこと</CardHeading>
+          <div className="rounded-[24px] border border-[#ece7dd] bg-white p-6 shadow-[0_1px_3px_rgba(30,28,24,0.04)]">
+            <CardHeading accent="03">確認したいこと</CardHeading>
 
             {view.unresolvedText.length > 0 ? (
-              <ul className="mt-4 space-y-2.5">
-                {view.unresolvedText.map((line, i) => (
-                  <li
-                    key={i}
-                    className="flex items-start gap-2.5 rounded-xl border border-[#ece7dd] bg-[#fcfbf8] px-3 py-2.5"
-                  >
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef2f4] text-[#5a6b7d]">
-                      <HelpIcon className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="min-w-0 flex-1 whitespace-pre-wrap text-[13px] leading-relaxed text-[#3f3a34]">
-                      {line}
-                    </span>
-                    <ChevronRightIcon className="mt-1 h-3.5 w-3.5 shrink-0 text-[#c9c4b8]" />
-                  </li>
-                ))}
+              <ul className="mt-5 space-y-3">
+                {view.unresolvedText.map((line, i) => {
+                  // 1行を「見出し。補足」へ機械的に分ける（AI 要約はしない。分けられなければ全文を見出しに）。
+                  const trimmed = line.trim();
+                  const splitAt = trimmed.search(/[。！？]/);
+                  const heading =
+                    splitAt >= 0 ? trimmed.slice(0, splitAt + 1) : trimmed;
+                  const supplement =
+                    splitAt >= 0 ? trimmed.slice(splitAt + 1).trim() : "";
+                  return (
+                    <li
+                      key={i}
+                      className="flex items-start gap-3 rounded-xl border border-[#f0ebe0] bg-white p-4 transition-colors hover:border-[#dcd4c4]"
+                    >
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#eef2f4] text-[#5a6b7d]">
+                        <HelpIcon className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block whitespace-pre-wrap text-[13px] font-semibold leading-relaxed text-[#172033]">
+                          {heading}
+                        </span>
+                        {supplement && (
+                          <span className="mt-0.5 block whitespace-pre-wrap text-xs leading-relaxed text-[#8a8578]">
+                            {supplement}
+                          </span>
+                        )}
+                      </span>
+                      <ChevronRightIcon className="mt-1 h-3.5 w-3.5 shrink-0 text-[#c9c4b8]" />
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
-              <p className="mt-4 text-[13px] leading-6 text-[#8a8578]">
+              <p className="mt-5 rounded-xl border border-[#f0ebe0] bg-[#fcfbf8] p-4 text-[13px] leading-6 text-[#8a8578]">
                 いま追加で確認したいことは、本文にはありません。
               </p>
             )}
 
             <Link
               href={`/plans/${planId}/worksheet/conditions`}
-              className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#1e2b3d] px-4 py-2 text-sm font-medium text-[#172033] transition-colors hover:bg-[#1e2b3d]/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e2b3d]/40"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#b8b2a6] bg-white px-5 py-3.5 text-sm font-semibold text-[#172033] transition-colors hover:border-[#8a8578] hover:bg-[#f2efe7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e2b3d]/40"
             >
               条件を見直す
               <ArrowRightIcon className="h-4 w-4" />
