@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanKarte } from "@/lib/planChat";
+import { formatLastUpdated } from "@/lib/planActivity";
 import { AUSTRALIA_SCHOOLS } from "@/lib/data/schools";
 import { buildSchoolComparisonView } from "@/lib/schoolComparisonView";
 import { canGenerateSchoolComparison } from "@/lib/schoolComparisonFormatter";
@@ -9,7 +11,6 @@ import { parseSchoolComparisonContent } from "@/lib/schoolComparisonGenerator";
 import { type PlanDocumentType } from "@/lib/planDocuments";
 import { DOCUMENT_ROLE_DEFINITIONS } from "@/lib/documentRoles";
 import BrandLogo from "@/components/BrandLogo";
-import DocumentDetailHeader from "@/components/DocumentDetailHeader";
 import SchoolComparisonGenerator from "@/components/SchoolComparisonGenerator";
 
 export const metadata: Metadata = {
@@ -92,36 +93,52 @@ export default async function SchoolComparisonPage({ params }: SchoolComparisonP
   }
 
   const roleDef = DOCUMENT_ROLE_DEFINITIONS.school_comparison;
+  const lastUpdated =
+    parsedContent && row?.updated_at ? formatLastUpdated(row.updated_at) : null;
 
   return (
-    <div className="min-h-dvh bg-worksheet-surface">
-      {/* lg以上ではAppNavの左sidebarにロゴがあるため、この上部barはmobileのみ。
-          Documentsへ戻る導線はDocumentDetailHeaderが持つ。 */}
-      <header className="flex items-center border-b border-worksheet-border px-4 py-3 sm:px-6 lg:hidden">
-        {/* 本文・role・title を先に目に入れるため、mobile 上部ロゴだけ既定より少し小さくする */}
+    <div className="min-h-dvh bg-[#fcfbf8]">
+      {/* lg以上ではAppNavの左sidebarにロゴがあるため、この上部barはmobileのみ。戻る導線は本文側に持つ。 */}
+      <header className="flex items-center border-b border-[#e5dfd6] px-4 py-3 sm:px-6 lg:hidden">
         <BrandLogo href="/mypage" className="h-[35px] w-auto sm:h-[43px]" />
       </header>
 
-      <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-        <DocumentDetailHeader
-          planId={planId}
-          role={roleDef.role}
-          title={roleDef.title}
-          description={roleDef.description}
-          isCreated={Boolean(parsedContent)}
-          updatedAt={parsedContent ? row?.updated_at : undefined}
-        />
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+        {/* Header（School Comparison 専用。フォントは他画面と統一の sans） */}
+        <div className="border-b border-[#e5dfd6] pb-6">
+          <Link
+            href={`/plans/${planId}/documents`}
+            className="inline-flex items-center gap-1 text-sm text-[#6f6a64] transition-colors hover:text-[#1c1c1c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e2b3d]/40"
+          >
+            <span aria-hidden>←</span> My Study Abroad へ戻る
+          </Link>
+
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+            <div className="min-w-0">
+              <p className="text-xs font-medium tracking-wide text-[#5f7050]">{roleDef.role}</p>
+              <h1 className="mt-1 text-[36px] font-bold tracking-tight text-[#172033] sm:text-[44px]">
+                School Comparison
+              </h1>
+              <p className="mt-2 text-base text-[#625f59]">
+                提示された候補校と、あなたが大切にする条件を見比べます。
+              </p>
+            </div>
+            {lastUpdated && (
+              <p className="shrink-0 text-xs text-[#8a8578] sm:mt-3">最終更新 {lastUpdated}</p>
+            )}
+          </div>
+        </div>
 
         {docError ? (
-          <div className="mt-8 rounded-2xl border border-worksheet-border p-6 sm:p-8">
-            <p className="text-base font-medium text-worksheet-primary">School Comparison を読み込めませんでした。</p>
-            <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
+          <div className="mt-8 rounded-2xl border border-[#e5dfd6] bg-white p-6 sm:p-8">
+            <p className="text-base font-medium text-[#172033]">School Comparison を読み込めませんでした。</p>
+            <p className="mt-3 text-sm leading-relaxed text-[#625f59]">
               しばらくしてから再度お試しください。
             </p>
           </div>
         ) : row && !parsedContent ? (
-          <div className="mt-8 rounded-2xl border border-worksheet-border p-6 sm:p-8">
-            <p className="text-base font-medium text-worksheet-primary">この School Comparison を表示できませんでした。</p>
+          <div className="mt-8 rounded-2xl border border-[#e5dfd6] bg-white p-6 sm:p-8">
+            <p className="text-base font-medium text-[#172033]">この School Comparison を表示できませんでした。</p>
           </div>
         ) : (
           <SchoolComparisonGenerator

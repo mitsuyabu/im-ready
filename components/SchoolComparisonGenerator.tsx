@@ -94,15 +94,15 @@ export default function SchoolComparisonGenerator({
   }
 
   const primaryButtonClass =
-    "inline-flex items-center justify-center gap-2 rounded-full bg-worksheet-accent px-5 py-3 text-sm font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100";
+    "inline-flex items-center justify-center gap-2 rounded-full bg-[#161616] px-5 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-[#000] disabled:cursor-not-allowed disabled:opacity-40";
   const secondaryButtonClass =
-    "inline-flex items-center justify-center rounded-full border border-worksheet-border px-5 py-2.5 text-sm font-medium text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent";
+    "inline-flex items-center justify-center rounded-full border border-[#1e2b3d] px-5 py-2.5 text-sm font-medium text-[#172033] transition-colors duration-150 hover:bg-[#1e2b3d]/[0.06] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent";
 
   // ---- 未生成 ----
   if (body === null) {
     return (
-      <div className="mt-8 rounded-2xl border border-worksheet-border p-6 sm:p-8">
-        <p className="text-sm leading-relaxed text-worksheet-secondary">
+      <div className="mt-8 rounded-2xl border border-[#e5dfd6] bg-white p-6 sm:p-8">
+        <p className="text-sm leading-relaxed text-[#625f59]">
           提示された候補校を、あなたが大切にしている条件と学校データをもとに比較します。
           <br className="hidden sm:block" />
           新しい学校をおすすめするのではなく、今ある候補の違いを整理します。
@@ -122,7 +122,7 @@ export default function SchoolComparisonGenerator({
         </div>
 
         {!canGenerate && (
-          <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
+          <p className="mt-3 text-sm leading-relaxed text-[#625f59]">
             School Comparison を作るには、候補校が 2 校以上あり、比較に使える条件が必要です。
             Chat や Study Plan で条件を整理し、候補校が提示されたあとに作成できます。
           </p>
@@ -135,14 +135,14 @@ export default function SchoolComparisonGenerator({
   // ---- 保存済み（read-only 表示 ＋ 最新の内容で更新） ----
   return (
     <div className="mt-8">
-      {notice && <p className="text-xs text-worksheet-secondary">{notice}</p>}
+      {notice && <p className="text-xs text-[#8a8578]">{notice}</p>}
 
-      {/* Step 27 の pure parser で候補校・条件・比較表・合い方を表示。順位・おすすめ・
-          スコアは出さない。解析できなければ元 body 全文へ完全 fallback（部分 table 化しない）。 */}
-      <SchoolComparisonBody body={body} />
+      {/* pure parser で候補校・条件・比較表・合い方を表示。順位・おすすめ・スコアは出さない。
+          解析できなければ元 body 全文へ完全 fallback（部分 table 化しない）。 */}
+      <SchoolComparisonBody body={body} planId={planId} />
 
       {!confirmingRegenerate ? (
-        <div className="mt-6">
+        <div className="mt-10 flex flex-col items-start gap-2.5 border-t border-[#e5dfd6] pt-6 sm:flex-row sm:items-center sm:gap-4">
           <button
             type="button"
             onClick={() => {
@@ -154,11 +154,14 @@ export default function SchoolComparisonGenerator({
           >
             最新の内容で更新
           </button>
+          <p className="text-xs leading-relaxed text-[#8a8578]">
+            会話やワークシートで整理した内容をもとに更新します。
+          </p>
         </div>
       ) : (
-        <div className="mt-6 rounded-xl border border-worksheet-border bg-worksheet-surface-2 p-4">
-          <p className="text-sm text-worksheet-primary">現在のPlanの内容を反映して更新します。</p>
-          <p className="mt-1 text-xs leading-relaxed text-worksheet-secondary">前の内容は残りません。</p>
+        <div className="mt-10 rounded-xl border border-[#e5dfd6] bg-[#faf7f0] p-4">
+          <p className="text-sm text-[#172033]">現在のPlanの内容を反映して更新します。</p>
+          <p className="mt-1 text-xs leading-relaxed text-[#8a8578]">前の内容は残りません。</p>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
