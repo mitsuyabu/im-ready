@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanKarte } from "@/lib/planChat";
@@ -44,19 +43,11 @@ export default async function PlanMyPlanPage({ params }: PlanMyPlanPageProps) {
   const karte = await loadPlanKarte(supabase, planId);
 
   return (
-    <div className="min-h-dvh bg-worksheet-surface">
-      <header className="flex items-center justify-between border-b border-worksheet-border px-4 py-3 sm:px-6">
-        {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ここでは隠す（戻る導線は残す） */}
-        <div className="lg:hidden">
-          <BrandLogo href="/mypage" />
-        </div>
-        <div className="hidden lg:block" />
-        <Link
-          href={`/plans/${planId}`}
-          className="text-xs text-worksheet-secondary underline decoration-worksheet-secondary/40 underline-offset-2 transition-colors hover:text-worksheet-primary hover:decoration-worksheet-primary/40"
-        >
-          ← Plan Homeに戻る
-        </Link>
+    <div className="min-h-dvh bg-[#fcfbf8]">
+      {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ロゴだけの単独headerは二重表示を避けて隠す
+          （戻る導線は MyPlan 本体の左上に移動している） */}
+      <header className="border-b border-[#e5dfd6] px-4 py-4 sm:px-6 lg:hidden">
+        <BrandLogo href="/mypage" />
       </header>
 
       <MyPlan planId={planId} planTitle={plan.title} karte={karte} />
