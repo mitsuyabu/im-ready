@@ -232,19 +232,24 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
                   className="object-cover"
                   priority={i < 3}
                 />
-                {/* 画像の左中央〜中央の空きスペースに学校情報を重ねる（左の番号・アイコン、右の波線に被らない位置） */}
-                <div className="absolute inset-y-0 left-[30%] right-[16%] flex flex-col justify-center text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.28)]">
-                  <p className="line-clamp-3 text-base font-semibold leading-snug sm:text-lg">
-                    {school.name}
-                  </p>
-                  {school.nameJa && (
-                    <p className="mt-0.5 line-clamp-1 text-xs text-white/85">{school.nameJa}</p>
-                  )}
-                  {meta.length > 0 && (
-                    <p className="mt-1 line-clamp-2 text-sm text-white/85">{meta.join(" ・ ")}</p>
-                  )}
-                  <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-white">
-                    比較表を見る
+                {/* 学校名・英語名・都市名は動的データ（view.schools）で、背景画像には含めない。
+                    番号（01/02/03）は背景画像の左上のまま。以下は画像の空きスペースへ重ねる:
+                    - 学校名/英語名/都市名: カード左端の約30%から。左中央の学校アイコン(縦40〜54%)の上の帯に置き重ねない
+                    - CTA: 学校アイコンの左端（約20%）に揃え、下部に配置 */}
+                <div className="absolute inset-0">
+                  <div className="absolute left-[30%] right-[14%] top-[12%] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+                    <p className="line-clamp-2 text-base font-semibold leading-snug sm:text-lg">
+                      {school.name}
+                    </p>
+                    {school.nameJa && (
+                      <p className="mt-0.5 line-clamp-1 text-xs text-white/85">{school.nameJa}</p>
+                    )}
+                    {meta.length > 0 && (
+                      <p className="mt-1 line-clamp-1 text-sm text-white/85">{meta.join(" ・ ")}</p>
+                    )}
+                  </div>
+                  <span className="absolute bottom-[12%] left-[20%] inline-flex items-center gap-1 text-sm font-medium text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+                    詳細を見る
                     <ArrowRightIcon className="h-3.5 w-3.5" />
                   </span>
                 </div>
