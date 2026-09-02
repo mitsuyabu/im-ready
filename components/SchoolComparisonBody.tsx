@@ -88,27 +88,32 @@ const SCHOOL_CARD_IMAGE = [
   "/school-comparison-cards/school-03-sand.webp",
 ];
 
+const TargetIcon = ({ className }: IconProps) => (
+  <svg {...svgProps(className)}>
+    <circle cx="12" cy="12" r="8" />
+    <circle cx="12" cy="12" r="3.2" />
+  </svg>
+);
+
+/**
+ * verdict の見た目のみ（判定ロジック・文言は無変更）。色だけに依存させず必ずテキストを出す。
+ * 強い赤・緑は使わず、落ち着いたトーンで差だけ付ける。
+ */
 function VerdictChip({ verdict }: { verdict: string }) {
+  const base =
+    "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium";
   if (verdict === "条件に合っている") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#e7efe1] px-2.5 py-0.5 text-xs text-[#3c4a33]">
+      <span className={`${base} border-[#d7e2cc] bg-[#eef3e8] text-[#526549]`}>
         <CheckIcon className="h-3 w-3" />
         {verdict}
       </span>
     );
   }
   if (verdict === "確認が必要") {
-    return (
-      <span className="inline-flex items-center rounded-full border border-[#e5dfd6] bg-[#faf7f0] px-2.5 py-0.5 text-xs text-[#3f3a34]">
-        {verdict}
-      </span>
-    );
+    return <span className={`${base} border-[#e5dac7] bg-[#f6f1e8] text-[#75644b]`}>{verdict}</span>;
   }
-  return (
-    <span className="inline-flex items-center rounded-full bg-[#f2efe7] px-2.5 py-0.5 text-xs text-[#8a8578]">
-      {verdict}
-    </span>
-  );
+  return <span className={`${base} border-[#deddd8] bg-[#f2f2ef] text-[#77746d]`}>{verdict}</span>;
 }
 
 function FactValue({ value }: { value: string }) {
@@ -528,47 +533,75 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
             )}
           </section>
 
-          {/* 条件との合い方 */}
-          {view.fits.length > 0 && (
-            <section className="rounded-[24px] border border-[#ece7dd] bg-white p-4 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-5 lg:p-6">
-              <CardHeading>条件との合い方</CardHeading>
-              <div className="mt-4 space-y-5">
-                {view.fits.map((school, i) => (
-                  <div key={i}>
-                    <p className="text-sm font-semibold text-[#172033]">{school.name}</p>
-                    <ul className="mt-2 space-y-2">
-                      {school.fits.map((fit, j) => (
-                        <li key={j}>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm text-[#2f2c26]">{fit.label}</span>
-                            <VerdictChip verdict={fit.verdict} />
-                          </div>
-                          {fit.basis && (
-                            <p className="mt-0.5 text-xs leading-relaxed text-[#8a8578]">
-                              根拠：{fit.basis}
-                            </p>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* 候補として提示された理由・メモ */}
-          {view.reasonMemoText.length > 0 && (
-            <section className="rounded-[24px] border border-[#ece7dd] bg-white p-4 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-5 lg:p-6">
-              <CardHeading>候補として提示された理由・メモ</CardHeading>
-              <div className="mt-3 space-y-1.5 text-sm leading-relaxed text-[#6f6a64]">
-                {view.reasonMemoText.map((line, i) => (
-                  <p key={i} className="whitespace-pre-wrap">
-                    {line}
+          {/* 比較結果を読むための補助カード（Desktop 広幅時は 2 列）。 */}
+          {(view.fits.length > 0 || view.reasonMemoText.length > 0) && (
+            <div
+              className={`grid grid-cols-1 gap-5 ${
+                view.fits.length > 0 && view.reasonMemoText.length > 0 ? "xl:grid-cols-2" : ""
+              }`}
+            >
+              {/* A. 条件との合い方 */}
+              {view.fits.length > 0 && (
+                <section className="rounded-[20px] border border-[#e5e0d5] bg-[#fbfaf6] p-5 shadow-[0_1px_2px_rgba(30,28,24,0.03)] sm:p-6">
+                  <h2 className="flex items-center gap-2 text-lg font-semibold text-[#172033]">
+                    <TargetIcon aria-hidden className="h-4 w-4 shrink-0 text-[#7a8a6d]" />
+                    条件との合い方
+                  </h2>
+                  <p className="mt-1 text-sm text-[#7a756c]">
+                    あなたが大切にしている条件との関係を確認できます。
                   </p>
-                ))}
-              </div>
-            </section>
+
+                  <div className="mt-4 space-y-6">
+                    {view.fits.map((school, i) => (
+                      <div key={i}>
+                        <p className="text-[13px] font-semibold tracking-wide text-[#8a8578]">
+                          {school.name}
+                        </p>
+                        <div className="mt-2 space-y-3">
+                          {school.fits.map((fit, j) => (
+                            <div
+                              key={j}
+                              className="space-y-2 rounded-xl border border-[#ebe6dc] bg-white px-4 py-4"
+                            >
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-semibold text-[#2f3a4a]">
+                                  {fit.label}
+                                </span>
+                                <VerdictChip verdict={fit.verdict} />
+                              </div>
+                              {fit.basis && (
+                                <p className="text-sm leading-6 text-[#5e5a53]">
+                                  <span className="text-[#9b958a]">根拠　</span>
+                                  {fit.basis}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* B. 候補として提示された理由・メモ */}
+              {view.reasonMemoText.length > 0 && (
+                <section className="rounded-[20px] border border-[#e4e0d8] bg-white p-5 shadow-[0_1px_2px_rgba(30,28,24,0.03)] sm:p-6">
+                  <div className="border-l-4 border-[#9aac8d] pl-3">
+                    <h2 className="text-lg font-semibold text-[#172033]">
+                      候補として提示された理由・メモ
+                    </h2>
+                  </div>
+                  <div className="mt-4 space-y-3 text-[15px] leading-7 text-[#3f3c37] sm:text-base">
+                    {view.reasonMemoText.map((line, i) => (
+                      <p key={i} className="whitespace-pre-wrap">
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
           )}
 
           {/* 認識対象外の「■ 」セクション（テキストを捨てない） */}
