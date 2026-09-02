@@ -90,15 +90,15 @@ export default function StudyPlanGenerator({
   }
 
   const primaryButtonClass =
-    "inline-flex items-center justify-center gap-2 rounded-full bg-worksheet-accent px-5 py-3 text-sm font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100";
+    "inline-flex items-center justify-center gap-2 rounded-full bg-[#161616] px-5 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-[#000] disabled:cursor-not-allowed disabled:opacity-40";
   const secondaryButtonClass =
-    "inline-flex items-center justify-center rounded-full border border-worksheet-border px-5 py-2.5 text-sm font-medium text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent";
+    "inline-flex items-center justify-center rounded-full border border-[#1e2b3d] px-5 py-2.5 text-sm font-medium text-[#172033] transition-colors duration-150 hover:bg-[#1e2b3d]/[0.06] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent";
 
   // ---- 未生成 ----
   if (body === null) {
     return (
-      <div className="mt-8 rounded-2xl border border-worksheet-border p-6 sm:p-8">
-        <p className="text-sm leading-relaxed text-worksheet-secondary">
+      <div className="mt-8 rounded-2xl border border-[#e5dfd6] bg-white p-6 sm:p-8">
+        <p className="text-sm leading-relaxed text-[#625f59]">
           今決まっている条件や候補を整理して、現在の留学プランとして残します。
           <br className="hidden sm:block" />
           AI が新しい計画を提案するのではなく、これまでに整理した内容を計画としてまとめます。
@@ -118,7 +118,7 @@ export default function StudyPlanGenerator({
         </div>
 
         {!canGenerate && (
-          <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
+          <p className="mt-3 text-sm leading-relaxed text-[#625f59]">
             Study Plan を作るには、Chat や Worksheet でもう少し条件を整理してください。
           </p>
         )}
@@ -130,14 +130,14 @@ export default function StudyPlanGenerator({
   // ---- 保存済み（read-only 表示 ＋ 最新の内容で更新） ----
   return (
     <div className="mt-8">
-      {notice && <p className="text-xs text-worksheet-secondary">{notice}</p>}
+      {notice && <p className="text-xs text-[#8a8578]">{notice}</p>}
 
-      {/* Step 27 の pure parser で「■ セクション／項目：値」を計画書らしくカード表示。
+      {/* pure parser で「■ セクション／項目：値」を計画書らしくカード表示。
           解析できなければ元 body 全文へ fallback。 */}
       <StudyPlanBody body={body} />
 
       {!confirmingRegenerate ? (
-        <div className="mt-6">
+        <div className="mt-10 flex flex-col items-start gap-2.5 border-t border-[#e5dfd6] pt-6 sm:flex-row sm:items-center sm:gap-4">
           <button
             type="button"
             onClick={() => {
@@ -149,11 +149,14 @@ export default function StudyPlanGenerator({
           >
             最新の内容で更新
           </button>
+          <p className="text-xs leading-relaxed text-[#8a8578]">
+            会話やワークシートで整理した内容をもとに更新します。
+          </p>
         </div>
       ) : (
-        <div className="mt-6 rounded-xl border border-worksheet-border bg-worksheet-surface-2 p-4">
-          <p className="text-sm text-worksheet-primary">現在のPlanの内容を反映して更新します。</p>
-          <p className="mt-1 text-xs leading-relaxed text-worksheet-secondary">前の内容は残りません。</p>
+        <div className="mt-10 rounded-xl border border-[#e5dfd6] bg-[#faf7f0] p-4">
+          <p className="text-sm text-[#172033]">現在のPlanの内容を反映して更新します。</p>
+          <p className="mt-1 text-xs leading-relaxed text-[#8a8578]">前の内容は残りません。</p>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
