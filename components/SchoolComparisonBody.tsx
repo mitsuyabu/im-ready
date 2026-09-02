@@ -159,6 +159,96 @@ const DotIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+/**
+ * 条件チップの「表示だけ」の整形（元データ view.criteria は変更しない）。
+ * 文章調に見える末尾表現を機械的に削り、名詞句・条件語として見せる。AI 要約はしない。
+ * 削れなかった / 短くなりすぎる場合は元の値のまま返す（verbatim フォールバック）。
+ */
+const CONDITION_TAIL_PHRASES = [
+  "で暮らしてみたい",
+  "で暮らしたい",
+  "で学んでみたい",
+  "で学びたい",
+  "を大事にしたい",
+  "を重視したい",
+  "を伸ばしたい",
+  "を身につけたい",
+  "してみたい",
+  "が気になる",
+  "が希望です",
+  "が希望",
+  "が理想です",
+  "が理想",
+  "暮らしてみたい",
+  "暮らしたい",
+  "働いてみたい",
+  "働きたい",
+  "住んでみたい",
+  "住みたい",
+  "伸ばしたい",
+  "学びたい",
+  "したいです",
+  "したい",
+  "できたら",
+  "ぐらい",
+  "くらい",
+  "程度",
+];
+
+function toConditionLabel(rawValue: string): string {
+  const orig = rawValue.trim();
+  let s = orig;
+  let stripped = false;
+  let keepGoing = true;
+  while (keepGoing) {
+    keepGoing = false;
+    for (const tail of CONDITION_TAIL_PHRASES) {
+      if (s.length > tail.length && s.endsWith(tail)) {
+        s = s.slice(0, -tail.length);
+        stripped = true;
+        keepGoing = true;
+        break;
+      }
+    }
+  }
+  if (stripped) {
+    s = s.replace(/[、。，．・\s]+$/u, "");
+    s = s.replace(/(を|が|で|に|へ|と|の|は)$/u, "");
+    s = s.replace(/[、。，．・\s]+$/u, "");
+  }
+  s = s.trim();
+  return s.length >= 2 ? s : orig;
+}
+
+/** 金額系条件を「予算 100万円」のような簡潔表記へ（表示だけ）。数値が拾えなければ末尾表現だけ整える。 */
+function toBudgetLabel(rawValue: string): string {
+  const s = rawValue.trim();
+
+  const manMatch = s.match(/(\d+(?:\.\d+)?)\s*万\s*円?/);
+  if (manMatch) {
+    const n = Number(manMatch[1]);
+    if (Number.isFinite(n)) return `予算 ${Number.isInteger(n) ? n : manMatch[1]}万円`;
+  }
+
+  const yenMatch = s.match(/[¥￥]?\s*([\d,]{4,})\s*円?/);
+  if (yenMatch) {
+    const n = Number(yenMatch[1].replace(/,/g, ""));
+    if (Number.isFinite(n) && n >= 10000) {
+      return `予算 ${Math.round(n / 10000).toLocaleString("ja-JP")}万円`;
+    }
+  }
+
+  return toConditionLabel(s);
+}
+
+/** ラベル or 値が金額系かどうか（表示整形の分岐用。判定基準は語のみ）。 */
+function isBudgetCriteria(label: string, value: string): boolean {
+  return (
+    /予算|金額|費用|コスト|学費/.test(label) ||
+    /[¥￥]|万円|\d{4,}\s*円|\d+\s*万/.test(value)
+  );
+}
+
 /** facts に出現するラベルを「最初に body に現れた順」で集める（sort しない）。 */
 function orderedFactLabels(facts: SchoolComparisonBodySchool[]): string[] {
   const seen = new Set<string>();
@@ -261,29 +351,30 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
         </div>
       )}
 
-      {/* あなたが大切にしている条件（やわらかい横長 pill を並べる） */}
+      {/* あなたが大切にしている条件（やや大きめの角丸カード状チップに整理。表示文言だけを条件ラベル化） */}
       {criteria.length > 0 && (
-        <div className="sm:flex sm:items-center sm:gap-5">
-          <p className="shrink-0 text-xs font-semibold tracking-[0.12em] text-[#5f7050]">
+        <div className="sm:flex sm:items-start sm:gap-5">
+          <p className="shrink-0 pt-2 text-xs font-semibold tracking-[0.12em] text-[#5f7050]">
             あなたが大切にしている条件
           </p>
-          <div className="mt-3 flex flex-wrap gap-3 sm:mt-0">
+          <div className="mt-3 flex flex-wrap gap-2.5 sm:mt-0">
             {criteria.map((c, i) => {
               const chip = CRITERIA_CHIP[i % CRITERIA_CHIP.length];
-              const isBudget = c.label.includes("予算");
+              const isBudget = isBudgetCriteria(c.label, c.value);
+              const text = isBudget ? toBudgetLabel(c.value) : toConditionLabel(c.value);
               return (
                 <span
                   key={i}
                   style={{ backgroundColor: chip.bg, borderColor: chip.border }}
-                  className="inline-flex items-center gap-2.5 rounded-full border px-4 py-2.5 text-sm font-medium text-[#3f3a34]"
-                  title={c.label}
+                  className="inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium text-[#3f3a34]"
+                  title={c.value}
                 >
                   {isBudget ? (
                     <YenIcon className="h-4 w-4 shrink-0 text-[#8a8578]" />
                   ) : (
                     <DotIcon className="h-2 w-2 shrink-0 text-[#a9a28f]" />
                   )}
-                  {c.value}
+                  {text}
                 </span>
               );
             })}
