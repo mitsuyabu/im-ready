@@ -81,8 +81,8 @@ export default function ParentExplanationGenerator({
 
   if (!canGenerate) {
     return (
-      <div className="mt-10 rounded-2xl border border-worksheet-border p-6 sm:p-8">
-        <p className="text-base font-medium text-worksheet-primary">
+      <div className="mt-8 rounded-2xl border border-[#e9e3d8] bg-white p-6 sm:p-8">
+        <p className="text-base font-medium text-[#172033]">
           資料を作るには、もう少しMy Planの内容を整理する必要があります。
         </p>
       </div>
@@ -92,16 +92,16 @@ export default function ParentExplanationGenerator({
   if (status === "success" && generatedBody) {
     return (
       <div className="mt-8">
-        <p className="text-xs text-worksheet-secondary">保存しました。</p>
-        {/* Step 27 の pure parser で家族向け資料として表示。解析できなければ元 body 全文へ fallback。 */}
+        <p className="text-xs text-[#817b71]">保存しました。</p>
+        {/* pure parser で家族向け資料として表示。解析できなければ元 body 全文へ fallback。 */}
         <ParentExplanationBody body={generatedBody} />
       </div>
     );
   }
 
   return (
-    <div className="mt-8 rounded-2xl border border-worksheet-border p-6 sm:p-8">
-      <p className="text-sm leading-relaxed text-worksheet-secondary">
+    <div className="mt-8 rounded-2xl border border-[#e9e3d8] bg-white p-6 sm:p-8">
+      <p className="text-sm leading-relaxed text-[#817b71]">
         この資料では、My Planに整理した内容をもとに、
         <br className="hidden sm:block" />
         今考えていることを家族に伝えられるようになります。
@@ -112,7 +112,7 @@ export default function ParentExplanationGenerator({
           type="button"
           onClick={handleGenerate}
           disabled={status === "generating"}
-          className="inline-flex items-center gap-2 rounded-full bg-worksheet-accent px-5 py-3 text-sm font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+          className="inline-flex items-center gap-2 rounded-full bg-[#161616] px-5 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-[#000] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {status === "generating"
             ? "作成中…"

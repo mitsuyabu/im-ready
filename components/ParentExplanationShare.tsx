@@ -165,22 +165,60 @@ export default function ParentExplanationShare({
   }
 
   const primaryButtonClass =
-    "inline-flex items-center justify-center gap-2 rounded-full bg-worksheet-accent px-5 py-3 text-sm font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100";
+    "inline-flex items-center justify-center gap-2 rounded-full bg-[#161616] px-5 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-[#000] disabled:cursor-not-allowed disabled:opacity-40";
   const secondaryButtonClass =
-    "inline-flex items-center justify-center rounded-full border border-worksheet-border px-5 py-2.5 text-sm font-medium text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent";
+    "inline-flex items-center justify-center rounded-full border border-[#1e2b3d] px-5 py-2.5 text-sm font-medium text-[#172033] transition-colors duration-150 hover:bg-[#1e2b3d]/[0.06] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent";
 
   // LINE 公式 URL スキームへの共有 URL。issued（発行直後、raw URL が React state にある間）
   // だけ組み立てる。active/expired では raw URL が無いので null のまま = LINE ボタンを出さない。
   const lineShareUrl = issued ? buildLineShareUrl(issued.shareUrl) : null;
 
+  const shareActive = view === "issued" || view === "active";
+  const statusLabel =
+    view === "issued" || view === "active"
+      ? "共有中"
+      : view === "expired"
+        ? "共有リンクの期限切れ"
+        : "まだ共有していません";
+
   return (
-    <section className="mt-10 rounded-2xl border border-worksheet-border p-6 sm:p-8">
-      <h2 className="text-base font-medium text-worksheet-primary">共有</h2>
-      <p className="mt-2 text-sm leading-relaxed text-worksheet-secondary">
+    <section className="mt-10 rounded-[20px] border border-[#e6e2d8] bg-[#fbfbf7] p-5 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#eef2e8] text-[#5f7050]">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.7}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+            aria-hidden
+          >
+            <circle cx="18" cy="5" r="2.5" />
+            <circle cx="6" cy="12" r="2.5" />
+            <circle cx="18" cy="19" r="2.5" />
+            <path d="M8.2 10.8 15.8 6.2M8.2 13.2l7.6 4.6" />
+          </svg>
+        </span>
+        <h2 className="text-lg font-semibold text-[#172033]">家族への共有</h2>
+        <span
+          className={`ml-auto inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
+            shareActive
+              ? "border-[#cdddc5] bg-[#eef3e8] text-[#4b5b3e]"
+              : view === "expired"
+                ? "border-[#e5dac7] bg-[#f6f1e8] text-[#75644b]"
+                : "border-[#e0dccf] bg-white text-[#817b71]"
+          }`}
+        >
+          {statusLabel}
+        </span>
+      </div>
+      <p className="mt-2 text-sm leading-relaxed text-[#817b71]">
         この資料を家族に共有できます。
       </p>
 
-      {notice && <p className="mt-4 text-sm text-worksheet-primary">{notice}</p>}
+      {notice && <p className="mt-4 text-sm text-[#172033]">{notice}</p>}
 
       {view === "none" && (
         <div className="mt-6">
@@ -199,18 +237,18 @@ export default function ParentExplanationShare({
 
       {(view === "active" || view === "expired") && (
         <div className="mt-6">
-          <p className="text-sm text-worksheet-primary">
+          <p className="text-sm text-[#172033]">
             {view === "expired"
               ? "この共有リンクは有効期限が切れています。"
               : "この資料には共有リンクが発行されています。"}
           </p>
           {view === "active" && (
-            <p className="mt-1 text-xs leading-relaxed text-worksheet-secondary">
+            <p className="mt-1 text-xs leading-relaxed text-[#817b71]">
               安全のため、発行済みのリンクは再表示できません。
             </p>
           )}
           {expiresAt && (
-            <p className="mt-2 text-sm text-worksheet-secondary">
+            <p className="mt-2 text-sm text-[#817b71]">
               有効期限: {formatShareExpiryDate(expiresAt)}
               {view === "expired" && "（期限切れ）"}
             </p>
@@ -231,9 +269,9 @@ export default function ParentExplanationShare({
               </button>
             </div>
           ) : (
-            <div className="mt-4 rounded-xl border border-worksheet-border bg-worksheet-surface-2 p-4">
-              <p className="text-sm text-worksheet-primary">この共有リンクを停止しますか？</p>
-              <p className="mt-1 text-xs leading-relaxed text-worksheet-secondary">
+            <div className="mt-4 rounded-xl border border-[#e6e2d8] bg-[#faf7f0] p-4">
+              <p className="text-sm text-[#172033]">この共有リンクを停止しますか？</p>
+              <p className="mt-1 text-xs leading-relaxed text-[#817b71]">
                 停止すると、現在のリンクは開けなくなります。この操作は取り消せません。
               </p>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -265,13 +303,13 @@ export default function ParentExplanationShare({
 
       {view === "issued" && issued && (
         <div className="mt-6">
-          <p className="text-xs text-worksheet-secondary">共有リンク</p>
+          <p className="text-xs text-[#817b71]">共有リンク</p>
           <input
             type="text"
             readOnly
             value={issued.shareUrl}
             onFocus={(e) => e.currentTarget.select()}
-            className="mt-2 w-full rounded-full border border-worksheet-border bg-worksheet-surface-2 px-4 py-2 text-sm text-worksheet-primary"
+            className="mt-2 w-full rounded-full border border-[#e6e2d8] bg-[#faf7f0] px-4 py-2 text-sm text-[#172033]"
           />
 
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -291,7 +329,7 @@ export default function ParentExplanationShare({
           </div>
 
           {copyStatus === "copied" && (
-            <p className="mt-2 text-xs text-worksheet-secondary">コピーしました。</p>
+            <p className="mt-2 text-xs text-[#817b71]">コピーしました。</p>
           )}
           {copyStatus === "failed" && (
             <p className="mt-2 text-xs text-red-600 dark:text-red-400">
@@ -299,8 +337,8 @@ export default function ParentExplanationShare({
             </p>
           )}
 
-          <p className="mt-3 text-xs text-worksheet-secondary">{formatShareExpiry(issued.expiresAt)}</p>
-          <p className="mt-2 text-xs leading-relaxed text-worksheet-secondary">
+          <p className="mt-3 text-xs text-[#817b71]">{formatShareExpiry(issued.expiresAt)}</p>
+          <p className="mt-2 text-xs leading-relaxed text-[#817b71]">
             ※ このリンクは、この画面を離れると再表示できません。今のうちにコピーまたは共有してください。
           </p>
         </div>

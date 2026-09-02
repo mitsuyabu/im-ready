@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanKarte } from "@/lib/planChat";
+import { formatLastUpdated } from "@/lib/planActivity";
 import { buildDocumentsKarteView } from "@/lib/documentsKarteView";
 import { type PlanDocumentType } from "@/lib/planDocuments";
-import { DOCUMENT_ROLE_DEFINITIONS } from "@/lib/documentRoles";
+import { PARENT_EXPLANATION_DEFAULT_TITLE } from "@/lib/parentExplanationPrompt";
 import { classifyShareStatus, type ShareStatusRow } from "@/lib/parentExplanationShare";
 import BrandLogo from "@/components/BrandLogo";
-import DocumentDetailHeader from "@/components/DocumentDetailHeader";
 import ParentExplanationBody from "@/components/ParentExplanationBody";
 import ParentExplanationGenerator from "@/components/ParentExplanationGenerator";
 import ParentExplanationShare from "@/components/ParentExplanationShare";
@@ -129,31 +130,48 @@ export default async function ParentExplanationDocumentPage({ params }: ParentEx
     initialShareExpiresAt = classified.expiresAt;
   }
 
-  const roleDef = DOCUMENT_ROLE_DEFINITIONS.parent_explanation;
+  const isCreated = Boolean(row && parsedContent);
+  // 既存保存済みタイトルを尊重。無ければ固定のページ見出しを使う（DB へ fake title は保存しない）。
+  const pageTitle = row?.title?.trim() || PARENT_EXPLANATION_DEFAULT_TITLE;
+  const lastUpdated = isCreated && row ? formatLastUpdated(row.updated_at) : null;
 
   return (
-    <div className="min-h-dvh bg-worksheet-surface">
-      {/* lg以上ではAppNavの左sidebarにロゴがあるため、この上部barはmobileのみ。
-          Documentsへ戻る導線はDocumentDetailHeaderが持つ。 */}
-      <header className="flex items-center border-b border-worksheet-border px-4 py-3 sm:px-6 lg:hidden">
-        {/* 本文・role・title を先に目に入れるため、mobile 上部ロゴだけ既定より少し小さくする */}
+    <div className="min-h-dvh bg-[#fcfbf8]">
+      {/* lg以上ではAppNavの左sidebarにロゴがあるため、この上部barはmobileのみ。戻る導線は本文側に持つ。 */}
+      <header className="flex items-center border-b border-[#e9e3d8] px-4 py-3 sm:px-6 lg:hidden">
         <BrandLogo href="/mypage" className="h-[35px] w-auto sm:h-[43px]" />
       </header>
 
-      <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-        <DocumentDetailHeader
-          planId={planId}
-          role={roleDef.role}
-          title={row?.title ?? roleDef.title}
-          description={roleDef.description}
-          isCreated={Boolean(row && parsedContent)}
-          updatedAt={row && parsedContent ? row.updated_at : undefined}
-        />
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+        {/* Header（家族へ共有する資料。フォントは他画面と統一の sans） */}
+        <div className="border-b border-[#e9e3d8] pb-6">
+          <Link
+            href={`/plans/${planId}/documents`}
+            className="inline-flex items-center gap-1 text-sm text-[#817b71] transition-colors hover:text-[#1c1c1c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e2b3d]/40"
+          >
+            <span aria-hidden>←</span> My Study Abroad へ戻る
+          </Link>
+
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+            <div className="min-w-0">
+              <p className="text-xs font-medium tracking-wide text-[#5f7050]">家族へ共有</p>
+              <h1 className="mt-1.5 text-[26px] font-bold leading-[1.25] tracking-tight text-[#172033] sm:text-[32px]">
+                {pageTitle}
+              </h1>
+              <p className="mt-2 text-base text-[#817b71]">
+                いま考えていることと、これからの計画をまとめました。
+              </p>
+            </div>
+            {lastUpdated && (
+              <p className="shrink-0 text-xs text-[#817b71] sm:mt-2">最終更新 {lastUpdated}</p>
+            )}
+          </div>
+        </div>
 
         {docError ? (
-          <div className="mt-8 rounded-2xl border border-worksheet-border p-6 sm:p-8">
-            <p className="text-base font-medium text-worksheet-primary">資料を読み込めませんでした。</p>
-            <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
+          <div className="mt-8 rounded-2xl border border-[#e9e3d8] bg-white p-6 sm:p-8">
+            <p className="text-base font-medium text-[#172033]">資料を読み込めませんでした。</p>
+            <p className="mt-3 text-sm leading-relaxed text-[#817b71]">
               しばらくしてから再度お試しください。
             </p>
           </div>
@@ -161,10 +179,9 @@ export default async function ParentExplanationDocumentPage({ params }: ParentEx
           <ParentExplanationGenerator planId={planId} canGenerate={canGenerate} />
         ) : parsedContent ? (
           <>
-            <ParentExplanationBody body={parsedContent.body} hideLeadingTitle={row.title} />
-            {/* 本人向け3種と違い外部へ見せる資料。本文と共有ブロックを視覚的に分ける（§46）。
-                共有操作（作成・停止・LINE）のfetch/state/securityは ParentExplanationShare のまま変更しない。 */}
-            <div className="mt-12 border-t border-worksheet-border" />
+            <ParentExplanationBody body={parsedContent.body} hideLeadingTitle={pageTitle} />
+            {/* 家族へ見せる資料。本文と共有ブロックを視覚的に分ける。
+                共有操作（作成・停止・LINE）の fetch/state/security は ParentExplanationShare のまま変更しない。 */}
             <ParentExplanationShare
               planId={planId}
               initialShareStatus={initialShareStatus}
@@ -172,8 +189,8 @@ export default async function ParentExplanationDocumentPage({ params }: ParentEx
             />
           </>
         ) : (
-          <div className="mt-8 rounded-2xl border border-worksheet-border p-6 sm:p-8">
-            <p className="text-base font-medium text-worksheet-primary">この資料を表示できませんでした。</p>
+          <div className="mt-8 rounded-2xl border border-[#e9e3d8] bg-white p-6 sm:p-8">
+            <p className="text-base font-medium text-[#172033]">この資料を表示できませんでした。</p>
           </div>
         )}
       </div>
