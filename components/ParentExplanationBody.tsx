@@ -129,7 +129,7 @@ export default function ParentExplanationBody({
   const sections = view.sections.filter((s) => s !== overview || s.freeText.length > 0);
 
   return (
-    <div className="mt-8 space-y-10">
+    <div className="mt-8 space-y-8 sm:space-y-10">
       {preambleLines.length > 0 && (
         <div className="max-w-3xl space-y-2 text-[15px] leading-8 text-[#45413b]">
           {preambleLines.map((line, i) => (
@@ -144,7 +144,7 @@ export default function ParentExplanationBody({
       {glanceItems.length > 0 && (
         <section
           aria-labelledby={`${baseId}-glance`}
-          className="relative overflow-hidden rounded-[22px] border border-[#e3e6e0] p-6 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-7"
+          className="relative overflow-hidden rounded-[20px] border border-[#e3e6e0] p-5 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:rounded-[22px] sm:p-7"
           style={{ backgroundImage: "linear-gradient(135deg, #eef2f4 0%, #fbf9f3 62%)" }}
         >
           <svg

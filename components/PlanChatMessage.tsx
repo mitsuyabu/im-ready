@@ -55,7 +55,7 @@ export default function PlanChatMessage({
         >
           <UserGlyphIcon className="h-5 w-5" />
         </span>
-        <div className="min-w-0 flex-1 rounded-[15px] border border-black/[0.06] bg-white px-5 py-5 shadow-[0_1px_3px_rgba(40,33,20,0.06)] sm:px-6">
+        <div className="min-w-0 flex-1 rounded-[15px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_1px_3px_rgba(40,33,20,0.06)] sm:px-6 sm:py-5">
           <div className="space-y-3 text-[15px] leading-7 text-[#2b2a26] sm:text-base">
             {paragraphs.map((para, i) => (
               <p key={i} className="whitespace-pre-wrap break-words">
@@ -76,7 +76,7 @@ export default function PlanChatMessage({
       >
         <AiSparkIcon className="h-4 w-4" />
       </span>
-      <div className="relative min-w-0 flex-1 overflow-hidden rounded-[15px] border border-[#dde7d2] bg-[#f1f5ec] px-5 py-5 shadow-[0_1px_3px_rgba(40,50,30,0.06)] sm:px-6">
+      <div className="relative min-w-0 flex-1 overflow-hidden rounded-[15px] border border-[#dde7d2] bg-[#f1f5ec] px-4 py-4 shadow-[0_1px_3px_rgba(40,50,30,0.06)] sm:px-6 sm:py-5">
         <div className="space-y-3 text-[15px] leading-7 text-[#2f342a] sm:text-base">
           {paragraphs.map((para, i) => (
             <p key={i} className="whitespace-pre-wrap break-words">

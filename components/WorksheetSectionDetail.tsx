@@ -170,7 +170,7 @@ export default function WorksheetSectionDetail({
           <p className="text-sm font-medium tracking-wide text-[#5f7050]">
             {categoryNum} <span className="text-[#b7b1a6]">/</span> {meta.enName}
           </p>
-          <h1 className="mt-1.5 text-[34px] font-bold leading-[1.15] tracking-tight text-[#151515] sm:text-[42px]">
+          <h1 className="mt-1.5 text-[27px] font-bold leading-[1.2] tracking-tight text-[#151515] sm:text-[42px]">
             {category.title}
           </h1>
         </div>
@@ -196,7 +196,7 @@ export default function WorksheetSectionDetail({
 
       {/* 2カラム: 左=設問カードの縦並び, 右=sticky サマリー */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8">
-        <div className="min-w-0 space-y-8">
+        <div className="min-w-0 space-y-6 sm:space-y-8">
           {category.questions.map((q, i) => {
             const num = String(i + 1).padStart(2, "0");
             return (
@@ -206,7 +206,7 @@ export default function WorksheetSectionDetail({
               >
                 {/* header 帯（縦に並ぶので少しコンパクトに。デザインは維持） */}
                 <div
-                  className="relative overflow-hidden px-6 py-5 sm:px-7"
+                  className="relative overflow-hidden px-5 py-4 sm:px-7 sm:py-5"
                   style={{ backgroundColor: theme.bg }}
                 >
                   <svg
@@ -221,7 +221,7 @@ export default function WorksheetSectionDetail({
                   <div className="relative flex items-center gap-4">
                     <span
                       aria-hidden
-                      className="select-none font-serif text-[40px] font-semibold leading-none sm:text-[48px]"
+                      className="select-none font-serif text-[30px] font-semibold leading-none sm:text-[48px]"
                       style={{ color: theme.numeral }}
                     >
                       {num}
@@ -233,7 +233,7 @@ export default function WorksheetSectionDetail({
                 </div>
 
                 {/* 本文: supplement + 既存の回答UI（記入例トグル・textarea・kind別body） */}
-                <div className="px-6 py-6 sm:px-7">
+                <div className="px-5 py-5 sm:px-7 sm:py-6">
                   <p className="whitespace-pre-line text-sm leading-relaxed text-[#6f6a64]">
                     {q.supplement}
                   </p>
@@ -298,19 +298,10 @@ export default function WorksheetSectionDetail({
             </div>
           )}
 
-          {/* カテゴリ最下部の CTA（最後の設問の下だけ）。遷移のみ・保存処理は持たない */}
-          <div className="pt-1">
-            <Link
-              href={nextCategory ? `/plans/${planId}/worksheet/${nextCategory.id}` : `/plans/${planId}/worksheet`}
-              className="inline-flex items-center gap-2 rounded-full bg-[#161616] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#000]"
-            >
-              {nextCategory ? "次のテーマへ" : "Worksheetを終える"}
-              <ArrowRightIcon className="h-4 w-4" />
-            </Link>
-          </div>
         </div>
 
-        {/* 右サマリーカード（カテゴリ内すべての回答から機械的に抽出） */}
+        {/* 右サマリーカード（カテゴリ内すべての回答から機械的に抽出）。
+            mobile は設問群 → このカード → CTA の順。desktop は左カラム下に CTA・右に sticky サマリー。 */}
         <aside className="lg:sticky lg:top-8 lg:self-start">
           <div className="rounded-[18px] border border-[#e5dfd6] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
             <div className="flex items-center gap-2.5">
@@ -343,6 +334,18 @@ export default function WorksheetSectionDetail({
             )}
           </div>
         </aside>
+
+        {/* カテゴリ最下部の CTA（遷移のみ・保存処理なし）。3 つめの grid child なので
+            mobile はサマリーの後、desktop は左カラム(col 1)の下段に入る。 */}
+        <div className="lg:col-start-1">
+          <Link
+            href={nextCategory ? `/plans/${planId}/worksheet/${nextCategory.id}` : `/plans/${planId}/worksheet`}
+            className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full bg-[#161616] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#000] sm:w-auto"
+          >
+            {nextCategory ? "次のテーマへ" : "Worksheetを終える"}
+            <ArrowRightIcon className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
     </div>
   );

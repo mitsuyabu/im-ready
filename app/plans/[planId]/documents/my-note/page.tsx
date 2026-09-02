@@ -99,7 +99,7 @@ export default async function MyNotePage({ params }: MyNotePageProps) {
         <BrandLogo href="/mypage" className="h-[35px] w-auto sm:h-[43px]" />
       </header>
 
-      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+      <div className="mx-auto max-w-5xl px-4 pt-8 pb-20 sm:px-6 sm:py-14 lg:px-8">
         {/* Header（他 Document とは別に、My Note 専用のノートらしい見出し。フォントは他画面と統一の sans） */}
         <div className="border-b border-[#e5dfd6] pb-6">
           <Link
@@ -112,7 +112,7 @@ export default async function MyNotePage({ params }: MyNotePageProps) {
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
             <div className="min-w-0">
               <p className="text-xs font-medium tracking-wide text-[#5f7050]">{roleDef.role}</p>
-              <h1 className="mt-1 text-[36px] font-bold tracking-tight text-[#172033] sm:text-[44px]">
+              <h1 className="mt-1 text-[27px] font-bold tracking-tight text-[#172033] sm:text-[34px] lg:text-[44px]">
                 My Note
               </h1>
               <p className="mt-2 text-base text-[#625f59]">いまの自分の考え</p>

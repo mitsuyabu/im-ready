@@ -421,7 +421,7 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
     fitVerdictBySchool.get(schoolName)?.get(label) === "条件に合っている";
 
   return (
-    <div className="mt-8 space-y-10">
+    <div className="mt-8 space-y-8 sm:space-y-10">
       {preambleNotes.length > 0 && (
         <div className="space-y-1 text-xs leading-relaxed text-[#8a8578]">
           {preambleNotes.map((line, i) => (

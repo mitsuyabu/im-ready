@@ -48,7 +48,7 @@ export default async function PlanWorksheetPage({ params }: PlanWorksheetPagePro
         <BrandLogo href="/mypage" />
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:px-10">
+      <div className="mx-auto max-w-6xl px-4 pt-8 pb-20 sm:px-6 sm:py-14 lg:px-10">
         <Link
           href={`/plans/${planId}`}
           className="inline-flex items-center gap-1 text-sm text-[#8a8578] transition-colors hover:text-[#3f3d38]"
@@ -56,7 +56,7 @@ export default async function PlanWorksheetPage({ params }: PlanWorksheetPagePro
           <span aria-hidden>←</span> Plan Homeに戻る
         </Link>
 
-        <h1 className="mt-4 text-[32px] font-bold leading-[1.15] tracking-tight text-[#26251f] sm:text-[44px]">
+        <h1 className="mt-4 text-[28px] font-bold leading-[1.18] tracking-tight text-[#26251f] sm:text-[38px] lg:text-[44px]">
           テーマから整理する
         </h1>
         <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-[#6f6b62] sm:text-sm">

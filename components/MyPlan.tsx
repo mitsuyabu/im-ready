@@ -195,7 +195,7 @@ export default function MyPlan({
   ];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+    <div className="mx-auto max-w-6xl px-4 pt-8 pb-20 sm:px-6 sm:py-14 lg:px-8">
       <Link
         href={`/plans/${planId}`}
         className="inline-flex items-center gap-1 text-sm text-[#6f6a64] transition-colors hover:text-[#1c1c1c]"
@@ -206,7 +206,7 @@ export default function MyPlan({
       {/* ページ上部: タイトル + Plan名 / 最終更新 */}
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div>
-          <h1 className="text-[32px] font-bold leading-[1.15] tracking-tight text-[#151515] sm:text-[42px]">
+          <h1 className="text-[28px] font-bold leading-[1.18] tracking-tight text-[#151515] sm:text-[42px]">
             My Plan
           </h1>
           <p className="mt-1 text-sm text-[#6f6a64]">{planTitle}</p>
@@ -218,11 +218,11 @@ export default function MyPlan({
 
       {/* ヒーローサマリー */}
       <section className="mt-6 overflow-hidden rounded-[20px] bg-[#1e2b3d] shadow-[0_2px_10px_rgba(20,28,42,0.12)]">
-        <div className="px-6 py-7 sm:px-9 sm:py-8">
+        <div className="px-5 py-6 sm:px-9 sm:py-8">
           <p className="text-[11px] font-semibold tracking-[0.18em] text-[#8ea3bf]">
             YOUR PLAN AT A GLANCE
           </p>
-          <p className="mt-3 text-[22px] font-bold leading-snug text-white sm:text-[28px]">
+          <p className="mt-3 text-[19px] font-bold leading-snug text-white sm:text-[28px]">
             {heroCopy}
           </p>
         </div>
@@ -245,18 +245,18 @@ export default function MyPlan({
       </section>
 
       {/* メイン: 左アウトライン / 右カードグリッド */}
-      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[212px_minmax(0,1fr)] lg:gap-8">
+      <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-[212px_minmax(0,1fr)] lg:gap-8">
         <aside className="lg:sticky lg:top-8 lg:self-start">
           <div className="rounded-[18px] border border-[#e5dfd6] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
             <p className="px-1 text-[11px] font-semibold tracking-[0.16em] text-[#5f7050]">
               PLAN OUTLINE
             </p>
-            <ol className="mt-2 space-y-0.5">
+            <ol className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 lg:block lg:space-y-0.5">
               {sections.map((s, i) => (
                 <li key={s.id}>
                   <a
                     href={`#myplan-${s.id}`}
-                    className="flex items-baseline gap-2.5 rounded-lg px-2 py-1.5 text-sm text-[#3f3a34] transition-colors hover:bg-[#f2efe7]"
+                    className="flex items-baseline gap-2 rounded-lg px-2 py-2 text-sm text-[#3f3a34] transition-colors hover:bg-[#f2efe7] lg:gap-2.5 lg:py-1.5"
                   >
                     <span className="font-serif text-xs text-[#b7b1a6]">
                       {String(i + 1).padStart(2, "0")}
@@ -321,11 +321,11 @@ function MyPlanCard({
   return (
     <section
       id={`myplan-${id}`}
-      className={`relative scroll-mt-6 overflow-hidden rounded-[18px] border border-[#e5dfd6] bg-white p-6 shadow-[0_1px_3px_rgba(30,28,24,0.05)] sm:p-7 ${span}`}
+      className={`relative scroll-mt-6 overflow-hidden rounded-[18px] border border-[#e5dfd6] bg-white p-5 shadow-[0_1px_3px_rgba(30,28,24,0.05)] sm:p-6 lg:p-7 ${span}`}
     >
       <span
         aria-hidden
-        className="pointer-events-none absolute right-3 top-1 select-none font-serif text-[62px] font-semibold leading-none text-[#efece3]"
+        className="pointer-events-none absolute right-3 top-1 select-none font-serif text-[46px] font-semibold leading-none text-[#efece3] sm:text-[62px]"
       >
         {num}
       </span>

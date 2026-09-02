@@ -67,14 +67,14 @@ export default function MyNoteBody({ body }: { body: string }) {
     : "mt-3 space-y-4 text-lg font-medium leading-relaxed text-[#232227] sm:text-xl lg:text-2xl";
 
   return (
-    <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-8">
+    <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-8">
       {/* NOTE OUTLINE */}
       <aside className="lg:sticky lg:top-8 lg:self-start">
         <nav className="rounded-[16px] border border-[#e5dfd6] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
           <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#5f7050]">
             Note Outline
           </p>
-          <ol className="mt-2 space-y-0.5">
+          <ol className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 lg:block lg:space-y-0.5">
             {sections.map((section, i) => (
               <li key={i}>
                 <a
@@ -114,10 +114,10 @@ export default function MyNoteBody({ body }: { body: string }) {
             id="mynote-section-1"
             className="scroll-mt-6 overflow-hidden rounded-[18px] border border-[#e5dfd6] bg-white shadow-[0_1px_3px_rgba(30,28,24,0.05)]"
           >
-            <div className="relative overflow-hidden bg-[#1e2b3d] px-6 py-8 sm:px-9">
+            <div className="relative overflow-hidden bg-[#1e2b3d] px-5 py-6 sm:px-9 sm:py-8">
               <span
                 aria-hidden
-                className="pointer-events-none absolute left-5 top-1 select-none font-serif text-[72px] font-normal leading-none text-white/20 sm:text-[88px]"
+                className="pointer-events-none absolute left-5 top-1 select-none font-serif text-[52px] font-normal leading-none text-white/20 sm:text-[88px]"
               >
                 01
               </span>
@@ -131,7 +131,7 @@ export default function MyNoteBody({ body }: { body: string }) {
                 <circle cx="196" cy="14" r="2.6" fill="rgba(214,200,178,0.5)" />
               </svg>
             </div>
-            <div className="px-6 py-7 sm:px-9">
+            <div className="px-5 py-6 sm:px-9 sm:py-7">
               <h2 className="text-sm font-semibold tracking-wide text-[#5f7050]">{first.heading}</h2>
               {firstParas.length > 0 && (
                 <div className={firstBodyClass}>
@@ -159,11 +159,11 @@ export default function MyNoteBody({ body }: { body: string }) {
                   key={idx}
                   id={`mynote-section-${idx + 2}`}
                   style={{ borderTopColor: accent }}
-                  className="scroll-mt-6 rounded-[16px] border border-[#e5dfd6] border-t-[3px] bg-white p-6 shadow-[0_1px_3px_rgba(30,28,24,0.05)] sm:p-7"
+                  className="scroll-mt-6 rounded-[16px] border border-[#e5dfd6] border-t-[3px] bg-white p-5 shadow-[0_1px_3px_rgba(30,28,24,0.05)] sm:p-6 lg:p-7"
                 >
                   <span
                     aria-hidden
-                    className="select-none font-serif text-5xl font-normal leading-none text-[#1e2b3d]/20"
+                    className="select-none font-serif text-4xl font-normal leading-none text-[#1e2b3d]/20 sm:text-5xl"
                   >
                     {num}
                   </span>

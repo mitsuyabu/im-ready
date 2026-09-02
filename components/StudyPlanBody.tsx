@@ -111,7 +111,7 @@ export default function StudyPlanBody({ body }: { body: string }) {
         id="studyplan-section-1"
         className="scroll-mt-6 overflow-hidden rounded-[18px] border border-[#e5dfd6] shadow-[0_1px_3px_rgba(30,28,24,0.05)]"
       >
-        <div className="relative overflow-hidden bg-[#173154] px-6 py-6 sm:px-9 sm:py-7">
+        <div className="relative overflow-hidden bg-[#173154] px-5 py-5 sm:px-9 sm:py-7">
           <div className="relative flex items-baseline gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8ea3bf]">
               Current Plan
