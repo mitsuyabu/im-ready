@@ -58,6 +58,14 @@ export default function MyNoteBody({ body }: { body: string }) {
   const [first, ...rest] = sections;
   const firstParas = first ? toParagraphs(first.lines) : [];
 
+  // Section 01 本文の font size は文章量で2段階に出し分ける（pure presentation。
+  // 本文文字列は truncate も要約もせず、そのまま全文表示する。閾値は実画面での読みやすさから 200 文字）。
+  const firstBodyLength = firstParas.join("\n").length;
+  const isFirstSectionLong = firstBodyLength >= 200;
+  const firstBodyClass = isFirstSectionLong
+    ? "mt-3 space-y-4 text-base font-normal leading-8 text-[#232227] sm:text-lg"
+    : "mt-3 space-y-4 text-lg font-medium leading-relaxed text-[#232227] sm:text-xl lg:text-2xl";
+
   return (
     <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-8">
       {/* NOTE OUTLINE */}
@@ -126,7 +134,7 @@ export default function MyNoteBody({ body }: { body: string }) {
             <div className="px-6 py-7 sm:px-9">
               <h2 className="text-sm font-semibold tracking-wide text-[#5f7050]">{first.heading}</h2>
               {firstParas.length > 0 && (
-                <div className="mt-3 space-y-4 text-xl font-medium leading-9 text-[#232227] sm:text-2xl">
+                <div className={firstBodyClass}>
                   {firstParas.map((p, j) => (
                     <p key={j} className="whitespace-pre-wrap">
                       {p}
