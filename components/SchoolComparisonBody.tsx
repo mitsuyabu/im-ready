@@ -220,21 +220,24 @@ function toConditionLabel(rawValue: string): string {
   return s.length >= 2 ? s : orig;
 }
 
-/** 金額系条件を「予算 100万円」のような簡潔表記へ（表示だけ）。数値が拾えなければ末尾表現だけ整える。 */
+/**
+ * 金額系条件を「100万円」だけの簡潔表記へ（表示だけ）。¥アイコンが付くので「予算」の語は付けない。
+ * 数値が拾えなければ末尾表現だけ整える（toConditionLabel にフォールバック）。
+ */
 function toBudgetLabel(rawValue: string): string {
   const s = rawValue.trim();
 
   const manMatch = s.match(/(\d+(?:\.\d+)?)\s*万\s*円?/);
   if (manMatch) {
     const n = Number(manMatch[1]);
-    if (Number.isFinite(n)) return `予算 ${Number.isInteger(n) ? n : manMatch[1]}万円`;
+    if (Number.isFinite(n)) return `${Number.isInteger(n) ? n : manMatch[1]}万円`;
   }
 
   const yenMatch = s.match(/[¥￥]?\s*([\d,]{4,})\s*円?/);
   if (yenMatch) {
     const n = Number(yenMatch[1].replace(/,/g, ""));
     if (Number.isFinite(n) && n >= 10000) {
-      return `予算 ${Math.round(n / 10000).toLocaleString("ja-JP")}万円`;
+      return `${Math.round(n / 10000).toLocaleString("ja-JP")}万円`;
     }
   }
 
@@ -278,7 +281,22 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
   );
   const factLabels = orderedFactLabels(view.facts);
   const topSchools = view.schools.slice(0, 3);
-  const criteria = view.criteria.slice(0, 4);
+
+  // 条件チップ: 表示整形（toConditionLabel / toBudgetLabel）した結果が「短い条件ラベル」に
+  // 収まったものだけをチップ表示する。長文（都市の説明文・プログラム説明など）は除外し、
+  // カード化しない。AI 要約はせず、あくまで既存 view.criteria の verbatim / 機械整形のみ。
+  const CRITERIA_MAX_LEN = 18;
+  const criteriaChips = view.criteria
+    .map((c) => {
+      const isBudget = isBudgetCriteria(c.label, c.value);
+      return {
+        isBudget,
+        text: isBudget ? toBudgetLabel(c.value) : toConditionLabel(c.value),
+        raw: c.value,
+      };
+    })
+    .filter((c) => c.text.length > 0 && c.text.length <= CRITERIA_MAX_LEN)
+    .slice(0, 4);
 
   // fit verdict をテーブルセルの淡緑バッジに使うための、学校名 → (ラベル → verdict) の完全一致マップ。
   const fitVerdictBySchool = new Map<string, Map<string, string>>();
@@ -351,30 +369,28 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
         </div>
       )}
 
-      {/* あなたが大切にしている条件（やや大きめの角丸カード状チップに整理。表示文言だけを条件ラベル化） */}
-      {criteria.length > 0 && (
-        <div className="sm:flex sm:items-start sm:gap-5">
-          <p className="shrink-0 pt-2 text-xs font-semibold tracking-[0.12em] text-[#5f7050]">
+      {/* あなたが大切にしている条件（短い条件ラベルだけを横並びのコンパクトなチップに） */}
+      {criteriaChips.length > 0 && (
+        <div className="sm:flex sm:items-center sm:gap-4">
+          <p className="shrink-0 text-xs font-semibold tracking-[0.12em] text-[#5f7050]">
             あなたが大切にしている条件
           </p>
-          <div className="mt-3 flex flex-wrap gap-2.5 sm:mt-0">
-            {criteria.map((c, i) => {
+          <div className="mt-3 flex flex-wrap gap-3 sm:mt-0">
+            {criteriaChips.map((c, i) => {
               const chip = CRITERIA_CHIP[i % CRITERIA_CHIP.length];
-              const isBudget = isBudgetCriteria(c.label, c.value);
-              const text = isBudget ? toBudgetLabel(c.value) : toConditionLabel(c.value);
               return (
                 <span
                   key={i}
                   style={{ backgroundColor: chip.bg, borderColor: chip.border }}
-                  className="inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium text-[#3f3a34]"
-                  title={c.value}
+                  className="inline-flex items-center gap-2 rounded-[16px] border px-5 py-3 text-sm font-medium text-[#3f3a34]"
+                  title={c.raw}
                 >
-                  {isBudget ? (
+                  {c.isBudget ? (
                     <YenIcon className="h-4 w-4 shrink-0 text-[#8a8578]" />
                   ) : (
                     <DotIcon className="h-2 w-2 shrink-0 text-[#a9a28f]" />
                   )}
-                  {text}
+                  {c.text}
                 </span>
               );
             })}
@@ -382,25 +398,25 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
         </div>
       )}
 
-      {/* 2カラム: 左=比較テーブル / 右=確認したいこと */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10">
+      {/* 2カラム: 左=比較テーブル（主役・広め） / 右=確認したいこと（細め） */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8">
         <div className="min-w-0 space-y-6">
           {/* 学校ごとの比較 */}
           <section
             id={TABLE_ANCHOR}
-            className="scroll-mt-6 rounded-[24px] border border-[#ece7dd] bg-white p-6 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-8"
+            className="scroll-mt-6 rounded-[24px] border border-[#ece7dd] bg-white p-4 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-5 lg:p-6"
           >
             <CardHeading accent="02">学校ごとの比較</CardHeading>
 
             {view.facts.length > 0 && factLabels.length > 0 ? (
               <>
-                <div className="mt-5 hidden overflow-x-auto rounded-2xl border border-[#f0ebe0] md:block">
-                  <table className="w-full border-collapse text-sm">
+                <div className="mt-5 hidden overflow-x-auto rounded-2xl border border-[#f0ebe0] md:block lg:overflow-x-visible">
+                  <table className="w-full table-fixed border-collapse text-sm">
                     <thead>
                       <tr className="bg-[#faf8f2]">
                         <th
                           scope="col"
-                          className="border-b border-[#f0ebe0] px-4 py-3 text-left text-xs font-semibold text-[#8a8578]"
+                          className="w-[18%] border-b border-[#f0ebe0] px-3 py-3 text-left text-xs font-semibold text-[#8a8578]"
                         >
                           比べること
                         </th>
@@ -408,7 +424,7 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
                           <th
                             key={i}
                             scope="col"
-                            className="border-b border-l border-[#f0ebe0] px-4 py-3 text-center text-sm font-semibold text-[#172033]"
+                            className="border-b border-l border-[#f0ebe0] px-3 py-3 text-center text-sm font-semibold leading-snug text-[#172033]"
                           >
                             {school.name}
                           </th>
@@ -423,7 +439,7 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
                           <tr key={ri} className="last:[&>*]:border-b-0">
                             <th
                               scope="row"
-                              className="border-b border-[#f0ebe0] bg-[#fcfbf8] px-4 py-3.5 text-left align-top text-xs font-medium leading-relaxed text-[#4a4640]"
+                              className="border-b border-[#f0ebe0] bg-[#fcfbf8] px-3 py-3 text-left align-top text-sm font-medium leading-relaxed text-[#4a4640]"
                             >
                               {label}
                             </th>
@@ -432,7 +448,7 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
                               return (
                                 <td
                                   key={ci}
-                                  className="border-b border-l border-[#f0ebe0] px-4 py-3.5 align-top leading-relaxed text-[#2f2c26]"
+                                  className="border-b border-l border-[#f0ebe0] px-3 py-3 align-top leading-relaxed text-[#2f2c26]"
                                 >
                                   {value === null ? (
                                     <span className="text-[#c9c4b8]" aria-hidden>
@@ -443,10 +459,10 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
                                       <span
                                         className={
                                           isMoney
-                                            ? "text-[15px] font-semibold text-[#172033]"
+                                            ? "text-sm font-semibold text-[#172033]"
                                             : isSource
-                                              ? "text-xs text-[#a09a8c]"
-                                              : "text-sm"
+                                              ? "text-[11px] text-[#a09a8c]"
+                                              : "text-sm leading-relaxed"
                                         }
                                       >
                                         <FactValue value={value} />
@@ -514,7 +530,7 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
 
           {/* 条件との合い方 */}
           {view.fits.length > 0 && (
-            <section className="rounded-[24px] border border-[#ece7dd] bg-white p-6 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-8">
+            <section className="rounded-[24px] border border-[#ece7dd] bg-white p-4 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-5 lg:p-6">
               <CardHeading>条件との合い方</CardHeading>
               <div className="mt-4 space-y-5">
                 {view.fits.map((school, i) => (
@@ -543,7 +559,7 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
 
           {/* 候補として提示された理由・メモ */}
           {view.reasonMemoText.length > 0 && (
-            <section className="rounded-[24px] border border-[#ece7dd] bg-white p-6 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-8">
+            <section className="rounded-[24px] border border-[#ece7dd] bg-white p-4 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-5 lg:p-6">
               <CardHeading>候補として提示された理由・メモ</CardHeading>
               <div className="mt-3 space-y-1.5 text-sm leading-relaxed text-[#6f6a64]">
                 {view.reasonMemoText.map((line, i) => (
@@ -559,7 +575,7 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
           {view.otherSections.map((section, i) => (
             <section
               key={i}
-              className="rounded-[24px] border border-[#ece7dd] bg-white p-6 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-8"
+              className="rounded-[24px] border border-[#ece7dd] bg-white p-4 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-5 lg:p-6"
             >
               <CardHeading>{section.heading}</CardHeading>
               <div className="mt-3 space-y-1.5 text-sm leading-relaxed text-[#6f6a64]">
@@ -575,9 +591,9 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
           ))}
         </div>
 
-        {/* 右: 確認したいこと（外側カードの中に小カードを積む） */}
+        {/* 右: 確認したいこと（外側カードの中に小カードを積む。細めのカラム） */}
         <aside className="lg:sticky lg:top-8 lg:self-start">
-          <div className="rounded-[24px] border border-[#ece7dd] bg-white p-6 shadow-[0_1px_3px_rgba(30,28,24,0.04)]">
+          <div className="rounded-[20px] border border-[#ece7dd] bg-white p-5 shadow-[0_1px_3px_rgba(30,28,24,0.04)]">
             <CardHeading accent="03">確認したいこと</CardHeading>
 
             {view.unresolvedText.length > 0 ? (
@@ -621,7 +637,7 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
 
             <Link
               href={`/plans/${planId}/worksheet/conditions`}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#b8b2a6] bg-white px-5 py-3.5 text-sm font-semibold text-[#172033] transition-colors hover:border-[#8a8578] hover:bg-[#f2efe7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e2b3d]/40"
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#b8b2a6] bg-white px-5 py-3 text-sm font-semibold text-[#172033] transition-colors hover:border-[#8a8578] hover:bg-[#f2efe7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e2b3d]/40"
             >
               条件を見直す
               <ArrowRightIcon className="h-4 w-4" />

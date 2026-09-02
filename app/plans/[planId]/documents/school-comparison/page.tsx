@@ -103,7 +103,7 @@ export default async function SchoolComparisonPage({ params }: SchoolComparisonP
         <BrandLogo href="/mypage" className="h-[35px] w-auto sm:h-[43px]" />
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+      <div className="mx-auto max-w-[1500px] px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
         {/* Header（School Comparison 専用。フォントは他画面と統一の sans） */}
         <div className="border-b border-[#e5dfd6] pb-6">
           <Link
