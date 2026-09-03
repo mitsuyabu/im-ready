@@ -18,12 +18,17 @@ type PanelKey = "chat" | "worksheet" | "myPlan" | "menu";
 
 type IconProps = { className?: string };
 
+/**
+ * AppNav 共通のラインアイコン設定。Mindtrip 参考の「大きめ・太め・均一ストローク」に合わせ、
+ * strokeWidth は全アイコン 2（round cap / join）で統一する。1.5 系の細い線は使わない。
+ * サイズは呼び出し側の className（h-6 w-6 等）で決める。
+ */
 function iconBaseProps(className?: string) {
   return {
     viewBox: "0 0 24 24",
     fill: "none" as const,
     stroke: "currentColor",
-    strokeWidth: 1.75,
+    strokeWidth: 2,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
     className,
@@ -31,46 +36,66 @@ function iconBaseProps(className?: string) {
   };
 }
 
+/** Home: 屋根＋本体＋入口が一目で分かる house outline。 */
 function HomeIcon({ className }: IconProps) {
   return (
     <svg {...iconBaseProps(className)}>
-      <path d="M4 11.5 12 4l8 7.5M6 9.5V20h12V9.5" />
+      <path d="M3.5 11.5 12 4l8.5 7.5" />
+      <path d="M5.75 10v8.75A1.25 1.25 0 0 0 7 20h10a1.25 1.25 0 0 0 1.25-1.25V10" />
+      <path d="M9.75 20v-4.75A1.25 1.25 0 0 1 11 14h2a1.25 1.25 0 0 1 1.25 1.25V20" />
     </svg>
   );
 }
 
+/** Chat: 角丸の吹き出し＋しっぽ＋中に3点。 */
 function ChatIcon({ className }: IconProps) {
   return (
     <svg {...iconBaseProps(className)}>
-      <path d="M4 5h16v11H8l-4 4V5Z" />
+      <path d="M4 11.7C4 7.9 7.5 5 12 5s8 2.9 8 6.7-3.5 6.7-8 6.7c-.9 0-1.8-.1-2.6-.3L4 20l1.1-3.7C4.4 15 4 13.4 4 11.7Z" />
+      <path d="M9 11.9h.01M12 11.9h.01M15 11.9h.01" />
     </svg>
   );
 }
 
+/** Worksheet: クリップ付き clipboard ＋ 箇条書き（「書く・整理する」）。My Plan の書類とは別形。 */
 function WorksheetIcon({ className }: IconProps) {
   return (
     <svg {...iconBaseProps(className)}>
-      <rect x="6" y="4" width="12" height="17" rx="2" />
-      <path d="M9 9h6M9 13h6M9 17h3" />
+      <rect x="5" y="4.5" width="14" height="16" rx="2.5" />
+      <path d="M9.5 4.5a2.5 2.5 0 0 1 5 0" />
+      <path d="M8.75 11h.01M8.75 15h.01" />
+      <path d="M11.5 11h4M11.5 15h4" />
     </svg>
   );
 }
 
+/** My Plan: 角折れのある1枚の計画書＋本文行。Worksheet の clipboard とは明確に別形。 */
 function MyPlanIcon({ className }: IconProps) {
   return (
     <svg {...iconBaseProps(className)}>
-      <path d="M7 3h7l4 4v14H7V3Z" />
-      <path d="M14 3v4h4" />
+      <path d="M13 3.5H7.5A1.5 1.5 0 0 0 6 5v14a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 19V8.5Z" />
+      <path d="M13 3.5V8.5H18" />
+      <path d="M9 12.5h6M9 16h4" />
     </svg>
   );
 }
 
-/** Menu（Documents/Account/Sign out等の入口）用。ユーザー/Profileを連想できる頭＋肩のoutline */
+/** Menu / Account fallback 用。少し太めの profile outline（頭＋肩）。 */
 function UserIcon({ className }: IconProps) {
   return (
     <svg {...iconBaseProps(className)}>
-      <circle cx="12" cy="8" r="3.5" />
-      <path d="M5 20c0-3.6 3.1-6.5 7-6.5s7 2.9 7 6.5" />
+      <circle cx="12" cy="8.5" r="3.75" />
+      <path d="M5.5 19.5c1-3.6 3.5-5.6 6.5-5.6s5.5 2 6.5 5.6" />
+    </svg>
+  );
+}
+
+/** Sign out: 扉＋外向き矢印（意味は変えず visual language だけ統一）。 */
+function LogOutIcon({ className }: IconProps) {
+  return (
+    <svg {...iconBaseProps(className)}>
+      <path d="M14 4.5H7A1.5 1.5 0 0 0 5.5 6v12A1.5 1.5 0 0 0 7 19.5h7" />
+      <path d="M10.5 12h10M17 8.5l3.5 3.5-3.5 3.5" />
     </svg>
   );
 }
@@ -111,13 +136,13 @@ function CloseIcon({ className }: IconProps) {
   );
 }
 
-/** My Karte（＝Documents一覧）用。ノート/資料の束を連想させる書類アイコン。 */
+/** My Karte（＝Documents一覧）用。2枚重なった書類（資料がまとまっている場所）。My Plan の1枚とは別形。 */
 function DocStackIcon({ className }: IconProps) {
   return (
     <svg {...iconBaseProps(className)}>
-      <path d="M9 3h7l4 4v11a2 2 0 0 1-2 2H9V3Z" />
-      <path d="M16 3v4h4" />
-      <path d="M5 7v12a2 2 0 0 0 2 2h9" />
+      <path d="M14.5 3.5H9A1.5 1.5 0 0 0 7.5 5v11A1.5 1.5 0 0 0 9 17.5h7A1.5 1.5 0 0 0 17.5 16V6.5Z" />
+      <path d="M14.5 3.5V7h3" />
+      <path d="M4.5 8v10A1.5 1.5 0 0 0 6 19.5h8.5" />
     </svg>
   );
 }
@@ -248,10 +273,10 @@ export default function AppNav({
 }
 
 function sidebarItemClass(active: boolean) {
-  return `flex items-center gap-3 rounded-full px-3 py-2.5 text-sm transition-colors duration-150 ${
+  return `flex min-h-[48px] items-center gap-3.5 rounded-full px-3 py-2.5 text-sm transition-colors duration-150 ${
     active
-      ? "bg-worksheet-sage font-medium text-worksheet-primary"
-      : "text-worksheet-secondary hover:bg-worksheet-sage/40 hover:text-worksheet-primary"
+      ? "bg-worksheet-sage font-semibold text-[#172033]"
+      : "text-[#73757d] hover:bg-worksheet-sage/40 hover:text-[#172033]"
   }`;
 }
 
@@ -270,7 +295,7 @@ function SidebarLink({
 }) {
   return (
     <Link href={href} onClick={onClick} className={sidebarItemClass(active)}>
-      <Icon className="h-5 w-5 shrink-0" />
+      <Icon className="h-6 w-6 shrink-0" />
       {label}
     </Link>
   );
@@ -292,7 +317,7 @@ function SidebarButton({
 }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={active} className={`w-full ${sidebarItemClass(active)}`}>
-      {iconOverride ?? <Icon className="h-5 w-5 shrink-0" />}
+      {iconOverride ?? <Icon className="h-6 w-6 shrink-0" />}
       {label}
     </button>
   );
@@ -346,7 +371,7 @@ function Sidebar({
             <MenuAvatar
               avatarUrl={avatarUrl}
               avatarClassName="h-7 w-7"
-              iconClassName="h-5 w-5 shrink-0"
+              iconClassName="h-6 w-6 shrink-0"
             />
           }
           active={false}
@@ -546,36 +571,35 @@ function MenuPanelList({
   onNavigate: () => void;
 }) {
   const rowClass =
-    "flex items-center gap-3 py-3 transition-colors duration-150 hover:opacity-80";
+    "flex items-center gap-3.5 py-3 transition-colors duration-150 hover:opacity-80";
   return (
     <>
       <Link href={myKarteHref} onClick={onNavigate} className={rowClass}>
-        <DocStackIcon className="h-5 w-5 shrink-0 text-worksheet-secondary" />
+        <DocStackIcon className="h-[22px] w-[22px] shrink-0 text-[#73757d]" />
         <span className="min-w-0 flex-1">
-          <span className="block text-sm text-worksheet-primary">My Karte</span>
+          <span className="block text-sm text-[#172033]">My Karte</span>
           <span className="mt-0.5 block text-xs text-worksheet-secondary">
             {hasNoPlans ? "Planを作成すると使えます" : "留学について整理した内容や資料"}
           </span>
         </span>
-        <ChevronRightIcon className="h-4 w-4 shrink-0 text-worksheet-secondary" />
+        <ChevronRightIcon className="h-[18px] w-[18px] shrink-0 text-[#73757d]" />
       </Link>
       <Link href="/account" onClick={onNavigate} className={rowClass}>
-        <UserIcon className="h-5 w-5 shrink-0 text-worksheet-secondary" />
+        <UserIcon className="h-[22px] w-[22px] shrink-0 text-[#73757d]" />
         <span className="min-w-0 flex-1">
-          <span className="block text-sm text-worksheet-primary">Account</span>
+          <span className="block text-sm text-[#172033]">Account</span>
           <span className="mt-0.5 block text-xs text-worksheet-secondary">登録情報とアカウント設定</span>
         </span>
-        <ChevronRightIcon className="h-4 w-4 shrink-0 text-worksheet-secondary" />
+        <ChevronRightIcon className="h-[18px] w-[18px] shrink-0 text-[#73757d]" />
       </Link>
-      <div className="py-3">
-        <button
-          type="button"
-          onClick={onSignOut}
-          className="text-sm text-worksheet-primary transition-colors duration-150 hover:text-worksheet-accent"
-        >
-          Sign out
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={onSignOut}
+        className="flex w-full items-center gap-3.5 py-3 text-left text-sm text-[#172033] transition-colors duration-150 hover:opacity-80"
+      >
+        <LogOutIcon className="h-[22px] w-[22px] shrink-0 text-[#73757d]" />
+        Sign out
+      </button>
     </>
   );
 }
@@ -600,10 +624,12 @@ function MobileBottomNav({
           <Link
             key={item.tab}
             href={item.href}
-            className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px]"
+            className="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px]"
           >
-            <Icon className={`h-5 w-5 ${active ? "text-worksheet-primary" : "text-worksheet-secondary"}`} />
-            <span className={active ? "font-medium text-worksheet-primary" : "text-worksheet-secondary"}>
+            <Icon
+              className={`h-[22px] w-[22px] shrink-0 ${active ? "text-[#172033]" : "text-[#73757d]"}`}
+            />
+            <span className={active ? "font-semibold text-[#172033]" : "text-[#73757d]"}>
               {item.label}
             </span>
           </Link>
@@ -644,16 +670,16 @@ function MobileMenuButton({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px]"
+        className="flex flex-col items-center justify-center gap-1 py-2 text-[10px]"
       >
         {/* avatar設定済みなら丸画像（active表示は下の label 側で担う。画像は変色しない）、
             未設定/取得失敗なら既存の UserIcon（色トグルも従来どおり）。 */}
         <MenuAvatar
           avatarUrl={avatarUrl}
           avatarClassName="h-6 w-6"
-          iconClassName={`h-5 w-5 ${open ? "text-worksheet-primary" : "text-worksheet-secondary"}`}
+          iconClassName={`h-[22px] w-[22px] shrink-0 ${open ? "text-[#172033]" : "text-[#73757d]"}`}
         />
-        <span className={open ? "font-medium text-worksheet-primary" : "text-worksheet-secondary"}>Menu</span>
+        <span className={open ? "font-semibold text-[#172033]" : "text-[#73757d]"}>Menu</span>
       </button>
       {open && (
         <div className="absolute bottom-full right-0 z-30 mb-2 w-60 rounded-[20px] border-[0.5px] border-worksheet-border bg-worksheet-surface p-1 shadow-lg">
@@ -661,9 +687,9 @@ function MobileMenuButton({
             <Link
               href={myKarteHref}
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage/40"
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[#172033] transition-colors duration-150 hover:bg-worksheet-sage/40"
             >
-              <DocStackIcon className="h-4 w-4 shrink-0 text-worksheet-secondary" />
+              <DocStackIcon className="h-[18px] w-[18px] shrink-0 text-[#73757d]" />
               <span className="min-w-0 flex-1">
                 <span className="block">My Karte</span>
                 {hasNoPlans && (
@@ -672,22 +698,23 @@ function MobileMenuButton({
                   </span>
                 )}
               </span>
-              <ChevronRightIcon className="h-3.5 w-3.5 shrink-0 text-worksheet-secondary" />
+              <ChevronRightIcon className="h-4 w-4 shrink-0 text-[#73757d]" />
             </Link>
             <Link
               href="/account"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage/40"
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[#172033] transition-colors duration-150 hover:bg-worksheet-sage/40"
             >
-              <UserIcon className="h-4 w-4 shrink-0 text-worksheet-secondary" />
+              <UserIcon className="h-[18px] w-[18px] shrink-0 text-[#73757d]" />
               <span className="flex-1">Account</span>
-              <ChevronRightIcon className="h-3.5 w-3.5 shrink-0 text-worksheet-secondary" />
+              <ChevronRightIcon className="h-4 w-4 shrink-0 text-[#73757d]" />
             </Link>
             <button
               type="button"
               onClick={handleSignOut}
-              className="mt-1 w-full rounded-xl px-3 py-2.5 text-left text-sm text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage/40"
+              className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-[#172033] transition-colors duration-150 hover:bg-worksheet-sage/40"
             >
+              <LogOutIcon className="h-[18px] w-[18px] shrink-0 text-[#73757d]" />
               Sign out
             </button>
           </div>
