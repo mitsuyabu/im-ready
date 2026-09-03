@@ -20,7 +20,7 @@ type IconProps = { className?: string };
 
 /**
  * AppNav 共通のラインアイコン設定。Mindtrip 参考の「大きめ・太め・均一ストローク」に合わせ、
- * strokeWidth は全アイコン 2（round cap / join）で統一する。1.5 系の細い線は使わない。
+ * strokeWidth は全アイコン 2.25（round cap / join）で統一する。1.5 系の細い線は使わない。
  * サイズは呼び出し側の className（h-6 w-6 等）で決める。
  */
 function iconBaseProps(className?: string) {
@@ -28,7 +28,7 @@ function iconBaseProps(className?: string) {
     viewBox: "0 0 24 24",
     fill: "none" as const,
     stroke: "currentColor",
-    strokeWidth: 2,
+    strokeWidth: 2.25,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
     className,
@@ -273,10 +273,11 @@ export default function AppNav({
 }
 
 function sidebarItemClass(active: boolean) {
+  // ラベルは基本 font-weight 600、選択中は 700（文字サイズ・行間・余白・レイアウトは不変）。
   return `flex min-h-[48px] items-center gap-3.5 rounded-full px-3 py-2.5 text-sm transition-colors duration-150 ${
     active
-      ? "bg-worksheet-sage font-semibold text-[#172033]"
-      : "text-[#73757d] hover:bg-worksheet-sage/40 hover:text-[#172033]"
+      ? "bg-worksheet-sage font-bold text-[#172033]"
+      : "font-semibold text-[#73757d] hover:bg-worksheet-sage/40 hover:text-[#172033]"
   }`;
 }
 
