@@ -303,7 +303,7 @@ export default async function PlanPage({ params }: PlanPageProps) {
                   className={CARD_ICON_CLASS}
                 />
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-bold text-[#2b3a55]">Documents</h2>
+                  <h2 className="text-lg font-bold text-[#2b3a55]">My Karte</h2>
                   <p className="mt-1 text-sm leading-relaxed text-[#6b6357]">考えたことを、資料に残す。</p>
                   <Link
                     href={`/plans/${typedPlan.id}/documents`}
