@@ -10,6 +10,7 @@ import WorksheetRowProgress from "@/components/WorksheetRowProgress";
 import { createClient } from "@/lib/supabase/client";
 import { formatLastUpdated } from "@/lib/planActivity";
 import type { PlanNavData, PlanNavPlan } from "@/lib/planNavData";
+import type { AppNavViewer } from "@/lib/appNavViewer";
 
 type Tab = "home" | "chat" | "worksheet" | "myPlan";
 /** Context Panelとして開ける対象。Menuはpathnameに対応するrouteが無く、手動選択でのみ開く */
@@ -72,6 +73,34 @@ function UserIcon({ className }: IconProps) {
       <path d="M5 20c0-3.6 3.1-6.5 7-6.5s7 2.9 7 6.5" />
     </svg>
   );
+}
+
+/**
+ * Menu（Sidebar / Mobile bottom nav）のアイコン枠。
+ * Account で設定済みの avatar（署名付き URL）があれば丸画像、無ければ既存の UserIcon。
+ * privacy 上 AppNav へ渡すのは avatarUrl だけ。画像は装飾（隣に "Menu" の text label あり）
+ * のため alt=""。private bucket の署名付き URL なので next/image は使わず <img>。
+ */
+function MenuAvatar({
+  avatarUrl,
+  avatarClassName,
+  iconClassName,
+}: {
+  avatarUrl: string | null;
+  avatarClassName: string;
+  iconClassName: string;
+}) {
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- private avatars bucket の署名付き URL のため
+      <img
+        src={avatarUrl}
+        alt=""
+        className={`shrink-0 rounded-full object-cover ring-1 ring-[#e6e2d8] ${avatarClassName}`}
+      />
+    );
+  }
+  return <UserIcon className={iconClassName} />;
 }
 
 function CloseIcon({ className }: IconProps) {
@@ -166,7 +195,16 @@ const PANEL_TITLES: Record<PanelKey, string> = {
  * data取得はlib/planNavData.ts（Server Component側、5つのlayout.tsxから呼ばれる）に委譲しており、
  * このコンポーネント自身は新たなSupabase queryを発行しない。
  */
-export default function AppNav({ children, navData }: { children: ReactNode; navData: PlanNavData }) {
+export default function AppNav({
+  children,
+  navData,
+  viewer,
+}: {
+  children: ReactNode;
+  navData: PlanNavData;
+  /** ログインユーザー本人の最小情報（今は avatar のみ）。未指定なら generic icon 表示。 */
+  viewer?: AppNavViewer;
+}) {
   const pathname = usePathname();
   const routeTab = getActiveTab(pathname);
   const hideMobileBottomNav = isPlanChatRoute(pathname);
@@ -176,10 +214,16 @@ export default function AppNav({ children, navData }: { children: ReactNode; nav
 
   const myKarteHref = resolveMyKarteHref(pathname, navData.plans);
   const hasNoPlans = navData.plans.length === 0;
+  const avatarUrl = viewer?.avatarUrl ?? null;
 
   return (
     <div className="lg:flex">
-      <Sidebar activeTab={routeTab} onSelectPanel={setOpenPanel} onClosePanel={closePanel} />
+      <Sidebar
+        activeTab={routeTab}
+        avatarUrl={avatarUrl}
+        onSelectPanel={setOpenPanel}
+        onClosePanel={closePanel}
+      />
       {openPanel && (
         <ContextPanel
           panel={openPanel}
@@ -192,7 +236,12 @@ export default function AppNav({ children, navData }: { children: ReactNode; nav
       )}
       <main className={`min-w-0 flex-1 ${hideMobileBottomNav ? "" : "pb-16 lg:pb-0"}`}>{children}</main>
       {!hideMobileBottomNav && (
-        <MobileBottomNav activeTab={routeTab} myKarteHref={myKarteHref} hasNoPlans={hasNoPlans} />
+        <MobileBottomNav
+          activeTab={routeTab}
+          avatarUrl={avatarUrl}
+          myKarteHref={myKarteHref}
+          hasNoPlans={hasNoPlans}
+        />
       )}
     </div>
   );
@@ -230,17 +279,20 @@ function SidebarLink({
 function SidebarButton({
   label,
   icon: Icon,
+  iconOverride,
   active,
   onClick,
 }: {
   label: string;
   icon: (props: IconProps) => React.JSX.Element;
+  /** 指定時はこの要素をアイコン枠に描画する（Menu の avatar 表示用）。 */
+  iconOverride?: ReactNode;
   active: boolean;
   onClick: () => void;
 }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={active} className={`w-full ${sidebarItemClass(active)}`}>
-      <Icon className="h-5 w-5 shrink-0" />
+      {iconOverride ?? <Icon className="h-5 w-5 shrink-0" />}
       {label}
     </button>
   );
@@ -248,10 +300,12 @@ function SidebarButton({
 
 function Sidebar({
   activeTab,
+  avatarUrl,
   onSelectPanel,
   onClosePanel,
 }: {
   activeTab: Tab | null;
+  avatarUrl: string | null;
   onSelectPanel: (panel: PanelKey) => void;
   onClosePanel: () => void;
 }) {
@@ -283,8 +337,21 @@ function Sidebar({
       </nav>
 
       <div className="mt-auto">
-        {/* Menuに対応するrouteは無いため、Sidebar内で常にactive=falseのまま（activeとPanel開閉を混同しない） */}
-        <SidebarButton label="Menu" icon={UserIcon} active={false} onClick={() => onSelectPanel("menu")} />
+        {/* Menuに対応するrouteは無いため、Sidebar内で常にactive=falseのまま（activeとPanel開閉を混同しない）。
+            avatar設定済みなら丸画像、未設定/取得失敗なら UserIcon（MenuAvatar が内部で分岐）。 */}
+        <SidebarButton
+          label="Menu"
+          icon={UserIcon}
+          iconOverride={
+            <MenuAvatar
+              avatarUrl={avatarUrl}
+              avatarClassName="h-7 w-7"
+              iconClassName="h-5 w-5 shrink-0"
+            />
+          }
+          active={false}
+          onClick={() => onSelectPanel("menu")}
+        />
       </div>
     </aside>
   );
@@ -515,10 +582,12 @@ function MenuPanelList({
 
 function MobileBottomNav({
   activeTab,
+  avatarUrl,
   myKarteHref,
   hasNoPlans,
 }: {
   activeTab: Tab | null;
+  avatarUrl: string | null;
   myKarteHref: string;
   hasNoPlans: boolean;
 }) {
@@ -540,7 +609,7 @@ function MobileBottomNav({
           </Link>
         );
       })}
-      <MobileMenuButton myKarteHref={myKarteHref} hasNoPlans={hasNoPlans} />
+      <MobileMenuButton avatarUrl={avatarUrl} myKarteHref={myKarteHref} hasNoPlans={hasNoPlans} />
     </nav>
   );
 }
@@ -551,9 +620,11 @@ function MobileBottomNav({
  * My Karte（Documents一覧）と Account へ遷移でき、Sign out も実動作する。
  */
 function MobileMenuButton({
+  avatarUrl,
   myKarteHref,
   hasNoPlans,
 }: {
+  avatarUrl: string | null;
   myKarteHref: string;
   hasNoPlans: boolean;
 }) {
@@ -575,7 +646,13 @@ function MobileMenuButton({
         aria-expanded={open}
         className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px]"
       >
-        <UserIcon className={`h-5 w-5 ${open ? "text-worksheet-primary" : "text-worksheet-secondary"}`} />
+        {/* avatar設定済みなら丸画像（active表示は下の label 側で担う。画像は変色しない）、
+            未設定/取得失敗なら既存の UserIcon（色トグルも従来どおり）。 */}
+        <MenuAvatar
+          avatarUrl={avatarUrl}
+          avatarClassName="h-6 w-6"
+          iconClassName={`h-5 w-5 ${open ? "text-worksheet-primary" : "text-worksheet-secondary"}`}
+        />
         <span className={open ? "font-medium text-worksheet-primary" : "text-worksheet-secondary"}>Menu</span>
       </button>
       {open && (

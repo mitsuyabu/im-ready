@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanNavData } from "@/lib/planNavData";
+import { loadAppNavViewer } from "@/lib/appNavViewer";
 import AppNav from "@/components/AppNav";
 
 export default async function WorksheetsLayout({ children }: { children: ReactNode }) {
@@ -14,7 +15,14 @@ export default async function WorksheetsLayout({ children }: { children: ReactNo
     redirect("/login");
   }
 
-  const navData = await loadPlanNavData(user.id);
+  const [navData, viewer] = await Promise.all([
+    loadPlanNavData(user.id),
+    loadAppNavViewer(user.id),
+  ]);
 
-  return <AppNav navData={navData}>{children}</AppNav>;
+  return (
+    <AppNav navData={navData} viewer={viewer}>
+      {children}
+    </AppNav>
+  );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { rowToAccountProfile, type ProfileRow } from "@/lib/accountProfile";
+import { createAvatarSignedUrl } from "@/lib/avatarUrl";
 import AccountProfileForm from "@/components/AccountProfileForm";
 
 export const metadata: Metadata = {
@@ -58,19 +59,16 @@ export default async function AccountPage() {
   const initialProfile = rowToAccountProfile(profileRow);
   const avatarPath = profileRow?.avatar_path ?? null;
 
-  let avatarUrl: string | null = null;
-  if (avatarPath) {
-    const { data: signed } = await supabase.storage
-      .from("avatars")
-      .createSignedUrl(avatarPath, 60 * 60);
-    if (signed?.signedUrl) {
-      // 署名付き URL 自体が毎リクエスト新しく発行されるが、同一 path 上書きに備えて
-      // updated_at があれば cache-bust の param も付ける（§31）。
-      const stamp = profileRow?.updated_at ? Date.parse(profileRow.updated_at) : NaN;
-      const sep = signed.signedUrl.includes("?") ? "&" : "?";
-      avatarUrl = Number.isNaN(stamp)
-        ? signed.signedUrl
-        : `${signed.signedUrl}${sep}t=${stamp}`;
+  // 署名付き URL は共有ヘルパーで取得（AppNav 側と同じ処理を重複させない）。
+  const signedAvatarUrl = await createAvatarSignedUrl(supabase, avatarPath);
+  let avatarUrl: string | null = signedAvatarUrl;
+  if (signedAvatarUrl) {
+    // 署名付き URL 自体が毎リクエスト新しく発行されるが、同一 path 上書きに備えて
+    // updated_at があれば cache-bust の param も付ける（§31）。
+    const stamp = profileRow?.updated_at ? Date.parse(profileRow.updated_at) : NaN;
+    if (!Number.isNaN(stamp)) {
+      const sep = signedAvatarUrl.includes("?") ? "&" : "?";
+      avatarUrl = `${signedAvatarUrl}${sep}t=${stamp}`;
     }
   }
 
