@@ -4,7 +4,7 @@ import { formatLastUpdated } from "@/lib/planActivity";
 
 /**
  * 各 Document detail 共通のヘッダー（Step 28）。
- *   ← My Study Abroad へ戻る
+ *   ← My Karte へ戻る
  *   役割（考える / 整理する / 比べる / 伝える）  ← 控えめな eyebrow
  *   タイトル
  *   1 行説明（常時表示）
@@ -49,7 +49,7 @@ export default function DocumentDetailHeader({
         href={`/plans/${planId}/documents`}
         className="text-xs text-worksheet-secondary underline decoration-worksheet-secondary/40 underline-offset-2 transition-colors hover:text-worksheet-primary hover:decoration-worksheet-primary/40"
       >
-        ← My Study Abroad へ戻る
+        ← My Karte へ戻る
       </Link>
 
       <div className="mt-5 flex items-start justify-between gap-4">

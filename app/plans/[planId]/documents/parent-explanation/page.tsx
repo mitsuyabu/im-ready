@@ -149,7 +149,7 @@ export default async function ParentExplanationDocumentPage({ params }: ParentEx
             href={`/plans/${planId}/documents`}
             className="inline-flex items-center gap-1 text-sm text-[#817b71] transition-colors hover:text-[#1c1c1c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e2b3d]/40"
           >
-            <span aria-hidden>←</span> My Study Abroad へ戻る
+            <span aria-hidden>←</span> My Karte へ戻る
           </Link>
 
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">

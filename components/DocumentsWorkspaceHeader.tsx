@@ -1,7 +1,7 @@
 /**
  * Documents トップの上部（presentation のみ）。共有デザインに寄せる:
  *   右上に oval + メッセージ + 星（headline と同じ上段の右端、Desktop のみ）
- *   大きな bold sans の "My Study Abroad"（左揃え・上余白少なめ）
+ *   大きな bold sans の "My Karte"（左揃え・上余白少なめ）
  *   subcopy（黒に近いグレー、headline のすぐ下）
  *   headline のすぐ下・左寄りに、存在感のある方眼紙ラベル（現在の plan.title）＋
  *     左上にかぶるマスキングテープ、右に "your next chapter" ＋ 2 本の手描き下線
@@ -45,10 +45,10 @@ export default function DocumentsWorkspaceHeader({ planTitle }: { planTitle: str
       </div>
 
       <h1 className="text-3xl font-bold leading-[1.05] tracking-tight text-worksheet-primary sm:text-4xl lg:text-[3.4rem]">
-        My Study Abroad
+        My Karte
       </h1>
       <p className="mt-2 text-[15px] leading-relaxed text-[#3f3d38] sm:text-base">
-        留学について考えたことを、少しずつ形にしていきます。
+        留学について考えたことや計画を、少しずつ整理していきます。
       </p>
 
       <div className="mt-4 flex flex-wrap items-start gap-x-4 gap-y-3">

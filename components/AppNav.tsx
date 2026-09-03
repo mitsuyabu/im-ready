@@ -9,7 +9,7 @@ import PlanListRow from "@/components/PlanListRow";
 import WorksheetRowProgress from "@/components/WorksheetRowProgress";
 import { createClient } from "@/lib/supabase/client";
 import { formatLastUpdated } from "@/lib/planActivity";
-import type { PlanNavData } from "@/lib/planNavData";
+import type { PlanNavData, PlanNavPlan } from "@/lib/planNavData";
 
 type Tab = "home" | "chat" | "worksheet" | "myPlan";
 /** Context Panelとして開ける対象。Menuはpathnameに対応するrouteが無く、手動選択でのみ開く */
@@ -82,6 +82,25 @@ function CloseIcon({ className }: IconProps) {
   );
 }
 
+/** My Karte（＝Documents一覧）用。ノート/資料の束を連想させる書類アイコン。 */
+function DocStackIcon({ className }: IconProps) {
+  return (
+    <svg {...iconBaseProps(className)}>
+      <path d="M9 3h7l4 4v11a2 2 0 0 1-2 2H9V3Z" />
+      <path d="M16 3v4h4" />
+      <path d="M5 7v12a2 2 0 0 0 2 2h9" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ className }: IconProps) {
+  return (
+    <svg {...iconBaseProps(className)}>
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
 const NAV_ITEMS: { tab: Tab; label: string; href: string; icon: (props: IconProps) => React.JSX.Element }[] = [
   { tab: "home", label: "Home", href: "/mypage", icon: HomeIcon },
   { tab: "chat", label: "Chat", href: "/chats", icon: ChatIcon },
@@ -106,6 +125,26 @@ function getActiveTab(pathname: string): Tab | null {
 /** Plan Chatのときだけmobile bottom navを隠す。pathname判定のみで、Chat側のレイアウトには一切触れない */
 function isPlanChatRoute(pathname: string): boolean {
   return /^\/plans\/[^/]+\/chat(\/|$)/.test(pathname);
+}
+
+/** 現在の pathname が /plans/[id]/... のとき、その id を返す（URL context 由来の「現在のPlan」）。 */
+function planIdFromPathname(pathname: string): string | null {
+  const m = pathname.match(/^\/plans\/([^/]+)(?:\/|$)/);
+  return m ? m[1] : null;
+}
+
+/**
+ * Menu の「My Karte」の遷移先を決める。
+ *   1) いま /plans/[id]/... を見ていて、その id が本人の Plan → その Plan の Documents
+ *   2) Plan がちょうど 1 件 → その Plan の Documents（唯一なので曖昧さは無い）
+ *   3) それ以外（複数 Plan で文脈が無い / Plan 0 件） → /mypage（Plan 一覧・作成へ）
+ * 既存の暗黙的な first-plan fallback（複数ある中で plans[0] を勝手に採用）は増やさない。
+ */
+function resolveMyKarteHref(pathname: string, plans: PlanNavPlan[]): string {
+  const current = planIdFromPathname(pathname);
+  if (current && plans.some((p) => p.id === current)) return `/plans/${current}/documents`;
+  if (plans.length === 1) return `/plans/${plans[0].id}/documents`;
+  return "/mypage";
 }
 
 const PANEL_TITLES: Record<PanelKey, string> = {
@@ -135,12 +174,26 @@ export default function AppNav({ children, navData }: { children: ReactNode; nav
   const [openPanel, setOpenPanel] = useState<PanelKey | null>(null);
   const closePanel = () => setOpenPanel(null);
 
+  const myKarteHref = resolveMyKarteHref(pathname, navData.plans);
+  const hasNoPlans = navData.plans.length === 0;
+
   return (
     <div className="lg:flex">
       <Sidebar activeTab={routeTab} onSelectPanel={setOpenPanel} onClosePanel={closePanel} />
-      {openPanel && <ContextPanel panel={openPanel} navData={navData} onClose={closePanel} onNavigate={closePanel} />}
+      {openPanel && (
+        <ContextPanel
+          panel={openPanel}
+          navData={navData}
+          myKarteHref={myKarteHref}
+          hasNoPlans={hasNoPlans}
+          onClose={closePanel}
+          onNavigate={closePanel}
+        />
+      )}
       <main className={`min-w-0 flex-1 ${hideMobileBottomNav ? "" : "pb-16 lg:pb-0"}`}>{children}</main>
-      {!hideMobileBottomNav && <MobileBottomNav activeTab={routeTab} />}
+      {!hideMobileBottomNav && (
+        <MobileBottomNav activeTab={routeTab} myKarteHref={myKarteHref} hasNoPlans={hasNoPlans} />
+      )}
     </div>
   );
 }
@@ -246,11 +299,15 @@ function Sidebar({
 function ContextPanel({
   panel,
   navData,
+  myKarteHref,
+  hasNoPlans,
   onClose,
   onNavigate,
 }: {
   panel: PanelKey;
   navData: PlanNavData;
+  myKarteHref: string;
+  hasNoPlans: boolean;
   onClose: () => void;
   onNavigate: () => void;
 }) {
@@ -279,7 +336,12 @@ function ContextPanel({
         </div>
         <div className="mt-4 divide-y divide-worksheet-border">
           {panel === "menu" ? (
-            <MenuPanelList onSignOut={handleSignOut} />
+            <MenuPanelList
+              myKarteHref={myKarteHref}
+              hasNoPlans={hasNoPlans}
+              onSignOut={handleSignOut}
+              onNavigate={onNavigate}
+            />
           ) : panel === "chat" ? (
             <ChatPanelList navData={navData} onNavigate={onNavigate} />
           ) : panel === "worksheet" ? (
@@ -405,17 +467,39 @@ function MyPlanPanelList({ navData, onNavigate }: { navData: PlanNavData; onNavi
   );
 }
 
-function MenuPanelList({ onSignOut }: { onSignOut: () => void }) {
+function MenuPanelList({
+  myKarteHref,
+  hasNoPlans,
+  onSignOut,
+  onNavigate,
+}: {
+  myKarteHref: string;
+  hasNoPlans: boolean;
+  onSignOut: () => void;
+  onNavigate: () => void;
+}) {
+  const rowClass =
+    "flex items-center gap-3 py-3 transition-colors duration-150 hover:opacity-80";
   return (
     <>
-      <div className="flex items-center justify-between py-3 text-sm text-worksheet-secondary/60">
-        <span>Documents</span>
-        <span className="text-[10px]">近日公開</span>
-      </div>
-      <div className="flex items-center justify-between py-3 text-sm text-worksheet-secondary/60">
-        <span>Account</span>
-        <span className="text-[10px]">近日公開</span>
-      </div>
+      <Link href={myKarteHref} onClick={onNavigate} className={rowClass}>
+        <DocStackIcon className="h-5 w-5 shrink-0 text-worksheet-secondary" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm text-worksheet-primary">My Karte</span>
+          <span className="mt-0.5 block text-xs text-worksheet-secondary">
+            {hasNoPlans ? "Planを作成すると使えます" : "留学について整理した内容や資料"}
+          </span>
+        </span>
+        <ChevronRightIcon className="h-4 w-4 shrink-0 text-worksheet-secondary" />
+      </Link>
+      <Link href="/account" onClick={onNavigate} className={rowClass}>
+        <UserIcon className="h-5 w-5 shrink-0 text-worksheet-secondary" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm text-worksheet-primary">Account</span>
+          <span className="mt-0.5 block text-xs text-worksheet-secondary">登録情報とアカウント設定</span>
+        </span>
+        <ChevronRightIcon className="h-4 w-4 shrink-0 text-worksheet-secondary" />
+      </Link>
       <div className="py-3">
         <button
           type="button"
@@ -429,7 +513,15 @@ function MenuPanelList({ onSignOut }: { onSignOut: () => void }) {
   );
 }
 
-function MobileBottomNav({ activeTab }: { activeTab: Tab | null }) {
+function MobileBottomNav({
+  activeTab,
+  myKarteHref,
+  hasNoPlans,
+}: {
+  activeTab: Tab | null;
+  myKarteHref: string;
+  hasNoPlans: boolean;
+}) {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-worksheet-border bg-worksheet-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
       {NAV_ITEMS.map((item) => {
@@ -448,17 +540,23 @@ function MobileBottomNav({ activeTab }: { activeTab: Tab | null }) {
           </Link>
         );
       })}
-      <MobileMenuButton />
+      <MobileMenuButton myKarteHref={myKarteHref} hasNoPlans={hasNoPlans} />
     </nav>
   );
 }
 
 /**
  * mobileのMenu popover。NewPlanButton.tsx（/mypage既存）と同じ「押すと絶対配置パネルを展開」
- * パターンを踏襲。PCはContext Panelへ統合したためこのpopoverは使わない（mobileのみ、無変更）。
- * Documents/Accountは非活性表示のみで、クリックしても遷移しない。Sign outだけ実動作する。
+ * パターンを踏襲。PCはContext Panelへ統合したためこのpopoverはmobileのみ使う。
+ * My Karte（Documents一覧）と Account へ遷移でき、Sign out も実動作する。
  */
-function MobileMenuButton() {
+function MobileMenuButton({
+  myKarteHref,
+  hasNoPlans,
+}: {
+  myKarteHref: string;
+  hasNoPlans: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
@@ -481,20 +579,37 @@ function MobileMenuButton() {
         <span className={open ? "font-medium text-worksheet-primary" : "text-worksheet-secondary"}>Menu</span>
       </button>
       {open && (
-        <div className="absolute bottom-full right-0 z-30 mb-2 w-56 rounded-[20px] border-[0.5px] border-worksheet-border bg-worksheet-surface p-1 shadow-lg">
+        <div className="absolute bottom-full right-0 z-30 mb-2 w-60 rounded-[20px] border-[0.5px] border-worksheet-border bg-worksheet-surface p-1 shadow-lg">
           <div className="py-1">
-            <div className="flex items-center justify-between px-3 py-2 text-sm text-worksheet-secondary/60">
-              <span>Documents</span>
-              <span className="text-[10px]">近日公開</span>
-            </div>
-            <div className="flex items-center justify-between px-3 py-2 text-sm text-worksheet-secondary/60">
-              <span>Account</span>
-              <span className="text-[10px]">近日公開</span>
-            </div>
+            <Link
+              href={myKarteHref}
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage/40"
+            >
+              <DocStackIcon className="h-4 w-4 shrink-0 text-worksheet-secondary" />
+              <span className="min-w-0 flex-1">
+                <span className="block">My Karte</span>
+                {hasNoPlans && (
+                  <span className="block text-[10px] text-worksheet-secondary">
+                    Planを作成すると使えます
+                  </span>
+                )}
+              </span>
+              <ChevronRightIcon className="h-3.5 w-3.5 shrink-0 text-worksheet-secondary" />
+            </Link>
+            <Link
+              href="/account"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage/40"
+            >
+              <UserIcon className="h-4 w-4 shrink-0 text-worksheet-secondary" />
+              <span className="flex-1">Account</span>
+              <ChevronRightIcon className="h-3.5 w-3.5 shrink-0 text-worksheet-secondary" />
+            </Link>
             <button
               type="button"
               onClick={handleSignOut}
-              className="mt-1 w-full rounded-xl px-3 py-2 text-left text-sm text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage/40"
+              className="mt-1 w-full rounded-xl px-3 py-2.5 text-left text-sm text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage/40"
             >
               Sign out
             </button>

@@ -16,7 +16,7 @@ import DocumentWorkspaceCard, {
 } from "@/components/DocumentWorkspaceCard";
 
 export const metadata: Metadata = {
-  title: "Documents",
+  title: "My Karte",
 };
 
 interface PlanDocumentsPageProps {
@@ -87,7 +87,7 @@ const DOCUMENT_ORDER: DocumentRoleKey[] = [
 ];
 
 /**
- * Documents（＝画面上は "My Study Abroad"）トップ。所有者確認 → plan_documents を読むだけで
+ * Documents（＝画面上は "My Karte"）トップ。所有者確認 → plan_documents を読むだけで
  * 一切書き込まない。見せ方は参考デザインに寄せた「考える → 整理する → 比べる → 伝える」の
  * 紙・文具風ワークスペース。
  *

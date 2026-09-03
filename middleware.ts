@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * /mypage・/plans 配下だけをログイン必須にするmiddleware。
+ * /mypage・/plans・/account 等のログイン後ページだけをログイン必須にするmiddleware。
  * matcher で限定しているため、/widget・/worksheet・/api/* など
  * 既存ルートのリクエストには一切介入しない。
  */
@@ -48,5 +48,6 @@ export const config = {
     "/chats/:path*",
     "/worksheets/:path*",
     "/my-plans/:path*",
+    "/account/:path*",
   ],
 };
