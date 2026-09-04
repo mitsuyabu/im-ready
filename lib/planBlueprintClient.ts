@@ -14,11 +14,13 @@
 import { createClient } from "@/lib/supabase/client";
 import {
   sanitizeBlueprintData,
+  sanitizePlanTimeline,
   type BlueprintData,
   type BlueprintItem,
   type BlueprintSchool,
   type BlueprintSchoolSource,
   type BlueprintSchoolStatus,
+  type PlanTimeline,
 } from "@/lib/planBlueprint";
 
 export type BlueprintSectionKey =
@@ -197,6 +199,91 @@ export function isSameBlueprintSchool(a: SchoolIdentity, b: SchoolIdentity): boo
 /** 未保存の学校か（duplicate 防止・§16）。 */
 export function canSaveSchool(candidate: SchoolIdentity, existing: SchoolIdentity[]): boolean {
   return !existing.some((e) => isSameBlueprintSchool(e, candidate));
+}
+
+/* ------------------------------------------------------------------ */
+/* AI Timeline（提案リクエスト ＋ 採用時の保存）                                         */
+/* ------------------------------------------------------------------ */
+
+export type TimelineRequestResult =
+  | { ok: true; timeline: PlanTimeline }
+  | { ok: false; reason: "empty" | "unavailable" | "error" };
+
+/** AI に期間プランを「提案」させる（保存はしない）。 */
+export async function requestPlanTimeline(planId: string): Promise<TimelineRequestResult> {
+  let res: Response;
+  try {
+    res = await fetch("/api/plan/timeline", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ planId }),
+    });
+  } catch {
+    return { ok: false, reason: "error" };
+  }
+  const raw = (await res.json().catch(() => null)) as
+    | { timeline?: unknown; error?: unknown }
+    | null;
+
+  if (!res.ok) {
+    if (raw?.error === "not_enough_context") return { ok: false, reason: "empty" };
+    if (raw?.error === "blueprint_unavailable") return { ok: false, reason: "unavailable" };
+    return { ok: false, reason: "error" };
+  }
+  const timeline = sanitizePlanTimeline(raw?.timeline);
+  if (!timeline) return { ok: false, reason: "error" };
+  return { ok: true, timeline };
+}
+
+export type TimelineSaveResult =
+  | { ok: true; timeline: PlanTimeline | null; updatedAt: string }
+  | { ok: false; reason: "stale" | "not_owner" | "error" };
+
+function timelineToJson(t: PlanTimeline): Record<string, unknown> {
+  return {
+    summary: t.summary,
+    durationLabel: t.durationLabel,
+    periods: t.periods.map((p) => ({
+      id: p.id,
+      label: p.label,
+      title: p.title,
+      activities: p.activities,
+      reason: p.reason,
+    })),
+    openQuestions: t.openQuestions,
+    generatedAt: t.generatedAt,
+    disclaimer: t.disclaimer,
+  };
+}
+
+/** ユーザーが「採用」した Timeline を保存する（data は触らない）。 */
+export async function savePlanTimeline(
+  planId: string,
+  timeline: PlanTimeline,
+  expectedUpdatedAt: string | null,
+): Promise<TimelineSaveResult> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("save_plan_blueprint_timeline", {
+    p_plan_id: planId,
+    p_timeline: timelineToJson(timeline),
+    p_generated_at: timeline.generatedAt,
+    p_expected_updated_at: expectedUpdatedAt,
+  });
+
+  if (error) {
+    const msg = error.message || "";
+    if (msg.includes("stale_update")) return { ok: false, reason: "stale" };
+    if (msg.includes("not_owner")) return { ok: false, reason: "not_owner" };
+    return { ok: false, reason: "error" };
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row !== "object") return { ok: false, reason: "error" };
+  const updatedAtRaw = (row as { updated_at?: unknown }).updated_at;
+  return {
+    ok: true,
+    timeline: sanitizePlanTimeline((row as { timeline?: unknown }).timeline),
+    updatedAt: typeof updatedAtRaw === "string" ? updatedAtRaw : new Date().toISOString(),
+  };
 }
 
 /**

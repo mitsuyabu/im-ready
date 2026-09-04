@@ -104,6 +104,8 @@ export type MyPlanView = {
   things: { saved: BlueprintItem[]; candidates: MyPlanCandidate[] };
   milestones: { saved: BlueprintItem[]; hints: MyPlanCandidate[]; showVisaDisclaimer: boolean };
   timeline: PlanTimeline | null;
+  /** AI 期間プランを生成してよいか（blueprint available ＋ 材料が最低限ある・§56-58）。 */
+  timelineCanGenerate: boolean;
 };
 
 const KARTE_NOTE = "会話やWorksheetから";
@@ -346,6 +348,16 @@ export function buildMyPlanView(
     milestoneHints.length > 0;
   const hasAnyContent = savedHasContent || timeline !== null || candidatesHaveContent;
 
+  const timelineCanGenerate =
+    blueprint.available &&
+    (savedHasContent ||
+      stated("timing", "departureTiming") !== null ||
+      stated("schoolPrefs", "preferredCity") !== null ||
+      stated("motivation", "desiredOutcome") !== null ||
+      (karte.timing.durationWeeks.certainty === "stated" &&
+        karte.timing.durationWeeks.value != null) ||
+      (karte.budget.totalCap.certainty === "stated" && karte.budget.totalCap.value != null));
+
   return {
     hero,
     blueprintAvailable: blueprint.available,
@@ -367,5 +379,6 @@ export function buildMyPlanView(
       showVisaDisclaimer,
     },
     timeline,
+    timelineCanGenerate,
   };
 }

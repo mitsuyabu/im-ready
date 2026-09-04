@@ -1,10 +1,10 @@
 import Link from "next/link";
 import type { MyPlanSchoolCandidate, MyPlanSectionId, MyPlanView } from "@/lib/myPlanView";
 import { MY_PLAN_SECTIONS } from "@/lib/myPlanView";
-import type { PlanTimeline } from "@/lib/planBlueprint";
 import EditablePlanItems from "@/components/EditablePlanItems";
 import EditableDestination from "@/components/EditableDestination";
 import EditableSchools from "@/components/EditableSchools";
+import EditableTimeline from "@/components/EditableTimeline";
 
 /**
  * 新しい My Plan（「ユーザーが自分で育てる実行プラン」）の presentation（Step 2-3）。
@@ -196,62 +196,6 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Timeline（read-only・Step 2-7 / 2-8 で編集対応）                                     */
-/* ------------------------------------------------------------------ */
-
-function TimelineBody({ timeline }: { timeline: PlanTimeline | null }) {
-  if (!timeline) {
-    return (
-      <div className="mt-4">
-        <p className="text-sm font-medium text-[#3f3a34]">まだスケジュールはありません。</p>
-        <p className="mt-2 text-sm leading-relaxed text-[#6f6a64]">
-          Goalsや学校、やりたいことをもとに、留学期間全体のプランを組み立てていきます。
-        </p>
-      </div>
-    );
-  }
-  return (
-    <div className="mt-4">
-      {timeline.summary && <p className="text-sm leading-relaxed text-[#3f3a34]">{timeline.summary}</p>}
-      {timeline.durationLabel && <p className="mt-1 text-xs text-[#8a8578]">{timeline.durationLabel}</p>}
-      <ol className="mt-4 space-y-4 border-l border-[#e5dfd6] pl-4">
-        {timeline.periods.map((p) => (
-          <li key={p.id} className="relative">
-            <span
-              aria-hidden
-              className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full border-2 border-[#1e2b3d] bg-white"
-            />
-            <p className="text-[11px] font-semibold tracking-wide text-[#8a8578]">{p.label}</p>
-            <p className="mt-0.5 text-sm font-semibold text-[#2f2c26]">{p.title}</p>
-            {p.activities.length > 0 && (
-              <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[13px] leading-relaxed text-[#3f3a34]">
-                {p.activities.map((a, i) => (
-                  <li key={i}>{a}</li>
-                ))}
-              </ul>
-            )}
-            {p.reason && <p className="mt-1 text-xs leading-relaxed text-[#8a8578]">{p.reason}</p>}
-          </li>
-        ))}
-      </ol>
-      {timeline.openQuestions.length > 0 && (
-        <div className="mt-5 rounded-xl bg-[#f6efe4] px-4 py-3">
-          <p className="text-[10px] font-medium tracking-wide text-[#8a8578]">まだ確認したいこと</p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-[#6f6a64]">
-            {timeline.openQuestions.map((q, i) => (
-              <li key={i}>{q}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {timeline.disclaimer && (
-        <p className="mt-4 text-[11px] leading-relaxed text-[#a8a297]">{timeline.disclaimer}</p>
-      )}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* section dispatch                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -339,7 +283,13 @@ function renderSectionBody(id: MyPlanSectionId, view: MyPlanView, planId: string
         />
       );
     case "timeline":
-      return <TimelineBody timeline={view.timeline} />;
+      return (
+        <EditableTimeline
+          planId={planId}
+          initialTimeline={view.timeline}
+          canGenerate={view.timelineCanGenerate}
+        />
+      );
   }
 }
 
