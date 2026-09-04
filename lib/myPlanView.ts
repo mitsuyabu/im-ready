@@ -101,9 +101,13 @@ export type MyPlanView = {
     candidates: MyPlanSchoolCandidate[];
     englishRef: MyPlanCandidate[];
   };
-  work: { saved: BlueprintItem[]; candidates: MyPlanCandidate[] };
+  /**
+   * Work / Milestones の Karte 由来は「意向」だけで具体項目ではないため、採用（Planに追加）は
+   * させず read-only の hint として表示する（§39 / §46）。
+   */
+  work: { saved: BlueprintItem[]; hints: MyPlanCandidate[] };
   things: { saved: BlueprintItem[]; candidates: MyPlanCandidate[] };
-  milestones: { saved: BlueprintItem[]; candidates: MyPlanCandidate[]; showVisaDisclaimer: boolean };
+  milestones: { saved: BlueprintItem[]; hints: MyPlanCandidate[]; showVisaDisclaimer: boolean };
   timeline: PlanTimeline | null;
 };
 
@@ -115,6 +119,18 @@ function norm(s: string): string {
 
 function formatMan(yen: number): string {
   return `${Math.round(yen / 10000).toLocaleString("ja-JP")}万円`;
+}
+
+/**
+ * Hero headline / Hero metric に「都市名」として使ってよい文字列か。長文の preferredCity を
+ * そのまま Hero へ流さないための機械的ガード（§64）。意味解析で「Gold Coast」だけ抜くことはしない。
+ */
+function isUsableCityLabel(s: string): boolean {
+  const t = s.trim();
+  if (t.length === 0 || t.length > 40) return false;
+  if (/[\n\r]/.test(t)) return false;
+  const punct = (t.match(/[。．.!！?？、，,]/g) ?? []).length;
+  return punct < 2;
 }
 
 export function buildMyPlanView(
@@ -219,48 +235,45 @@ export function buildMyPlanView(
     if (it) englishRef.push({ key: `${block}.${key}`, label: `${it.label}: ${it.value}`, kind: "hint" });
   }
 
-  /* ---- Work ---- */
-  const savedWorkLabels = new Set(data.workInterests.map((w) => norm(w.label)));
-  const workCandidates: MyPlanCandidate[] = [];
+  /* ---- Work ---- Karte 由来は「意向」だけなので read-only hint（採用ボタンは付けない・§39） ---- */
+  const workHints: MyPlanCandidate[] = [];
   if (
     karte.work.wantsToWork.certainty === "stated" &&
     karte.work.wantsToWork.value === true &&
     !conflictKeys.has("work.wantsToWork")
   ) {
-    const label = "現地で働くことに関心がある";
-    if (!savedWorkLabels.has(norm(label))) {
-      workCandidates.push({ key: "work.wantsToWork", label, note: KARTE_NOTE });
-    }
+    workHints.push({ key: "work.wantsToWork", label: "現地で働くことに関心がある", note: KARTE_NOTE });
   }
   if (
     karte.work.workingHolidayInterest.certainty === "stated" &&
     karte.work.workingHolidayInterest.value === true &&
     !conflictKeys.has("work.workingHolidayInterest")
   ) {
-    const label = "ワーキングホリデーに関心がある";
-    if (!savedWorkLabels.has(norm(label))) {
-      workCandidates.push({ key: "work.workingHolidayInterest", label, note: KARTE_NOTE });
-    }
+    workHints.push({
+      key: "work.workingHolidayInterest",
+      label: "ワーキングホリデーに関心がある",
+      note: KARTE_NOTE,
+    });
   }
 
   /* ---- Things to Do ---- Karte に安全に対応する field が無いため候補は出さない（§38） ---- */
   const thingsCandidates: MyPlanCandidate[] = [];
 
-  /* ---- Visa & Milestones ---- */
-  const savedMilestoneLabels = new Set(data.milestones.map((m) => norm(m.label)));
-  const milestoneCandidates: MyPlanCandidate[] = [];
+  /* ---- Visa & Milestones ---- Karte 由来（WH への関心）は「取得目標」ではないため read-only hint（§45 / §46） ---- */
+  const milestoneHints: MyPlanCandidate[] = [];
   if (
     karte.work.workingHolidayInterest.certainty === "stated" &&
     karte.work.workingHolidayInterest.value === true &&
     !conflictKeys.has("work.workingHolidayInterest")
   ) {
-    const label = "ワーキングホリデーに関心がある";
-    if (!savedMilestoneLabels.has(norm(label))) {
-      milestoneCandidates.push({ key: "work.workingHolidayInterest", label, note: KARTE_NOTE });
-    }
+    milestoneHints.push({
+      key: "work.workingHolidayInterest",
+      label: "ワーキングホリデーに関心がある",
+      note: KARTE_NOTE,
+    });
   }
   const visaRe = /ビザ|visa|ワーホリ|ワーキングホリデー|セカンド/i;
-  const showVisaDisclaimer = [...data.milestones, ...milestoneCandidates].some((x) =>
+  const showVisaDisclaimer = [...data.milestones, ...milestoneHints].some((x) =>
     visaRe.test(x.label),
   );
 
@@ -268,11 +281,19 @@ export function buildMyPlanView(
   const timeline = blueprint.timeline;
 
   /* ---- Hero ---- */
+  // Hero に出す都市ラベルは isUsableCityLabel を満たすものだけ（長文はここへ流さない・§63-65）。
+  const blueprintPrimaryCity =
+    data.destinations.primary && isUsableCityLabel(data.destinations.primary.label)
+      ? data.destinations.primary.label
+      : null;
+  const usableKarteCity =
+    preferredCity && isUsableCityLabel(preferredCity.value) ? preferredCity.value : null;
+
   let heroDestination: MyPlanHero["destination"] = null;
-  if (data.destinations.primary) {
-    heroDestination = { text: data.destinations.primary.label, fromKarte: false };
-  } else if (preferredCity) {
-    heroDestination = { text: preferredCity.value, fromKarte: true };
+  if (blueprintPrimaryCity) {
+    heroDestination = { text: blueprintPrimaryCity, fromKarte: false };
+  } else if (usableKarteCity) {
+    heroDestination = { text: usableKarteCity, fromKarte: true };
   }
 
   let heroSchool: string | null = null;
@@ -301,9 +322,11 @@ export function buildMyPlanView(
   const departureItem = stated("timing", "departureTiming");
   const heroDeparture = departureItem ? departureItem.value : null;
 
-  const headline = heroDestination
-    ? `${heroDestination.text}での実行プラン`
-    : planTitle || "このPlanの実行プラン";
+  // headline は説明文ではなく Plan の短いタイトル（AI 生成しない・§61-62）。
+  let headline: string;
+  if (blueprintPrimaryCity) headline = `${blueprintPrimaryCity}でつくるMy Plan`;
+  else if (usableKarteCity) headline = `${usableKarteCity}で考えているMy Plan`;
+  else headline = planTitle || "My Plan";
 
   const hero: MyPlanHero = {
     headline,
@@ -329,8 +352,8 @@ export function buildMyPlanView(
     destinationHints.length > 0 ||
     schoolCandidates.length > 0 ||
     englishRef.length > 0 ||
-    workCandidates.length > 0 ||
-    milestoneCandidates.length > 0;
+    workHints.length > 0 ||
+    milestoneHints.length > 0;
   const hasAnyContent = savedHasContent || timeline !== null || candidatesHaveContent;
 
   return {
@@ -346,11 +369,11 @@ export function buildMyPlanView(
       hints: destinationHints,
     },
     school: { savedSchools, candidates: schoolCandidates, englishRef },
-    work: { saved: data.workInterests, candidates: workCandidates },
+    work: { saved: data.workInterests, hints: workHints },
     things: { saved: data.thingsToDo, candidates: thingsCandidates },
     milestones: {
       saved: data.milestones,
-      candidates: milestoneCandidates,
+      hints: milestoneHints,
       showVisaDisclaimer,
     },
     timeline,

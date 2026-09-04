@@ -1,24 +1,21 @@
 import Link from "next/link";
-import type {
-  MyPlanCandidate,
-  MyPlanSchoolCandidate,
-  MyPlanSavedSchool,
-  MyPlanSectionId,
-  MyPlanView,
-} from "@/lib/myPlanView";
+import type { MyPlanSchoolCandidate, MyPlanSavedSchool, MyPlanSectionId, MyPlanView } from "@/lib/myPlanView";
 import { MY_PLAN_SECTIONS } from "@/lib/myPlanView";
-import type { BlueprintItem, BlueprintSchoolStatus, PlanTimeline } from "@/lib/planBlueprint";
+import type { BlueprintSchoolStatus, PlanTimeline } from "@/lib/planBlueprint";
+import EditablePlanItems from "@/components/EditablePlanItems";
+import EditableDestination from "@/components/EditableDestination";
 
 /**
- * 新しい My Plan（「ユーザーが採用した実行プラン」）の presentation。
+ * 新しい My Plan（「ユーザーが自分で育てる実行プラン」）の presentation（Step 2-3）。
  *
- * データは lib/myPlanView.ts の buildMyPlanView が組み立て済み。ここは表示専用で、
- * Karte / blueprint への分岐ロジックは持たない。
- *   - saved（blueprint 由来）  : 通常の white / navy 表示
- *   - candidate（Karte 由来）  : 破線・生成りの弱い表示 ＋「Karteからの候補」ラベル（read-only）
+ * データは lib/myPlanView.ts の buildMyPlanView が組み立て済み。Server Component のままで、
+ * 編集が要るセクション（Goals / Destination / Work / Things / Milestones）だけ client island に委譲する。
+ *   - saved（自分の Plan・主役）: 通常の white / navy、追加 / 削除できる
+ *   - candidate（Karte 由来・採用可）: 破線・生成り ＋「＋ Planに追加」（Goals / Destination）
+ *   - hint（Karte 由来・read-only）: 「意向」だけの情報。採用ボタンなし（Work / Milestones）
  *
- * CRUD（追加 / 削除 / status 変更 / 保存 / School 保存 / AI Timeline）は Step 2-3 以降。
- * 動かないボタンは置かない。
+ * School & English / Timeline は今回 read-only（Step 2-4 / 2-7）。blueprint unavailable の場合は
+ * 編集 UI を出さず（editingEnabled=false）、警告 ＋ Karte 候補中心の表示にする。
  */
 
 /* ------------------------------------------------------------------ */
@@ -74,7 +71,7 @@ const ArrowRightIcon = ({ className }: IconProps) => (
 );
 
 /* ------------------------------------------------------------------ */
-/* section accents（既存 palette 内。scoring 用ではなく装飾のみ）                       */
+/* section accents（既存 palette 内。scoring ではなく装飾のみ）                          */
 /* ------------------------------------------------------------------ */
 
 const SECTION_ACCENT: Record<MyPlanSectionId, string> = {
@@ -97,57 +94,6 @@ const STATUS_CLASS: Record<BlueprintSchoolStatus, string> = {
   preferred: "border-[#cfdbe6] bg-[#eef3f7] text-[#3a5266]",
   selected: "border-[#cfdcc4] bg-[#eef3e8] text-[#4b5b3e]",
 };
-
-/* ------------------------------------------------------------------ */
-/* small presentational pieces                                        */
-/* ------------------------------------------------------------------ */
-
-function SavedItemRow({ item }: { item: BlueprintItem }) {
-  return (
-    <li className="rounded-xl border border-[#e5dfd6] bg-white px-4 py-3">
-      <p className="text-sm font-medium leading-snug text-[#2f2c26]">{item.label}</p>
-      {item.note && <p className="mt-0.5 text-xs leading-relaxed text-[#8a8578]">{item.note}</p>}
-    </li>
-  );
-}
-
-function EmptySection({ line, helper }: { line: string; helper: string }) {
-  return (
-    <div className="mt-4">
-      <p className="text-sm text-[#a8a297]">{line}</p>
-      <p className="mt-1 text-xs leading-relaxed text-[#b7b1a6]">{helper}</p>
-    </div>
-  );
-}
-
-/** Karte 由来の候補ブロック（read-only・保存済みより一段弱い）。 */
-function CandidateBlock({
-  children,
-  helper = "会話やWorksheetから見えている内容",
-}: {
-  children: React.ReactNode;
-  helper?: string;
-}) {
-  return (
-    <div className="mt-4 rounded-xl border border-dashed border-[#d9d3c8] bg-[#f6f4ec] px-4 py-3">
-      <p className="text-[10px] font-semibold tracking-wide text-[#8a8578]">Karteからの候補</p>
-      <p className="mt-0.5 text-[11px] leading-relaxed text-[#a8a297]">{helper}</p>
-      <div className="mt-2.5">{children}</div>
-    </div>
-  );
-}
-
-function CandidateList({ candidates }: { candidates: MyPlanCandidate[] }) {
-  return (
-    <ul className="space-y-1.5">
-      {candidates.map((c) => (
-        <li key={c.key} className="text-sm leading-snug text-[#6f6a64]">
-          {c.label}
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /* card chrome                                                        */
@@ -181,7 +127,7 @@ function MyPlanCard({
       >
         {num}
       </span>
-      <h2 className="relative text-lg font-bold text-[#151515] sm:text-xl" style={{ color: accent }}>
+      <h2 className="relative text-lg font-bold sm:text-xl" style={{ color: accent }}>
         {enName}
       </h2>
       <p className="relative mt-0.5 text-xs text-[#8a8578]">{subtitle}</p>
@@ -191,94 +137,8 @@ function MyPlanCard({
 }
 
 /* ------------------------------------------------------------------ */
-/* per-section bodies                                                 */
+/* School & English（read-only・Step 2-4 で保存対応）                                   */
 /* ------------------------------------------------------------------ */
-
-function GoalsBody({ view }: { view: MyPlanView }) {
-  const { saved, candidates } = view.goals;
-  if (saved.length === 0 && candidates.length === 0) {
-    return (
-      <EmptySection
-        line="まだ目標がありません。"
-        helper="ChatやWorksheetで整理した内容が、ここに候補として出てきます。"
-      />
-    );
-  }
-  return (
-    <>
-      {saved.length > 0 && (
-        <ul className="mt-4 space-y-2">
-          {saved.map((g) => (
-            <SavedItemRow key={g.id} item={g} />
-          ))}
-        </ul>
-      )}
-      {candidates.length > 0 && (
-        <CandidateBlock>
-          <CandidateList candidates={candidates} />
-        </CandidateBlock>
-      )}
-    </>
-  );
-}
-
-function DestinationBody({ view }: { view: MyPlanView }) {
-  const { savedPrimary, savedInterested, candidates, hints } = view.destination;
-  const empty =
-    !savedPrimary && savedInterested.length === 0 && candidates.length === 0 && hints.length === 0;
-  if (empty) {
-    return (
-      <EmptySection
-        line="行ってみたい都市がまだありません。"
-        helper="暮らしたい場所や旅してみたい場所を、ここに残していきます。"
-      />
-    );
-  }
-  return (
-    <>
-      {savedPrimary && (
-        <div className="mt-4">
-          <p className="text-[10px] font-medium tracking-wide text-[#8a8578]">第一候補</p>
-          <p className="mt-1 inline-flex rounded-xl border border-[#cfdbe6] bg-[#eef3f7] px-4 py-2 text-base font-semibold text-[#2f3a4a]">
-            {savedPrimary.label}
-          </p>
-        </div>
-      )}
-      {savedInterested.length > 0 && (
-        <div className="mt-4">
-          <p className="text-[10px] font-medium tracking-wide text-[#8a8578]">行ってみたい都市</p>
-          <div className="mt-1.5 flex flex-wrap gap-2">
-            {savedInterested.map((d) => (
-              <span
-                key={d.id}
-                className="rounded-lg border border-[#e5dfd6] bg-white px-3 py-1.5 text-[13px] text-[#3f3a34]"
-              >
-                {d.label}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-      {candidates.length > 0 && (
-        <CandidateBlock>
-          <CandidateList candidates={candidates} />
-        </CandidateBlock>
-      )}
-      {hints.length > 0 && (
-        <div className="mt-3">
-          <p className="text-[10px] font-medium tracking-wide text-[#b7b1a6]">都市選びのヒント</p>
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {hints.map((h) => (
-              <span key={h.key} className="text-xs text-[#8a8578]">
-                {h.label}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
 
 function SavedSchoolCard({ school }: { school: MyPlanSavedSchool }) {
   return (
@@ -319,20 +179,24 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
           ))}
         </div>
       ) : (
-        <EmptySection
-          line="まだ学校を保存していません。"
-          helper="School Comparison で比べた学校を、ここに残せるようにします。"
-        />
+        <div className="mt-4">
+          <p className="text-sm text-[#a8a297]">まだ学校を保存していません。</p>
+          <p className="mt-1 text-xs leading-relaxed text-[#b7b1a6]">
+            School Comparison で比べた学校を、ここに残せるようにします。
+          </p>
+        </div>
       )}
 
       {candidates.length > 0 && (
-        <CandidateBlock helper="Chat で提案された学校です">
-          <ul className="space-y-2">
+        <div className="mt-4 rounded-xl border border-dashed border-[#d9d3c8] bg-[#f6f4ec] px-4 py-3">
+          <p className="text-[10px] font-semibold tracking-wide text-[#8a8578]">Karteからの候補</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-[#a8a297]">Chat で提案された学校です</p>
+          <ul className="mt-2.5 space-y-2">
             {candidates.map((c) => (
               <SchoolCandidateRow key={c.key} c={c} />
             ))}
           </ul>
-        </CandidateBlock>
+        </div>
       )}
 
       {englishRef.length > 0 && (
@@ -359,62 +223,9 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
   );
 }
 
-function ChipsAndCandidates({
-  saved,
-  candidates,
-  emptyLine,
-  emptyHelper,
-}: {
-  saved: BlueprintItem[];
-  candidates: MyPlanCandidate[];
-  emptyLine: string;
-  emptyHelper: string;
-}) {
-  if (saved.length === 0 && candidates.length === 0) {
-    return <EmptySection line={emptyLine} helper={emptyHelper} />;
-  }
-  return (
-    <>
-      {saved.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {saved.map((it) => (
-            <span
-              key={it.id}
-              className="rounded-lg border border-[#e5dfd6] bg-white px-3 py-1.5 text-[13px] text-[#3f3a34]"
-              title={it.note ?? undefined}
-            >
-              {it.label}
-            </span>
-          ))}
-        </div>
-      )}
-      {candidates.length > 0 && (
-        <CandidateBlock>
-          <CandidateList candidates={candidates} />
-        </CandidateBlock>
-      )}
-    </>
-  );
-}
-
-function MilestonesBody({ view }: { view: MyPlanView }) {
-  const { saved, candidates, showVisaDisclaimer } = view.milestones;
-  return (
-    <>
-      <ChipsAndCandidates
-        saved={saved}
-        candidates={candidates}
-        emptyLine="まだ節目や目標がありません。"
-        emptyHelper="ビザや資格、学校修了など、達成したいことをここに残していきます。"
-      />
-      {showVisaDisclaimer && (
-        <p className="mt-4 rounded-xl bg-[#f6efe4] px-4 py-3 text-[11px] leading-relaxed text-[#8a8578]">
-          ビザや制度の条件は最新の公式情報をご確認ください。
-        </p>
-      )}
-    </>
-  );
-}
+/* ------------------------------------------------------------------ */
+/* Timeline（read-only・Step 2-7 / 2-8 で編集対応）                                     */
+/* ------------------------------------------------------------------ */
 
 function TimelineBody({ timeline }: { timeline: PlanTimeline | null }) {
   if (!timeline) {
@@ -429,12 +240,8 @@ function TimelineBody({ timeline }: { timeline: PlanTimeline | null }) {
   }
   return (
     <div className="mt-4">
-      {timeline.summary && (
-        <p className="text-sm leading-relaxed text-[#3f3a34]">{timeline.summary}</p>
-      )}
-      {timeline.durationLabel && (
-        <p className="mt-1 text-xs text-[#8a8578]">{timeline.durationLabel}</p>
-      )}
+      {timeline.summary && <p className="text-sm leading-relaxed text-[#3f3a34]">{timeline.summary}</p>}
+      {timeline.durationLabel && <p className="mt-1 text-xs text-[#8a8578]">{timeline.durationLabel}</p>}
       <ol className="mt-4 space-y-4 border-l border-[#e5dfd6] pl-4">
         {timeline.periods.map((p) => (
           <li key={p.id} className="relative">
@@ -472,34 +279,93 @@ function TimelineBody({ timeline }: { timeline: PlanTimeline | null }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* section dispatch                                                   */
+/* ------------------------------------------------------------------ */
+
 function renderSectionBody(id: MyPlanSectionId, view: MyPlanView, planId: string): React.ReactNode {
+  const editingEnabled = view.blueprintAvailable;
+
   switch (id) {
     case "goals":
-      return <GoalsBody view={view} />;
+      return (
+        <EditablePlanItems
+          planId={planId}
+          section="goals"
+          initialItems={view.goals.saved}
+          candidates={view.goals.candidates}
+          addLabel="目標を追加"
+          placeholder="例：英語で仕事ができるようになりたい"
+          emptyLine="まだ目標がありません。"
+          emptyHelper="自分で追加するか、ChatやWorksheetで整理した内容を候補から採用できます。"
+          layout="rows"
+          editingEnabled={editingEnabled}
+        />
+      );
     case "destination":
-      return <DestinationBody view={view} />;
+      return (
+        <EditableDestination
+          planId={planId}
+          initialPrimary={view.destination.savedPrimary}
+          initialInterested={view.destination.savedInterested}
+          candidates={view.destination.candidates}
+          hints={view.destination.hints}
+          editingEnabled={editingEnabled}
+        />
+      );
     case "school":
       return <SchoolBody view={view} planId={planId} />;
     case "work":
       return (
-        <ChipsAndCandidates
-          saved={view.work.saved}
-          candidates={view.work.candidates}
+        <EditablePlanItems
+          planId={planId}
+          section="workInterests"
+          initialItems={view.work.saved}
+          hints={view.work.hints}
+          addLabel="興味のある仕事を追加"
+          placeholder="例：カフェ、ホテル、ツアー関連"
           emptyLine="興味のある仕事がまだありません。"
           emptyHelper="現地でやってみたい仕事を、ここに残していきます。"
+          layout="chips"
+          editingEnabled={editingEnabled}
         />
       );
     case "things":
       return (
-        <ChipsAndCandidates
-          saved={view.things.saved}
-          candidates={view.things.candidates}
+        <EditablePlanItems
+          planId={planId}
+          section="thingsToDo"
+          initialItems={view.things.saved}
+          addLabel="やってみたいことを追加"
+          placeholder="例：サーフィンをする"
           emptyLine="まだやってみたいことがありません。"
           emptyHelper="現地で経験したいことを、ここに残していきます。"
+          layout="chips"
+          editingEnabled={editingEnabled}
         />
       );
     case "milestones":
-      return <MilestonesBody view={view} />;
+      return (
+        <EditablePlanItems
+          planId={planId}
+          section="milestones"
+          initialItems={view.milestones.saved}
+          hints={view.milestones.hints}
+          addLabel="目標や節目を追加"
+          placeholder="例：セカンドビザ取得を目指す"
+          emptyLine="まだ節目や目標がありません。"
+          emptyHelper="ビザや資格、学校修了など、達成したいことをここに残していきます。"
+          layout="rows"
+          editingEnabled={editingEnabled}
+          extraFooter={
+            view.milestones.showVisaDisclaimer ? (
+              <p className="mt-4 rounded-xl bg-[#f6efe4] px-4 py-3 text-[11px] leading-relaxed text-[#8a8578]">
+                ビザや制度の条件は最新の公式情報をご確認ください。
+              </p>
+            ) : undefined
+          }
+        />
+      );
     case "timeline":
       return <TimelineBody timeline={view.timeline} />;
   }
@@ -522,7 +388,9 @@ export default function MyPlan({
   view: MyPlanView;
   lastUpdated: string | null;
 }) {
-  if (!view.hasAnyContent) {
+  // 何も無く、かつ編集もできない（blueprint unavailable）ときだけ onboarding。
+  // 編集可能なら空でも各セクションの「＋ 追加」から自分で作り始められる（§74）。
+  if (!view.hasAnyContent && !view.blueprintAvailable) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 sm:py-24">
         <Link
@@ -582,27 +450,33 @@ export default function MyPlan({
 
       {!view.blueprintAvailable && (
         <p className="mt-5 rounded-xl border border-[#e4d8c4] bg-[#faf4e8] px-4 py-3 text-xs leading-relaxed text-[#7a6a4e]">
-          保存したMy Planの情報を読み込めませんでした。下の「Karteからの候補」は表示できます。
+          保存したMy Planの情報を読み込めませんでした。編集は一時的にできませんが、下の「Karteからの候補」は表示できます。
         </p>
       )}
 
-      {/* ヒーローサマリー */}
-      <section className="mt-6 overflow-hidden rounded-[20px] bg-[#1e2b3d] shadow-[0_2px_10px_rgba(20,28,42,0.12)]">
-        <div className="px-5 py-6 sm:px-9 sm:py-8">
-          <p className="text-[11px] font-semibold tracking-[0.18em] text-[#8ea3bf]">
+      {/* ヒーローサマリー（明るいブルーグレー地に CSS だけの淡いグラデーション） */}
+      <section
+        className="relative mt-6 overflow-hidden rounded-[20px] border border-[#dfe6e3] bg-[#e8eee9] shadow-[0_1px_3px_rgba(30,40,36,0.06)]"
+        style={{
+          backgroundImage:
+            "radial-gradient(120% 80% at 92% 6%, rgba(150,178,155,0.30), transparent 58%), radial-gradient(90% 70% at 4% 98%, rgba(255,255,255,0.92), transparent 55%)",
+        }}
+      >
+        <div className="relative px-5 py-6 sm:px-9 sm:py-8">
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-[#68727c]">
             YOUR PLAN AT A GLANCE
           </p>
-          <p className="mt-3 text-[19px] font-bold leading-snug text-white sm:text-[28px]">
+          <p className="mt-3 text-[22px] font-bold leading-snug text-[#172033] sm:text-[30px]">
             {hero.headline}
           </p>
           {hero.school && (
-            <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-[#c7d4e4]">
+            <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-[#4a5560]">
               <SchoolIcon className="h-4 w-4" />
               {hero.school}
             </p>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-px bg-white/10 sm:grid-cols-4">
+        <div className="relative grid grid-cols-2 gap-2 px-4 pb-4 sm:grid-cols-4 sm:px-6 sm:pb-6">
           <HeroItem
             icon={<PinIcon className="h-4 w-4" />}
             label="行き先"
@@ -672,17 +546,17 @@ function HeroItem({
   note?: string | null;
 }) {
   return (
-    <div className="flex items-center gap-3 bg-[#1e2b3d] px-5 py-4 sm:px-6">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-[#c7d4e4]">
+    <div className="flex items-center gap-3 rounded-xl border border-white/70 bg-white/55 px-4 py-3">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/70 text-[#5b6b63]">
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="text-[10px] font-medium tracking-wide text-[#8ea3bf]">
+        <p className="text-[10px] font-medium tracking-wide text-[#68727c]">
           {label}
-          {note && <span className="ml-1 text-[#7f93af]">／{note}</span>}
+          {note && <span className="ml-1 text-[#8a949c]">／{note}</span>}
         </p>
         <p
-          className={`mt-0.5 truncate text-sm font-semibold ${value ? "text-white" : "text-[#8ea3bf]"}`}
+          className={`mt-0.5 truncate text-sm font-semibold ${value ? "text-[#172033]" : "text-[#98a1a8]"}`}
         >
           {value ?? "これから整理"}
         </p>
