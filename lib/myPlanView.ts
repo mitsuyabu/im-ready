@@ -64,7 +64,10 @@ export type MyPlanCandidate = {
 export type MyPlanSchoolCandidate = {
   key: string;
   name: string;
+  nameJa: string | null;
   city: string | null;
+  /** 提案区分（reference のときだけ「参考候補」。fake は入れない）。 */
+  category: string | null;
   reason: string | null;
 };
 
@@ -212,10 +215,12 @@ export function buildMyPlanView(
     schoolCandidates.push({
       key: p.id,
       name: master.name,
+      nameJa: master.nameJa ?? null,
       city: master.city,
+      category: p.category === "reference" ? "参考候補" : null,
       reason: p.reason ? p.reason.trim() || null : null,
     });
-    if (schoolCandidates.length >= 4) break;
+    if (schoolCandidates.length >= 3) break;
   }
 
   const englishRef: MyPlanCandidate[] = [];

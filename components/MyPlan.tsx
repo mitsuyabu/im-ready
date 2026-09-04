@@ -1,10 +1,11 @@
 import Link from "next/link";
-import type { MyPlanSchoolCandidate, MyPlanSectionId, MyPlanView } from "@/lib/myPlanView";
+import type { MyPlanSectionId, MyPlanView } from "@/lib/myPlanView";
 import { MY_PLAN_SECTIONS } from "@/lib/myPlanView";
 import EditablePlanItems from "@/components/EditablePlanItems";
 import EditableDestination from "@/components/EditableDestination";
 import EditableSchools from "@/components/EditableSchools";
 import EditableTimeline from "@/components/EditableTimeline";
+import SchoolCandidateCards, { SavedSchoolMainCard } from "@/components/SchoolCandidateCards";
 
 /**
  * 新しい My Plan（「ユーザーが自分で育てる実行プラン」）の presentation（Step 2-3）。
@@ -130,44 +131,59 @@ function MyPlanCard({
 /* School & English（保存済み学校は編集可・比較 CTA / 候補 / 英語参考は read-only）        */
 /* ------------------------------------------------------------------ */
 
-function SchoolCandidateRow({ c }: { c: MyPlanSchoolCandidate }) {
-  return (
-    <li className="text-sm leading-snug text-[#6f6a64]">
-      <span className="font-medium text-[#5b574f]">{c.name}</span>
-      {c.city && <span className="text-[#8a8578]">　{c.city}</span>}
-      {c.reason && <span className="mt-0.5 block text-xs text-[#a8a297]">{c.reason}</span>}
-    </li>
-  );
-}
-
 function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
   const { savedSchools, candidates, englishRef } = view.school;
+  const comparisonHref = `/plans/${planId}/documents/school-comparison`;
+  const hasSaved = savedSchools.length > 0;
+  const hasCandidates = candidates.length > 0;
+
+  // メインカードに出す「軸にしている」1 校（selected → preferred → 先頭）。
+  const primarySaved = hasSaved
+    ? savedSchools.find((s) => s.status === "selected") ??
+      savedSchools.find((s) => s.status === "preferred") ??
+      savedSchools[0]
+    : null;
+
   return (
     <>
-      {savedSchools.length > 0 ? (
-        <EditableSchools
-          planId={planId}
-          initialSchools={savedSchools}
-          editingEnabled={view.blueprintAvailable}
-        />
+      {hasSaved ? (
+        <>
+          <p className="mt-4 text-[11px] font-semibold tracking-wide text-[#5f7050]">
+            このプランで考えている学校
+          </p>
+          {primarySaved && (
+            <div className="mt-2">
+              <SavedSchoolMainCard school={primarySaved} englishNote={englishRef[0]?.label ?? null} />
+            </div>
+          )}
+          <div className="mt-3">
+            <p className="text-[10px] font-medium tracking-wide text-[#8a8578]">保存した学校の状態</p>
+            <EditableSchools
+              planId={planId}
+              initialSchools={savedSchools}
+              editingEnabled={view.blueprintAvailable}
+            />
+          </div>
+        </>
+      ) : hasCandidates ? (
+        <>
+          <p className="mt-4 text-[11px] font-semibold tracking-wide text-[#5f7050]">候補の学校</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-[#8a8578]">
+            ChatやKarteで提案された学校です。比較して、My Planに残せます。
+          </p>
+          <p className="mt-1 text-xs text-[#a8a297]">
+            まだ学校は保存していません。気になる学校を比較して、ここに残しましょう。
+          </p>
+          <div className="mt-3">
+            <SchoolCandidateCards candidates={candidates} comparisonHref={comparisonHref} />
+          </div>
+        </>
       ) : (
         <div className="mt-4">
-          <p className="text-sm text-[#a8a297]">まだ学校を保存していません。</p>
+          <p className="text-sm text-[#a8a297]">まだ学校の候補がありません。</p>
           <p className="mt-1 text-xs leading-relaxed text-[#b7b1a6]">
-            School Comparison で比べた学校を、ここに残せるようにします。
+            School Comparison で候補校を比べて、ここに残せます。
           </p>
-        </div>
-      )}
-
-      {candidates.length > 0 && (
-        <div className="mt-4 rounded-xl border border-dashed border-[#d9d3c8] bg-[#f6f4ec] px-4 py-3">
-          <p className="text-[10px] font-semibold tracking-wide text-[#8a8578]">Karteからの候補</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-[#a8a297]">Chat で提案された学校です</p>
-          <ul className="mt-2.5 space-y-2">
-            {candidates.map((c) => (
-              <SchoolCandidateRow key={c.key} c={c} />
-            ))}
-          </ul>
         </div>
       )}
 
@@ -185,10 +201,10 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
       )}
 
       <Link
-        href={`/plans/${planId}/documents/school-comparison`}
+        href={comparisonHref}
         className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#c9c2b4] px-4 py-2 text-sm font-medium text-[#3f3a34] transition-colors hover:bg-[#f2efe7]"
       >
-        学校を比較する
+        {hasSaved ? "School Comparison を見る" : "学校を比較する"}
         <ArrowRightIcon className="h-4 w-4" />
       </Link>
     </>
