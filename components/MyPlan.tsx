@@ -156,8 +156,10 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
           <p className="mt-0.5 text-[13px] leading-6 text-[#7d776c]">
             School Comparison で比べて保存した学校です。
           </p>
+          {/* 保存済みが 1 校でもカードは拡大しない。School Comparison の 3 列グリッドと
+              同じ responsive（mobile 1 列 / tablet 2 列 / desktop 3 列相当）で 1 枚分に絞り、左寄せ。 */}
           {primarySaved && (
-            <div className="mt-2.5">
+            <div className="mt-2.5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <SavedSchoolMainCard school={primarySaved} englishNote={englishRef[0]?.label ?? null} />
             </div>
           )}
