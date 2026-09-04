@@ -80,8 +80,32 @@ export type MyPlanHero = {
   budget: string | null;
 };
 
+/* ---- 月ベースの要約タイムライン（YOUR PLAN AT A GLANCE 直下の横図・§配置） ----
+ * 役割は「1年の流れをひと目で」。詳細な activities / 理由は既存の詳細 Timeline セクションが担う。
+ * fake は入れない。作れる範囲だけ（無理に 12 ヶ月を埋めない）。 */
+export type MyPlanTimelinePhaseStatus = "saved" | "ai-suggested" | "considering";
+
+export type MyPlanTimelinePhase = {
+  key: string;
+  /** 期間 or 順序のラベル（例: "1〜2ヶ月目" / "はじめ"）。根拠の無い月数は入れない。 */
+  rangeLabel: string;
+  title: string;
+  note: string | null;
+  status: MyPlanTimelinePhaseStatus;
+};
+
+export type MyPlanMonthlyTimeline = {
+  /** 2〜6 フェーズ。 */
+  phases: MyPlanTimelinePhase[];
+  durationLabel: string | null;
+  /** "saved-timeline" = 保存済み詳細 Timeline の要約 / "summary" = My Plan + Karte から順序だけ組成。 */
+  source: "saved-timeline" | "summary";
+};
+
 export type MyPlanView = {
   hero: MyPlanHero;
+  /** YOUR PLAN AT A GLANCE 直下の横タイムライン図。材料が無ければ null（セクション自体を出さない）。 */
+  monthlyTimeline: MyPlanMonthlyTimeline | null;
   blueprintAvailable: boolean;
   blueprintExists: boolean;
   hasAnyContent: boolean;
@@ -119,6 +143,122 @@ function norm(s: string): string {
 
 function formatMan(yen: number): string {
   return `${Math.round(yen / 10000).toLocaleString("ja-JP")}万円`;
+}
+
+/** 1 行の短い補足へ（改行 / 句点で切って、長すぎれば省略）。AI 要約はしない・機械的に切るだけ。 */
+function firstLine(s: string, max = 46): string {
+  const t = (s.split(/[\n。！？]/)[0] ?? s).trim();
+  return t.length > max ? `${t.slice(0, max - 1)}…` : t;
+}
+
+/** fallback（summary）モードの順序ラベル。根拠の無い月数は使わない。 */
+const PHASE_SEQ_LABELS = ["はじめ", "中盤", "後半", "仕上げ", "その先"];
+
+/**
+ * 月ベースの要約タイムライン（横図）用データ。
+ *   1) 保存済みの詳細 Timeline があれば、その period をそのまま要約図にする（最優先・§優先順位）
+ *   2) 無ければ My Plan 保存内容（＋ Karte hint）から「順序」だけの summary phase を組成する
+ *      （根拠のある phase だけ。month 数は AI Timeline を作るまで入れない）
+ * どちらも作れない（phase < 2）なら null。
+ */
+function buildMonthlyTimeline(input: {
+  timeline: PlanTimeline | null;
+  goals: BlueprintItem[];
+  workInterests: BlueprintItem[];
+  milestones: BlueprintItem[];
+  schools: BlueprintSchool[];
+  englishRef: MyPlanCandidate[];
+  schoolCandidates: MyPlanSchoolCandidate[];
+  workHints: MyPlanCandidate[];
+  milestoneHints: MyPlanCandidate[];
+  goalCandidates: MyPlanCandidate[];
+  durationLabelFromKarte: string | null;
+}): MyPlanMonthlyTimeline | null {
+  const { timeline } = input;
+
+  /* 1) 保存済みの詳細 Timeline を図に要約 */
+  if (timeline && timeline.periods.length > 0) {
+    const phases: MyPlanTimelinePhase[] = timeline.periods.slice(0, 6).map((p, i) => {
+      const rawNote =
+        p.activities.find((a) => a.trim().length > 0)?.trim() ??
+        (p.reason.trim() ? p.reason.trim() : null);
+      return {
+        key: p.id || `tl-${i}`,
+        rangeLabel: p.label.trim().slice(0, 16) || `${i + 1}`,
+        title: p.title.trim() || "—",
+        note: rawNote ? firstLine(rawNote) : null,
+        status: "saved" as const,
+      };
+    });
+    return {
+      phases,
+      durationLabel: timeline.durationLabel.trim() || input.durationLabelFromKarte,
+      source: "saved-timeline",
+    };
+  }
+
+  /* 2) fallback: My Plan 保存内容 ＋ Karte hint から順序だけの summary phase */
+  const phases: MyPlanTimelinePhase[] = [];
+  const add = (title: string, note: string | null, status: MyPlanTimelinePhaseStatus) => {
+    phases.push({ key: `sum-${phases.length}`, rangeLabel: "", title, note, status });
+  };
+
+  if (input.schools.length > 0) {
+    add("語学学校に通う", input.englishRef[0]?.label ?? input.schools[0].name, "saved");
+  } else if (input.englishRef.length > 0 || input.schoolCandidates.length > 0) {
+    add(
+      "語学学校を検討する",
+      input.englishRef[0]?.label ?? input.schoolCandidates[0]?.name ?? null,
+      "considering",
+    );
+  }
+
+  if (input.workInterests.length > 0) {
+    add(
+      "現地で仕事を探す",
+      input.workInterests
+        .slice(0, 2)
+        .map((w) => w.label)
+        .join(" / ") || null,
+      "saved",
+    );
+  } else if (input.workHints.length > 0) {
+    add("働くことを考える", input.workHints[0].label, "considering");
+  }
+
+  if (input.milestones.length > 0) {
+    add(
+      input.milestones.length === 1
+        ? firstLine(input.milestones[0].label, 22)
+        : "ビザ・節目に取り組む",
+      input.milestones.length === 1
+        ? null
+        : input.milestones
+            .slice(0, 2)
+            .map((m) => m.label)
+            .join(" / "),
+      "saved",
+    );
+  } else if (input.milestoneHints.length > 0) {
+    add("ビザ・進路を判断する", input.milestoneHints[0].label, "considering");
+  }
+
+  const careerGoal = input.goals.find((g) => /仕事|キャリア|就職|転職|将来|進路|帰国/.test(g.label));
+  if (careerGoal) {
+    add("進路を整理する", firstLine(careerGoal.label, 30), "saved");
+  } else if (input.goalCandidates.some((c) => c.key === "work.postReturnCareer")) {
+    const c = input.goalCandidates.find((x) => x.key === "work.postReturnCareer");
+    if (c) add("進路を整理する", firstLine(c.label, 30), "considering");
+  }
+
+  if (phases.length < 2) return null;
+
+  const trimmed = phases.slice(0, 5);
+  trimmed.forEach((p, i) => {
+    p.rangeLabel = PHASE_SEQ_LABELS[i] ?? `${i + 1}`;
+  });
+
+  return { phases: trimmed, durationLabel: input.durationLabelFromKarte, source: "summary" };
 }
 
 /**
@@ -311,6 +451,11 @@ export function buildMyPlanView(
     durationField.certainty === "stated" && typeof durationField.value === "number"
       ? `${durationField.value}週間`
       : null;
+  // 要約タイムラインの全体ラベル用（週→月の概算。根拠が無ければ null）。
+  const durationLabelFromKarte =
+    durationField.certainty === "stated" && typeof durationField.value === "number"
+      ? `約${Math.max(1, Math.round(durationField.value / 4.345))}ヶ月`
+      : null;
   const budgetField = karte.budget.totalCap;
   const heroBudget =
     budgetField.certainty === "stated" && typeof budgetField.value === "number"
@@ -333,6 +478,21 @@ export function buildMyPlanView(
     duration: heroDuration,
     budget: heroBudget,
   };
+
+  /* ---- 月ベースの要約タイムライン（図） ---- */
+  const monthlyTimeline = buildMonthlyTimeline({
+    timeline,
+    goals: data.goals,
+    workInterests: data.workInterests,
+    milestones: data.milestones,
+    schools: data.schools,
+    englishRef,
+    schoolCandidates,
+    workHints,
+    milestoneHints,
+    goalCandidates,
+    durationLabelFromKarte,
+  });
 
   /* ---- hasAnyContent（§50） ---- */
   const savedHasContent =
@@ -365,6 +525,7 @@ export function buildMyPlanView(
 
   return {
     hero,
+    monthlyTimeline,
     blueprintAvailable: blueprint.available,
     blueprintExists: blueprint.exists,
     hasAnyContent,

@@ -1,5 +1,10 @@
 import Link from "next/link";
-import type { MyPlanSectionId, MyPlanView } from "@/lib/myPlanView";
+import type {
+  MyPlanMonthlyTimeline,
+  MyPlanSectionId,
+  MyPlanTimelinePhase,
+  MyPlanView,
+} from "@/lib/myPlanView";
 import { MY_PLAN_SECTIONS } from "@/lib/myPlanView";
 import EditablePlanItems from "@/components/EditablePlanItems";
 import EditableDestination from "@/components/EditableDestination";
@@ -86,6 +91,105 @@ const SECTION_ACCENT: Record<MyPlanSectionId, string> = {
   milestones: "#45413a",
   timeline: "#1e2b3d",
 };
+
+/* ------------------------------------------------------------------ */
+/* Monthly summary timeline（YOUR PLAN AT A GLANCE の直下・横図）           */
+/* 役割は「1年の流れをひと目で」。詳細な activities / 理由は下の Timeline が担う。  */
+/* ------------------------------------------------------------------ */
+
+const PHASE_STATUS_META: Record<
+  MyPlanTimelinePhase["status"],
+  { label: string; badge: string; card: string; dot: string }
+> = {
+  saved: {
+    label: "保存済み",
+    badge: "border border-[#cdd8bf] bg-[#eef3e6] text-[#4b5b3e]",
+    card: "border border-[#d7dfcd] bg-white",
+    dot: "bg-[#8fa47f] ring-[#c8d3bb]",
+  },
+  "ai-suggested": {
+    label: "AI提案",
+    badge: "border border-dashed border-[#cdd6e2] bg-[#eef2f7] text-[#4a5c72]",
+    card: "border border-dashed border-[#d3dbe4] bg-[#fcfdff]",
+    dot: "bg-[#9db4c9] ring-[#d2dde6]",
+  },
+  considering: {
+    label: "検討中",
+    badge: "border border-[#e2d8c5] bg-[#faf6ee] text-[#7a6a4e]",
+    card: "border border-dashed border-[#e0d8c8] bg-[#fdfbf6]",
+    dot: "bg-[#cbb892] ring-[#e4d9c1]",
+  },
+};
+
+function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline }) {
+  const { phases, durationLabel, source } = timeline;
+  return (
+    <section
+      id="myplan-yearly"
+      className="mt-6 scroll-mt-6 overflow-hidden rounded-[18px] border border-[#e5dfd6] bg-[#fcfbf7] p-5 shadow-[0_1px_3px_rgba(30,28,24,0.05)] sm:p-6 lg:p-7"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className="text-[11px] font-semibold tracking-[0.18em] text-[#5f7050]">YOUR YEARLY PLAN</p>
+        {durationLabel && (
+          <p className="text-[11px] font-medium tracking-wide text-[#8a8578]">{durationLabel}</p>
+        )}
+      </div>
+      <p className="mt-1 text-sm text-[#7e786d] sm:text-[15px]">1年の大まかな流れ</p>
+
+      <div className="mt-5">
+        <ol
+          className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:thin] sm:grid sm:gap-4 sm:overflow-visible"
+          style={{ gridTemplateColumns: `repeat(${phases.length}, minmax(0, 1fr))` }}
+        >
+          {phases.map((p) => {
+            const meta = PHASE_STATUS_META[p.status];
+            return (
+              <li
+                key={p.key}
+                className="flex w-[230px] shrink-0 snap-start flex-col sm:w-auto sm:shrink"
+              >
+                {/* ベースライン（1本線）＋ ノード。desktop のみ。mobile は線を描かず横スクロール。 */}
+                <div className="relative mb-3 hidden h-3 sm:block" aria-hidden>
+                  <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-[#d9dfcd]" />
+                  <span
+                    className={`absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ${meta.dot}`}
+                  />
+                </div>
+                <div className={`h-full rounded-2xl p-4 ${meta.card}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#7c8a6b]">
+                      {p.rangeLabel}
+                    </span>
+                    <span
+                      className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${meta.badge}`}
+                    >
+                      {meta.label}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-[15px] font-bold leading-snug text-[#2f3a2b]">{p.title}</p>
+                  {p.note && (
+                    <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-[#6f6a64]">
+                      {p.note}
+                    </p>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      <p className="mt-3 text-[11px] leading-relaxed text-[#8a8578] sm:hidden">
+        横にスクロールすると、全体の流れを追えます。
+      </p>
+      <p className="mt-2 text-[11px] leading-relaxed text-[#8a8578]">
+        {source === "saved-timeline"
+          ? "保存済みのTimelineをもとに要約しています。詳しい内容は下のTimelineをご覧ください。"
+          : "My Planの保存内容から、進み方の目安をまとめています。月ごとの詳しい流れは、下のTimelineでAIに提案してもらえます。"}
+      </p>
+    </section>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /* card chrome                                                        */
@@ -420,6 +524,11 @@ export default function MyPlan({
           <HeroItem icon={<WalletIcon className="h-4 w-4" />} label="予算" value={hero.budget} />
         </div>
       </section>
+
+      {/* YOUR PLAN AT A GLANCE の直下: 月ベースの要約タイムライン（図）。
+          材料が無ければ view 側で null になり、セクションごと出さない。
+          文章ベースの詳細 Timeline は下のセクション一覧にそのまま残す。 */}
+      {view.monthlyTimeline && <MonthlyTimelineSection timeline={view.monthlyTimeline} />}
 
       {/* メイン: 左アウトライン / 右カードグリッド */}
       <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-[212px_minmax(0,1fr)] lg:gap-8">
