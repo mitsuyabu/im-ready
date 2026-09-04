@@ -157,7 +157,7 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
             School Comparison で比べて保存した学校です。
           </p>
           {primarySaved && (
-            <div className="mt-3">
+            <div className="mt-2.5">
               <SavedSchoolMainCard school={primarySaved} englishNote={englishRef[0]?.label ?? null} />
             </div>
           )}
