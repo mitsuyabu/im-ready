@@ -86,7 +86,7 @@ export default function EditableSchools({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[#2f2c26]">{s.name}</p>
-              {s.city && <p className="mt-0.5 text-xs text-[#8a8578]">{s.city}</p>}
+              {s.city && <p className="mt-0.5 text-xs text-[#6b665d]">{s.city}</p>}
             </div>
             {editingEnabled ? (
               <button
@@ -94,7 +94,7 @@ export default function EditableSchools({
                 onClick={() => remove(s.id)}
                 disabled={disabled}
                 aria-label={`「${s.name}」をMy Planから外す`}
-                className="shrink-0 rounded-lg px-2 py-1 text-xs text-[#b7b1a6] transition-colors hover:bg-[#f0ece2] hover:text-[#6f6a64] disabled:opacity-40"
+                className="shrink-0 rounded-lg px-2 py-1 text-xs text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
               >
                 外す
               </button>
@@ -121,7 +121,7 @@ export default function EditableSchools({
                     className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-40 ${
                       active
                         ? STATUS_ACTIVE[st]
-                        : "border-[#e5dfd6] bg-white text-[#8a8578] hover:bg-[#f6f2e8]"
+                        : "border-[#e5dfd6] bg-white text-[#6b665d] hover:bg-[#f6f2e8]"
                     }`}
                   >
                     {busy === `status:${s.id}` && active ? "…" : STATUS_LABEL[st]}

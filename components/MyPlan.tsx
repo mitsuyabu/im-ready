@@ -5,7 +5,7 @@ import EditablePlanItems from "@/components/EditablePlanItems";
 import EditableDestination from "@/components/EditableDestination";
 import EditableSchools from "@/components/EditableSchools";
 import EditableTimeline from "@/components/EditableTimeline";
-import SchoolCandidateCards, { SavedSchoolMainCard } from "@/components/SchoolCandidateCards";
+import SavedSchoolMainCard from "@/components/SavedSchoolCard";
 
 /**
  * 新しい My Plan（「ユーザーが自分で育てる実行プラン」）の presentation（Step 2-3）。
@@ -76,13 +76,14 @@ const ArrowRightIcon = ({ className }: IconProps) => (
 /* section accents（既存 palette 内。scoring ではなく装飾のみ）                          */
 /* ------------------------------------------------------------------ */
 
+// section title は「しっかり読める濃色」。各セクションの色相は保ちつつ、暗めに寄せる。
 const SECTION_ACCENT: Record<MyPlanSectionId, string> = {
-  goals: "#5f7050",
-  destination: "#3a5266",
-  school: "#4b5b3e",
-  work: "#8a5a3c",
-  things: "#b5654d",
-  milestones: "#4a4640",
+  goals: "#4b5b3e",
+  destination: "#33506a",
+  school: "#3f5a3b",
+  work: "#7a4a30",
+  things: "#9a4d38",
+  milestones: "#45413a",
   timeline: "#1e2b3d",
 };
 
@@ -118,24 +119,27 @@ function MyPlanCard({
       >
         {num}
       </span>
-      <h2 className="relative text-lg font-bold sm:text-xl" style={{ color: accent }}>
+      <h2
+        className="relative text-[26px] font-semibold leading-tight tracking-tight sm:text-[30px]"
+        style={{ color: accent }}
+      >
         {enName}
       </h2>
-      <p className="relative mt-0.5 text-xs text-[#8a8578]">{subtitle}</p>
+      <p className="relative mt-1 text-sm text-[#7e786d] sm:text-[15px]">{subtitle}</p>
       <div className="relative">{children}</div>
     </section>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* School & English（保存済み学校は編集可・比較 CTA / 候補 / 英語参考は read-only）        */
+/* School & English（My Plan に保存済みの学校だけ表示。候補校の比較は School Comparison の役割）  */
 /* ------------------------------------------------------------------ */
 
 function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
-  const { savedSchools, candidates, englishRef } = view.school;
+  // My Plan に保存した学校だけを表示する。候補校の比較は School Comparison の役割。
+  const { savedSchools, englishRef } = view.school;
   const comparisonHref = `/plans/${planId}/documents/school-comparison`;
   const hasSaved = savedSchools.length > 0;
-  const hasCandidates = candidates.length > 0;
 
   // メインカードに出す「軸にしている」1 校（selected → preferred → 先頭）。
   const primarySaved = hasSaved
@@ -148,16 +152,17 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
     <>
       {hasSaved ? (
         <>
-          <p className="mt-4 text-[11px] font-semibold tracking-wide text-[#5f7050]">
-            このプランで考えている学校
+          <p className="mt-4 text-sm font-medium text-[#6b665d]">このプランで考えている学校</p>
+          <p className="mt-0.5 text-[13px] leading-6 text-[#7d776c]">
+            School Comparison で比べて保存した学校です。
           </p>
           {primarySaved && (
-            <div className="mt-2">
+            <div className="mt-3">
               <SavedSchoolMainCard school={primarySaved} englishNote={englishRef[0]?.label ?? null} />
             </div>
           )}
           <div className="mt-3">
-            <p className="text-[10px] font-medium tracking-wide text-[#8a8578]">保存した学校の状態</p>
+            <p className="text-[11px] font-medium tracking-wide text-[#6b665d]">保存した学校の状態</p>
             <EditableSchools
               planId={planId}
               initialSchools={savedSchools}
@@ -165,34 +170,21 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
             />
           </div>
         </>
-      ) : hasCandidates ? (
-        <>
-          <p className="mt-4 text-[11px] font-semibold tracking-wide text-[#5f7050]">候補の学校</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-[#8a8578]">
-            ChatやKarteで提案された学校です。比較して、My Planに残せます。
-          </p>
-          <p className="mt-1 text-xs text-[#a8a297]">
-            まだ学校は保存していません。気になる学校を比較して、ここに残しましょう。
-          </p>
-          <div className="mt-3">
-            <SchoolCandidateCards candidates={candidates} comparisonHref={comparisonHref} />
-          </div>
-        </>
       ) : (
         <div className="mt-4">
-          <p className="text-sm text-[#a8a297]">まだ学校の候補がありません。</p>
-          <p className="mt-1 text-xs leading-relaxed text-[#b7b1a6]">
-            School Comparison で候補校を比べて、ここに残せます。
+          <p className="text-[15px] leading-7 text-[#3f3c37]">まだ学校は保存していません。</p>
+          <p className="mt-1 text-[13px] leading-6 text-[#7d776c]">
+            School Comparison で比べた学校を、ここに残せます。
           </p>
         </div>
       )}
 
       {englishRef.length > 0 && (
         <div className="mt-4 rounded-xl bg-[#f2f4ee] px-4 py-3">
-          <p className="text-[10px] font-medium tracking-wide text-[#8a8578]">英語について</p>
-          <ul className="mt-1 space-y-1">
+          <p className="text-[11px] font-medium tracking-wide text-[#6b665d]">英語について</p>
+          <ul className="mt-1.5 space-y-1">
             {englishRef.map((e) => (
-              <li key={e.key} className="text-xs leading-relaxed text-[#6f6a64]">
+              <li key={e.key} className="text-[13px] leading-6 text-[#4f4b44]">
                 {e.label}
               </li>
             ))}
@@ -202,7 +194,7 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
 
       <Link
         href={comparisonHref}
-        className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#c9c2b4] px-4 py-2 text-sm font-medium text-[#3f3a34] transition-colors hover:bg-[#f2efe7]"
+        className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#bcb4a5] px-4 py-2 text-sm font-medium text-[#3f3a34] transition-colors hover:bg-[#f2efe7]"
       >
         {hasSaved ? "School Comparison を見る" : "学校を比較する"}
         <ArrowRightIcon className="h-4 w-4" />
@@ -441,7 +433,7 @@ export default function MyPlan({
                     href={`#myplan-${s.id}`}
                     className="flex items-baseline gap-2 rounded-lg px-2 py-2 text-sm text-[#3f3a34] transition-colors hover:bg-[#f2efe7] lg:gap-2.5 lg:py-1.5"
                   >
-                    <span className="font-serif text-xs text-[#b7b1a6]">
+                    <span className="font-serif text-xs text-[#a39d92]">
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     {s.enName}

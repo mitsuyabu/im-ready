@@ -140,8 +140,8 @@ export default function EditableDestination({
     <div>
       {nothing && (
         <div className="mt-4">
-          <p className="text-sm text-[#a8a297]">行ってみたい都市がまだありません。</p>
-          <p className="mt-1 text-xs leading-relaxed text-[#b7b1a6]">
+          <p className="text-sm text-[#7d776c]">行ってみたい都市がまだありません。</p>
+          <p className="mt-1 text-xs leading-relaxed text-[#8a8578]">
             暮らしたい場所や旅してみたい場所を、ここに残していきます。
           </p>
         </div>
@@ -149,7 +149,7 @@ export default function EditableDestination({
 
       {primary && (
         <div className="mt-4">
-          <p className="text-[10px] font-medium tracking-wide text-[#8a8578]">第一候補</p>
+          <p className="text-[10px] font-medium tracking-wide text-[#6b665d]">第一候補</p>
           <div className="mt-1 flex items-center gap-2">
             <span className="inline-flex rounded-xl border border-[#cfdbe6] bg-[#eef3f7] px-4 py-2 text-base font-semibold text-[#2f3a4a]">
               {primary.label}
@@ -160,7 +160,7 @@ export default function EditableDestination({
                 onClick={handleDeletePrimary}
                 disabled={disabled}
                 aria-label={`第一候補「${primary.label}」を外す`}
-                className="rounded-lg p-1 text-[#b7b1a6] transition-colors hover:bg-[#f0ece2] hover:text-[#6f6a64] disabled:opacity-40"
+                className="rounded-lg p-1 text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
               >
                 <XIcon className="h-4 w-4" />
               </button>
@@ -171,7 +171,7 @@ export default function EditableDestination({
 
       {interested.length > 0 && (
         <div className="mt-4">
-          <p className="text-[10px] font-medium tracking-wide text-[#8a8578]">行ってみたい都市</p>
+          <p className="text-[10px] font-medium tracking-wide text-[#6b665d]">行ってみたい都市</p>
           <ul className="mt-1.5 space-y-1.5">
             {interested.map((d) => (
               <li
@@ -194,7 +194,7 @@ export default function EditableDestination({
                       onClick={() => handleDeleteInterested(d.id)}
                       disabled={disabled}
                       aria-label={`「${d.label}」を削除`}
-                      className="rounded-full p-1 text-[#b7b1a6] transition-colors hover:bg-[#f0ece2] hover:text-[#6f6a64] disabled:opacity-40"
+                      className="rounded-full p-1 text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
                     >
                       <XIcon className="h-3.5 w-3.5" />
                     </button>
@@ -272,8 +272,8 @@ export default function EditableDestination({
 
       {openCandidates.length > 0 && (
         <div className="mt-4 rounded-xl border border-dashed border-[#d9d3c8] bg-[#f6f4ec] px-4 py-3">
-          <p className="text-[10px] font-semibold tracking-wide text-[#8a8578]">Karteからの候補</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-[#a8a297]">
+          <p className="text-[10px] font-semibold tracking-wide text-[#6b665d]">Karteからの候補</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-[#7d776c]">
             会話やWorksheetから見えている内容
           </p>
           <ul className="mt-2.5 space-y-2">
@@ -298,10 +298,10 @@ export default function EditableDestination({
 
       {hints.length > 0 && (
         <div className="mt-3">
-          <p className="text-[10px] font-medium tracking-wide text-[#b7b1a6]">都市選びのヒント</p>
+          <p className="text-[10px] font-medium tracking-wide text-[#8a8578]">都市選びのヒント</p>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {hints.map((h) => (
-              <span key={h.key} className="text-xs text-[#8a8578]">
+              <span key={h.key} className="text-xs text-[#6b665d]">
                 {h.label}
               </span>
             ))}

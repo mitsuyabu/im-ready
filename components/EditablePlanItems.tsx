@@ -148,7 +148,7 @@ export default function EditablePlanItems({
                 onClick={() => handleDelete(it.id)}
                 disabled={disabled}
                 aria-label={`「${it.label}」を削除`}
-                className="rounded-full p-0.5 text-[#b7b1a6] transition-colors hover:bg-[#f0ece2] hover:text-[#6f6a64] disabled:opacity-40"
+                className="rounded-full p-0.5 text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
               >
                 <XIcon className="h-3.5 w-3.5" />
               </button>
@@ -166,7 +166,7 @@ export default function EditablePlanItems({
             <div className="min-w-0">
               <p className="text-sm font-medium leading-snug text-[#2f2c26]">{it.label}</p>
               {it.note && (
-                <p className="mt-0.5 text-xs leading-relaxed text-[#8a8578]">{it.note}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-[#6b665d]">{it.note}</p>
               )}
             </div>
             {editingEnabled && (
@@ -175,7 +175,7 @@ export default function EditablePlanItems({
                 onClick={() => handleDelete(it.id)}
                 disabled={disabled}
                 aria-label={`「${it.label}」を削除`}
-                className="mt-0.5 shrink-0 rounded-lg px-2 py-1 text-xs text-[#b7b1a6] transition-colors hover:bg-[#f0ece2] hover:text-[#6f6a64] disabled:opacity-40"
+                className="mt-0.5 shrink-0 rounded-lg px-2 py-1 text-xs text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
               >
                 削除
               </button>
@@ -189,8 +189,8 @@ export default function EditablePlanItems({
     <div>
       {items.length === 0 && openCandidates.length === 0 && hints.length === 0 && (
         <div className="mt-4">
-          <p className="text-sm text-[#a8a297]">{emptyLine}</p>
-          <p className="mt-1 text-xs leading-relaxed text-[#b7b1a6]">{emptyHelper}</p>
+          <p className="text-sm text-[#7d776c]">{emptyLine}</p>
+          <p className="mt-1 text-xs leading-relaxed text-[#8a8578]">{emptyHelper}</p>
         </div>
       )}
 
@@ -264,8 +264,8 @@ export default function EditablePlanItems({
       {/* Karte 候補（採用可） */}
       {openCandidates.length > 0 && (
         <div className="mt-4 rounded-xl border border-dashed border-[#d9d3c8] bg-[#f6f4ec] px-4 py-3">
-          <p className="text-[10px] font-semibold tracking-wide text-[#8a8578]">Karteからの候補</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-[#a8a297]">
+          <p className="text-[10px] font-semibold tracking-wide text-[#6b665d]">Karteからの候補</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-[#7d776c]">
             会話やWorksheetから見えている内容
           </p>
           <ul className="mt-2.5 space-y-2">
@@ -291,7 +291,7 @@ export default function EditablePlanItems({
       {/* Karte ヒント（read-only） */}
       {hints.length > 0 && (
         <div className="mt-4 rounded-xl bg-[#f2f4ee] px-4 py-3">
-          <p className="text-[10px] font-medium tracking-wide text-[#8a8578]">Karteからのヒント</p>
+          <p className="text-[10px] font-medium tracking-wide text-[#6b665d]">Karteからのヒント</p>
           <ul className="mt-1 space-y-1">
             {hints.map((h) => (
               <li key={h.key} className="text-xs leading-relaxed text-[#6f6a64]">

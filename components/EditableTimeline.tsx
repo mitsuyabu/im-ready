@@ -52,7 +52,7 @@ function TimelineView({ timeline }: { timeline: PlanTimeline }) {
 
             {p.reason && (
               <div className="mt-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#a8a297]">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a8578]">
                   この時期にする理由
                 </p>
                 <p className="mt-0.5 text-[13px] leading-relaxed text-[#6f6a64]">{p.reason}</p>
@@ -99,7 +99,7 @@ function TimelineView({ timeline }: { timeline: PlanTimeline }) {
       )}
 
       {timeline.disclaimer && (
-        <p className="mt-4 text-[11px] leading-relaxed text-[#a8a297]">{timeline.disclaimer}</p>
+        <p className="mt-4 text-[11px] leading-relaxed text-[#8a8578]">{timeline.disclaimer}</p>
       )}
     </div>
   );
