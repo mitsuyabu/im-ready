@@ -16,51 +16,88 @@ import { requestPlanTimeline, savePlanTimeline } from "@/lib/planBlueprintClient
  * data セクションには一切触れない。採用済みがある状態で新提案を採用するときは置き換え確認を挟む。
  */
 
-/* ---- 縦 Timeline の共通表示（採用済み / preview で使い回す） ---- */
+/* ---- editorial な期間 Timeline（採用済み / preview で使い回す） ----
+ * 共有画像を参考にした「大きな期間見出し ＋ テーマ ＋ 理由 ＋ 具体的な行動」の縦読み。
+ * 1 period = 1 block（activity ごとに card 化しない）。period 間は薄い separator。 */
 function TimelineView({ timeline }: { timeline: PlanTimeline }) {
   return (
     <div>
       {timeline.summary && (
-        <p className="text-sm leading-relaxed text-[#3f3a34]">{timeline.summary}</p>
+        <p className="text-[15px] leading-relaxed text-[#3f3a34]">{timeline.summary}</p>
       )}
       {timeline.durationLabel && (
-        <p className="mt-1 text-xs text-[#8a8578]">{timeline.durationLabel}</p>
+        <p className="mt-1 text-xs font-medium tracking-wide text-[#8a8578]">
+          {timeline.durationLabel}
+        </p>
       )}
-      <ol className="mt-4 space-y-4 border-l border-[#d7dde6] pl-4">
-        {timeline.periods.map((p) => (
-          <li key={p.id} className="relative">
-            <span
-              aria-hidden
-              className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full border-2 border-[#3a5266] bg-white"
-            />
-            <p className="text-[11px] font-semibold tracking-wide text-[#8a8578]">{p.label}</p>
-            <p className="mt-0.5 text-sm font-semibold text-[#2f2c26]">{p.title}</p>
+
+      <div className="mt-5">
+        {timeline.periods.map((p, i) => (
+          <div key={p.id} className={`py-5 ${i > 0 ? "border-t border-[#e6e2d8]" : ""}`}>
+            <div className="flex items-baseline gap-3">
+              <span
+                aria-hidden
+                className="font-serif text-2xl font-semibold leading-none text-[#c9c2b4] sm:text-[28px]"
+              >
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a8578]">
+                {p.label}
+              </span>
+            </div>
+
+            <h3 className="mt-2 text-lg font-bold leading-snug text-[#1f2937] sm:text-[22px]">
+              {p.title}
+            </h3>
+
+            {p.reason && (
+              <div className="mt-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#a8a297]">
+                  この時期にする理由
+                </p>
+                <p className="mt-0.5 text-[13px] leading-relaxed text-[#6f6a64]">{p.reason}</p>
+              </div>
+            )}
+
             {p.activities.length > 0 && (
-              <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[13px] leading-relaxed text-[#3f3a34]">
-                {p.activities.map((a, i) => (
-                  <li key={i}>{a}</li>
+              <ul className="mt-3 space-y-1.5">
+                {p.activities.map((a, j) => (
+                  <li
+                    key={j}
+                    className="flex gap-2.5 text-[14px] leading-relaxed text-[#3f3a34]"
+                  >
+                    <span
+                      aria-hidden
+                      className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#b8c4b0]"
+                    />
+                    <span>{a}</span>
+                  </li>
                 ))}
               </ul>
             )}
-            {p.reason && (
-              <p className="mt-1 text-xs leading-relaxed text-[#6b7686]">
-                <span className="text-[#98a1ac]">なぜこの時期か：</span>
-                {p.reason}
-              </p>
-            )}
-          </li>
+          </div>
         ))}
-      </ol>
+      </div>
+
       {timeline.openQuestions.length > 0 && (
-        <div className="mt-5 rounded-xl bg-[#f6efe4] px-4 py-3">
-          <p className="text-[10px] font-medium tracking-wide text-[#8a8578]">まだ確認したいこと</p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-[#6f6a64]">
-            {timeline.openQuestions.map((q, i) => (
-              <li key={i}>{q}</li>
+        <div className="mt-4 rounded-xl bg-[#f6efe4] px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a8578]">
+            Planをもう少し具体的にするために
+          </p>
+          <ul className="mt-1.5 space-y-1">
+            {timeline.openQuestions.slice(0, 3).map((q, i) => (
+              <li
+                key={i}
+                className="flex gap-2 text-[13px] leading-relaxed text-[#6f6a64]"
+              >
+                <span aria-hidden className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-[#c9b79a]" />
+                <span>{q}</span>
+              </li>
             ))}
           </ul>
         </div>
       )}
+
       {timeline.disclaimer && (
         <p className="mt-4 text-[11px] leading-relaxed text-[#a8a297]">{timeline.disclaimer}</p>
       )}
@@ -138,8 +175,15 @@ export default function EditableTimeline({
     return (
       <div className="mt-4">
         <div className="rounded-xl border border-[#cdd6e2] bg-[#eef2f7] p-4 sm:p-5">
-          <p className="text-[11px] font-semibold tracking-[0.12em] text-[#4a5c72]">AIからの提案</p>
-          <p className="mt-0.5 text-[11px] text-[#8a949f]">まだMy Planには保存されていません</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#4a5c72]">
+            AIからの提案
+          </p>
+          <p className="mt-1.5 text-sm font-semibold text-[#2f3a4a]">
+            このMy Planなら、こんな過ごし方はどうですか？
+          </p>
+          <p className="mt-0.5 text-[12px] leading-relaxed text-[#7d8895]">
+            これまで整理してきた内容をもとに、期間全体の流れを組み立てました。まだMy Planには保存されていません。
+          </p>
           <div className="mt-4">
             <TimelineView timeline={preview} />
           </div>
