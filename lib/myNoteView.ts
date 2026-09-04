@@ -7,7 +7,7 @@
  * handoff.openQuestions を持たない。my_note は「まだ決めきれていないこと」「次に考えたい
  * こと」を安全な形で扱いたいため責務が違う。共通の下位ロジックは lib/karte.ts の
  * getKarteSummaryItems / getFieldLabel を直接再利用し、コピペはしない
- * （lib/documentsKarteView.ts が lib/myPlanSections.ts を import しないのと同じ、
+ * （lib/documentsKarteView.ts が lib/myPlanView.ts を import しないのと同じ、
  * 兄弟レイヤーを疎結合に保つ方針）。
  *
  * このファイルが担う変換の骨子:

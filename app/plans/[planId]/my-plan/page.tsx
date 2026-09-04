@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanKarte } from "@/lib/planChat";
+import { loadPlanBlueprint } from "@/lib/planBlueprint";
+import { buildMyPlanView } from "@/lib/myPlanView";
+import { AUSTRALIA_SCHOOLS } from "@/lib/data/schools";
+import { formatLastUpdated } from "@/lib/planActivity";
 import BrandLogo from "@/components/BrandLogo";
 import MyPlan from "@/components/MyPlan";
 
@@ -14,8 +18,15 @@ interface PlanMyPlanPageProps {
 }
 
 /**
- * My Plan（Karteのユーザー向け閲覧画面）。閲覧専用で、ここからKarteへの書き込みは行わない
- * （入力元は引き続きChat/I'm ready!）。所有者確認はPlan Home・Worksheetと同じパターン。
+ * My Plan（ユーザーが採用した「実行プラン」）。
+ *
+ * 表示は 2 ソース:
+ *   - plan_blueprint（loadPlanBlueprint）… ユーザー採用値。primary display。
+ *   - Karte（loadPlanKarte）             … まだ採用されていない「候補」。区別表示。
+ *
+ * まだ CRUD は無い（Step 2-3 以降）。blueprint が unavailable（migration 未適用等）でも
+ * ページは落とさず、Karte 由来の候補中心で表示する（loadPlanBlueprint.available で判定）。
+ * 所有者確認は Plan Home / Worksheet と同じパターン。ここから Karte / blueprint への書き込みはしない。
  */
 export default async function PlanMyPlanPage({ params }: PlanMyPlanPageProps) {
   const { planId } = await params;
@@ -40,7 +51,15 @@ export default async function PlanMyPlanPage({ params }: PlanMyPlanPageProps) {
     notFound();
   }
 
-  const karte = await loadPlanKarte(supabase, planId);
+  const [karte, blueprint] = await Promise.all([
+    loadPlanKarte(supabase, planId),
+    loadPlanBlueprint(supabase, planId),
+  ]);
+
+  const view = buildMyPlanView(karte, blueprint, AUSTRALIA_SCHOOLS, plan.title);
+
+  const lastUpdatedIso = blueprint.updatedAt ?? karte.meta.updatedAt ?? null;
+  const lastUpdated = lastUpdatedIso ? formatLastUpdated(lastUpdatedIso) : null;
 
   return (
     <div className="min-h-dvh bg-[#fcfbf8]">
@@ -50,7 +69,7 @@ export default async function PlanMyPlanPage({ params }: PlanMyPlanPageProps) {
         <BrandLogo href="/mypage" />
       </header>
 
-      <MyPlan planId={planId} planTitle={plan.title} karte={karte} />
+      <MyPlan planId={planId} planTitle={plan.title} view={view} lastUpdated={lastUpdated} />
     </div>
   );
 }

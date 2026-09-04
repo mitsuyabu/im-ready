@@ -2,10 +2,10 @@
  * Plan Karte → Documents生成の入力データへの変換レイヤー。
  * DB・Supabase・Anthropicへは一切アクセスしない、pure functionのみ。
  *
- * lib/myPlanSections.ts（My Plan表示専用の8セクション分割）は意図的にimportしない。
- * My Plan = Karteのリアルタイム閲覧用UI、DocumentsKarteView = AI生成への安全な入力データ、
- * という責務の違いを保つため（詳細はStep 2完了報告のS参照）。依存してよいのは
- * lib/karte.tsのschema・getKarteSummaryItemsのような下位の共通helperまでとする。
+ * lib/myPlanView.ts（My Plan表示専用の view builder）は意図的にimportしない。
+ * My Plan = ユーザー採用値＋Karte候補の閲覧用UI、DocumentsKarteView = AI生成への安全な
+ * 入力データ、という責務の違いを保つため。依存してよいのは lib/karte.tsのschema・
+ * getKarteSummaryItemsのような下位の共通helperまでとする。
  *
  * このファイルが担う変換の骨子:
  *   Karte → unknown除外・値の整形（getKarteSummaryItemsを再利用）
