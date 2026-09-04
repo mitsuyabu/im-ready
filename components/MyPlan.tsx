@@ -1,9 +1,10 @@
 import Link from "next/link";
-import type { MyPlanSchoolCandidate, MyPlanSavedSchool, MyPlanSectionId, MyPlanView } from "@/lib/myPlanView";
+import type { MyPlanSchoolCandidate, MyPlanSectionId, MyPlanView } from "@/lib/myPlanView";
 import { MY_PLAN_SECTIONS } from "@/lib/myPlanView";
-import type { BlueprintSchoolStatus, PlanTimeline } from "@/lib/planBlueprint";
+import type { PlanTimeline } from "@/lib/planBlueprint";
 import EditablePlanItems from "@/components/EditablePlanItems";
 import EditableDestination from "@/components/EditableDestination";
+import EditableSchools from "@/components/EditableSchools";
 
 /**
  * 新しい My Plan（「ユーザーが自分で育てる実行プラン」）の presentation（Step 2-3）。
@@ -84,17 +85,6 @@ const SECTION_ACCENT: Record<MyPlanSectionId, string> = {
   timeline: "#1e2b3d",
 };
 
-const STATUS_LABEL: Record<BlueprintSchoolStatus, string> = {
-  considering: "検討中",
-  preferred: "第一候補",
-  selected: "決定",
-};
-const STATUS_CLASS: Record<BlueprintSchoolStatus, string> = {
-  considering: "border-[#e4ddcf] bg-[#f6f2e8] text-[#6f6a64]",
-  preferred: "border-[#cfdbe6] bg-[#eef3f7] text-[#3a5266]",
-  selected: "border-[#cfdcc4] bg-[#eef3e8] text-[#4b5b3e]",
-};
-
 /* ------------------------------------------------------------------ */
 /* card chrome                                                        */
 /* ------------------------------------------------------------------ */
@@ -137,26 +127,8 @@ function MyPlanCard({
 }
 
 /* ------------------------------------------------------------------ */
-/* School & English（read-only・Step 2-4 で保存対応）                                   */
+/* School & English（保存済み学校は編集可・比較 CTA / 候補 / 英語参考は read-only）        */
 /* ------------------------------------------------------------------ */
-
-function SavedSchoolCard({ school }: { school: MyPlanSavedSchool }) {
-  return (
-    <div className="rounded-xl border border-[#e5dfd6] bg-white px-4 py-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-[#2f2c26]">{school.name}</p>
-          {school.city && <p className="mt-0.5 text-xs text-[#8a8578]">{school.city}</p>}
-        </div>
-        <span
-          className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${STATUS_CLASS[school.status]}`}
-        >
-          {STATUS_LABEL[school.status]}
-        </span>
-      </div>
-    </div>
-  );
-}
 
 function SchoolCandidateRow({ c }: { c: MyPlanSchoolCandidate }) {
   return (
@@ -173,11 +145,11 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
   return (
     <>
       {savedSchools.length > 0 ? (
-        <div className="mt-4 grid grid-cols-1 gap-2">
-          {savedSchools.map((s) => (
-            <SavedSchoolCard key={s.id} school={s} />
-          ))}
-        </div>
+        <EditableSchools
+          planId={planId}
+          initialSchools={savedSchools}
+          editingEnabled={view.blueprintAvailable}
+        />
       ) : (
         <div className="mt-4">
           <p className="text-sm text-[#a8a297]">まだ学校を保存していません。</p>

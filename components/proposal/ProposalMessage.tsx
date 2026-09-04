@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { DisplayProposal } from "@/lib/proposal/applyResult";
 import type { ProposalSituation } from "@/lib/proposal/selectProposals";
+import Link from "next/link";
 import { stripMarkdownBold } from "@/lib/markdown";
 import { ProposalMap } from "./ProposalMap";
 import { SchoolCard, type PlaceDetails, type PlaceAuthorAttribution } from "./SchoolCard";
@@ -41,6 +42,12 @@ interface ProposalMessageProps {
    * 独自のmx-4・max-w-2xlは持たず、会話本文と同じ横幅・区切り方（border-bottom+padding）に揃える。
    */
   variant?: "default" | "document";
+  /**
+   * Plan Chat（planId 確定時）でのみ渡す。指定時、提案が 2 校以上あれば提案群の下に
+   * 「School Comparison で比較する →」リンクを 1 つ出す（各カードには付けない）。
+   * anonymous /widget では undefined のまま（Plan 固有 link を出さない・§52）。
+   */
+  comparisonHref?: string;
 }
 
 /**
@@ -52,7 +59,7 @@ interface ProposalMessageProps {
  * （このコンポーネントの state 内メモリに保持するのみで、karte 等へは書き込まない）。
  * 同じ提案メッセージ内で placeId が重複しないことが前提だが、念のため一意化してから取得する。
  */
-export function ProposalMessage({ introNote, proposals, variant = "default" }: ProposalMessageProps) {
+export function ProposalMessage({ introNote, proposals, variant = "default", comparisonHref }: ProposalMessageProps) {
   const [detailsByPlaceId, setDetailsByPlaceId] = useState<Record<string, PlaceDetails | null>>(
     {},
   );
@@ -174,6 +181,16 @@ export function ProposalMessage({ introNote, proposals, variant = "default" }: P
             ))}
           </div>
         </div>
+      )}
+
+      {comparisonHref && proposals.length >= 2 && (
+        <Link
+          href={comparisonHref}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-worksheet-primary underline underline-offset-2 transition-colors hover:text-worksheet-accent"
+        >
+          School Comparison で比較する
+          <span aria-hidden>→</span>
+        </Link>
       )}
     </div>
   );

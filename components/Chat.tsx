@@ -611,6 +611,7 @@ export default function Chat({
             introNote={m.proposalData.introNote}
             proposals={m.proposalData.proposals}
             variant={isPlanChat ? "document" : "default"}
+            comparisonHref={planId ? `/plans/${planId}/documents/school-comparison` : undefined}
           />
         ) : (
           <Message
@@ -690,6 +691,7 @@ export default function Chat({
               introNote={m.proposalData.introNote}
               proposals={m.proposalData.proposals}
               variant="document"
+              comparisonHref={planId ? `/plans/${planId}/documents/school-comparison` : undefined}
             />
           ) : (
             <PlanChatMessage role={m.role} content={m.content} />

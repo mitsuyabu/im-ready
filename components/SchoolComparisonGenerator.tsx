@@ -6,7 +6,7 @@ import {
   schoolComparisonErrorMessageFor,
 } from "@/lib/schoolComparisonGenerator";
 import { DOCUMENT_ROLE_DEFINITIONS } from "@/lib/documentRoles";
-import SchoolComparisonBody from "@/components/SchoolComparisonBody";
+import SchoolComparisonBody, { type SchoolSaveContext } from "@/components/SchoolComparisonBody";
 
 /**
  * School Comparison の生成 + 保存済み表示 + 作り直し（Step 26）。詳細ページ全体は Server
@@ -36,10 +36,13 @@ export default function SchoolComparisonGenerator({
   planId,
   canGenerate,
   initialBody,
+  saveContext,
 }: {
   planId: string;
   canGenerate: boolean;
   initialBody?: string;
+  /** School Comparison → My Plan 保存の文脈（Server が解決。保存済み本文がある場合のみ渡る）。 */
+  saveContext?: SchoolSaveContext;
 }) {
   const [body, setBody] = useState<string | null>(initialBody ?? null);
   const [status, setStatus] = useState<Status>("idle");
@@ -139,7 +142,7 @@ export default function SchoolComparisonGenerator({
 
       {/* pure parser で候補校・条件・比較表・合い方を表示。順位・おすすめ・スコアは出さない。
           解析できなければ元 body 全文へ完全 fallback（部分 table 化しない）。 */}
-      <SchoolComparisonBody body={body} planId={planId} />
+      <SchoolComparisonBody body={body} planId={planId} saveContext={saveContext} />
 
       {!confirmingRegenerate ? (
         <div className="mt-10 flex flex-col items-start gap-2.5 border-t border-[#e5dfd6] pt-6 sm:flex-row sm:items-center sm:gap-4">

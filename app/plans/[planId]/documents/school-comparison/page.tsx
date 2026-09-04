@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanKarte } from "@/lib/planChat";
+import { loadPlanBlueprint } from "@/lib/planBlueprint";
+import { parseSchoolComparisonBodyView } from "@/lib/schoolComparisonBodyView";
 import { formatLastUpdated } from "@/lib/planActivity";
 import { AUSTRALIA_SCHOOLS } from "@/lib/data/schools";
 import { buildSchoolComparisonView } from "@/lib/schoolComparisonView";
@@ -12,6 +14,7 @@ import { type PlanDocumentType } from "@/lib/planDocuments";
 import { DOCUMENT_ROLE_DEFINITIONS } from "@/lib/documentRoles";
 import BrandLogo from "@/components/BrandLogo";
 import SchoolComparisonGenerator from "@/components/SchoolComparisonGenerator";
+import type { SchoolSaveContext } from "@/components/SchoolComparisonBody";
 
 export const metadata: Metadata = {
   title: "School Comparison",
@@ -86,10 +89,64 @@ export default async function SchoolComparisonPage({ params }: SchoolComparisonP
 
   // 生成可否の一次防御。保存済み document があっても「作り直す」で使うため毎回算出する
   // （Karte・SchoolComparisonView は Client へ渡さない）。DBエラー時はUIを通常状態にしない。
+  //
+  // あわせて My Plan 保存の文脈（saveContext）を Server 側で組み立てる:
+  //  - blueprint（保存済み学校・available）を読む
+  //  - 候補校名 → karte.proposals.presented × AUSTRALIA_SCHOOLS の name 一致で schoolSlug/placeId
+  //    /reason/caveat を解決（pure parser には master lookup を足さない・§8-10）
+  //  - 解決できない候補は schoolSlug/placeId null で保存許可（§11）
   let canGenerate = false;
+  let saveContext: SchoolSaveContext | undefined;
   if (!docError) {
-    const karte = await loadPlanKarte(supabase, planId);
+    const [karte, blueprint] = await Promise.all([
+      loadPlanKarte(supabase, planId),
+      loadPlanBlueprint(supabase, planId),
+    ]);
     canGenerate = canGenerateSchoolComparison(buildSchoolComparisonView(karte, AUSTRALIA_SCHOOLS));
+
+    if (parsedContent) {
+      const nrm = (x: string) => x.trim().toLowerCase();
+      const bySlug = new Map(AUSTRALIA_SCHOOLS.map((sc) => [sc.schoolSlug, sc]));
+      const presentedByName = new Map<
+        string,
+        { schoolSlug: string; placeId: string | null; city: string; reason: string; caveat: string }
+      >();
+      for (const pr of karte.proposals.presented) {
+        if (pr.type !== "school") continue;
+        const m = bySlug.get(pr.id);
+        if (!m) continue;
+        presentedByName.set(nrm(m.name), {
+          schoolSlug: m.schoolSlug,
+          placeId: m.placeId ?? null,
+          city: m.city,
+          reason: pr.reason ?? "",
+          caveat: pr.caveat ?? "",
+        });
+      }
+
+      const bodyView = parseSchoolComparisonBodyView(parsedContent.body);
+      const resolveByName: SchoolSaveContext["resolveByName"] = {};
+      if (bodyView) {
+        for (const cand of bodyView.schools.slice(0, 3)) {
+          const hit = presentedByName.get(nrm(cand.name));
+          resolveByName[nrm(cand.name)] = hit
+            ? {
+                schoolSlug: hit.schoolSlug,
+                placeId: hit.placeId,
+                city: hit.city,
+                reason: hit.reason,
+                caveat: hit.caveat,
+              }
+            : { schoolSlug: null, placeId: null, city: cand.city ?? null, reason: "", caveat: "" };
+        }
+      }
+
+      saveContext = {
+        available: blueprint.available,
+        initialSchools: blueprint.data.schools,
+        resolveByName,
+      };
+    }
   }
 
   const roleDef = DOCUMENT_ROLE_DEFINITIONS.school_comparison;
@@ -145,6 +202,7 @@ export default async function SchoolComparisonPage({ params }: SchoolComparisonP
             planId={planId}
             canGenerate={canGenerate}
             initialBody={parsedContent?.body}
+            saveContext={saveContext}
           />
         )}
       </div>

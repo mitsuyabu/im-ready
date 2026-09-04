@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -6,6 +9,32 @@ import {
 } from "@/lib/schoolComparisonBodyView";
 import { SCHOOL_COMPARISON_DEFAULT_TITLE } from "@/lib/schoolComparisonFormatter";
 import DocumentPlainText from "@/components/DocumentPlainText";
+import type { BlueprintSchool } from "@/lib/planBlueprint";
+import {
+  isSameBlueprintSchool,
+  makeBlueprintSchool,
+  patchSchoolsSection,
+} from "@/lib/planBlueprintClient";
+
+/**
+ * School Comparison → My Plan 保存の文脈（Server が解決して渡す）。
+ *   - available     : blueprint が読める（＝保存 UI を出してよい）
+ *   - initialSchools: 現在 My Plan に保存済みの学校（重複判定・保存済み表示用）
+ *   - resolveByName : 候補校名（trim+lowerCase）→ 解決済み identifier / snapshot。
+ *     解決できない候補は schoolSlug/placeId null（parser に master lookup を足さない・§8）。
+ */
+export type SchoolSaveContext = {
+  available: boolean;
+  initialSchools: BlueprintSchool[];
+  resolveByName: Record<
+    string,
+    { schoolSlug: string | null; placeId: string | null; city: string | null; reason: string; caveat: string }
+  >;
+};
+
+function normName(s: string): string {
+  return s.trim().toLowerCase();
+}
 
 /**
  * School Comparison 本文の表示。共有デザインの「候補校の比較ダッシュボード」に寄せて、
@@ -381,9 +410,53 @@ function factValue(school: SchoolComparisonBodySchool, label: string): string | 
   return item ? item.value : null;
 }
 
-export default function SchoolComparisonBody({ body, planId }: { body: string; planId: string }) {
+export default function SchoolComparisonBody({
+  body,
+  planId,
+  saveContext,
+}: {
+  body: string;
+  planId: string;
+  saveContext?: SchoolSaveContext;
+}) {
+  const [savedSchools, setSavedSchools] = useState<BlueprintSchool[]>(
+    saveContext?.initialSchools ?? [],
+  );
+  const [savingIdx, setSavingIdx] = useState<number | null>(null);
+  const [errorIdx, setErrorIdx] = useState<number | null>(null);
+
   const view = parseSchoolComparisonBodyView(body);
   if (view === null) return <DocumentPlainText body={body} />;
+
+  async function saveSchool(
+    idx: number,
+    cand: { name: string; city: string | null; schoolSlug: string | null; placeId: string | null; reason: string; caveat: string },
+  ) {
+    const snapshot: { reason?: string; caveat?: string } = {};
+    if (cand.reason) snapshot.reason = cand.reason.slice(0, 500);
+    if (cand.caveat) snapshot.caveat = cand.caveat.slice(0, 500);
+    const newSchool = makeBlueprintSchool({
+      name: cand.name,
+      city: cand.city,
+      schoolSlug: cand.schoolSlug,
+      placeId: cand.placeId,
+      source: "school_comparison",
+      status: "considering", // 保存直後は必ず「検討中」。preferred/selected は My Plan 側でユーザーが変更（§4-5）
+      snapshot,
+    });
+    const prev = savedSchools;
+    setSavedSchools([...prev, newSchool]); // optimistic
+    setSavingIdx(idx);
+    setErrorIdx(null);
+    const res = await patchSchoolsSection(planId, [...prev, newSchool], null);
+    setSavingIdx(null);
+    if (!res.ok) {
+      setSavedSchools(prev); // rollback
+      setErrorIdx(idx);
+      return;
+    }
+    setSavedSchools(res.data.schools);
+  }
 
   const preambleNotes = view.preamble.filter(
     (line) => line.trim().length > 0 && line.trim() !== SCHOOL_COMPARISON_DEFAULT_TITLE,
@@ -438,9 +511,19 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
           {topSchools.map((school, i) => {
             const cardImage = SCHOOL_CARD_IMAGE[i] ?? SCHOOL_CARD_IMAGE[0];
             const meta = [school.city, school.category].filter((v): v is string => Boolean(v));
+            const resolved = saveContext?.resolveByName[normName(school.name)];
+            const cand = {
+              name: school.name,
+              city: resolved?.city ?? school.city ?? null,
+              schoolSlug: resolved?.schoolSlug ?? null,
+              placeId: resolved?.placeId ?? null,
+              reason: resolved?.reason ?? "",
+              caveat: resolved?.caveat ?? "",
+            };
+            const alreadySaved = savedSchools.some((sc) => isSameBlueprintSchool(sc, cand));
             return (
+              <div key={i}>
               <a
-                key={i}
                 href={`#${TABLE_ANCHOR}`}
                 className="group relative block aspect-[1676/938] overflow-hidden rounded-[20px] shadow-[0_1px_2px_rgba(30,28,24,0.06)] transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e2b3d]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fcfbf8]"
               >
@@ -476,6 +559,33 @@ export default function SchoolComparisonBody({ body, planId }: { body: string; p
                   </span>
                 </div>
               </a>
+              {/* My Plan 保存導線（比較の外・ユーザー操作。ranking/おすすめではない）。
+                  blueprint unavailable なら出さない（§43）。 */}
+              {saveContext?.available && (
+                <div className="mt-2">
+                  {alreadySaved ? (
+                    <span className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-[#cfdcc4] bg-[#eef3e8] px-4 py-2 text-sm font-medium text-[#4b5b3e] sm:w-auto">
+                      <CheckIcon className="h-3.5 w-3.5" />
+                      保存済み
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => saveSchool(i, cand)}
+                      disabled={savingIdx !== null}
+                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-[#c9c2b4] bg-white px-4 py-2 text-sm font-medium text-[#3f3a34] transition-colors hover:bg-[#f2efe7] disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+                    >
+                      {savingIdx === i ? "保存中…" : "＋ My Planに保存"}
+                    </button>
+                  )}
+                  {errorIdx === i && (
+                    <p className="mt-1 text-xs text-red-600">
+                      保存できませんでした。もう一度お試しください。
+                    </p>
+                  )}
+                </div>
+              )}
+              </div>
             );
           })}
         </div>

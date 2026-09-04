@@ -7,7 +7,7 @@ import {
   canAddLabel,
   makeBlueprintItem,
   patchItemsSection,
-  type BlueprintSectionKey,
+  type ItemSectionKey,
 } from "@/lib/planBlueprintClient";
 
 /**
@@ -21,8 +21,6 @@ import {
  * write は data 全体を送らず、update_plan_blueprint_section RPC に当該セクションの新配列だけ渡す。
  * optimistic UI ＋ 失敗時 rollback。editingEnabled=false（blueprint unavailable）では編集 UI を出さない。
  */
-
-type ItemSection = Exclude<BlueprintSectionKey, "destinations">;
 
 function XIcon({ className }: { className?: string }) {
   return (
@@ -56,7 +54,7 @@ export default function EditablePlanItems({
   extraFooter,
 }: {
   planId: string;
-  section: ItemSection;
+  section: ItemSectionKey;
   initialItems: BlueprintItem[];
   candidates?: MyPlanCandidate[];
   hints?: MyPlanCandidate[];

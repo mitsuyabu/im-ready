@@ -20,6 +20,7 @@ import { getKarteSummaryItems } from "@/lib/karte";
 import type { School } from "@/lib/data/schools";
 import type {
   BlueprintItem,
+  BlueprintSchool,
   BlueprintSchoolStatus,
   LoadedPlanBlueprint,
   PlanTimeline,
@@ -60,13 +61,6 @@ export type MyPlanCandidate = {
   kind?: "hint";
 };
 
-export type MyPlanSavedSchool = {
-  id: string;
-  name: string;
-  city: string | null;
-  status: BlueprintSchoolStatus;
-};
-
 export type MyPlanSchoolCandidate = {
   key: string;
   name: string;
@@ -97,7 +91,8 @@ export type MyPlanView = {
     hints: MyPlanCandidate[];
   };
   school: {
-    savedSchools: MyPlanSavedSchool[];
+    /** 保存済み学校（raw BlueprintSchool）。My Plan 側で status 変更 / 削除するため丸ごと持つ。 */
+    savedSchools: BlueprintSchool[];
     candidates: MyPlanSchoolCandidate[];
     englishRef: MyPlanCandidate[];
   };
@@ -202,12 +197,7 @@ export function buildMyPlanView(
     data.schools.map((s) => `${norm(s.name)}|${norm(s.city ?? "")}`),
   );
 
-  const savedSchools: MyPlanSavedSchool[] = data.schools.map((s) => ({
-    id: s.id,
-    name: s.name,
-    city: s.city,
-    status: s.status,
-  }));
+  const savedSchools: BlueprintSchool[] = data.schools;
 
   const schoolCandidates: MyPlanSchoolCandidate[] = [];
   for (const p of karte.proposals.presented) {
