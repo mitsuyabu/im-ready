@@ -258,11 +258,20 @@ function PhaseCard({
 /**
  * YOUR YEARLY PLAN — 月ベースの要約タイムライン（横図）。
  * 参考画像の「横 timeline / node / 上下交互 / phase 色」は取り入れつつ、原色・poster 感・
- * 大きな装飾イラストは使わず、My Plan の warm ivory / editorial なトーンに合わせる（§1-§3, §32-§33）。
- * presentation のみ。データ（buildMonthlyTimeline / source / status / month label）は無変更。
+ * 大きな装飾イラストは使わず、My Plan の warm ivory / editorial なトーンに合わせる。
+ * source は "user-timing"（ユーザー設定の月区間・最優先） / "saved-timeline" / "summary"。
  */
+const YEARLY_CAPTION: Record<MyPlanMonthlyTimeline["source"], string> = {
+  "user-timing":
+    "あなたが設定した「何ヶ月目から・何ヶ月間」をもとに表示しています。詳しい内容は下のTimelineで確認できます。",
+  "saved-timeline":
+    "保存済みのTimelineをもとに要約しています。詳しい内容は下のTimelineで確認できます。",
+  summary:
+    "My Planの保存内容から、進み方の目安をまとめています。月ごとの詳しい流れは、下のTimelineでAIに提案してもらえます。",
+};
+
 function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline }) {
-  const { phases, durationLabel } = timeline;
+  const { phases, durationLabel, source } = timeline;
   // 5 フェーズ以下は desktop で全幅グリッド。6+ は詰まるので desktop でも横スクロール（§24）。
   const wide = phases.length <= 5;
 
@@ -335,7 +344,7 @@ function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline 
         横にスクロールすると、全体の流れを追えます。
       </p>
       <p className="mt-2 text-[11px] leading-relaxed text-[#7d776c] sm:mt-5">
-        これは留学期間全体の大まかな流れです。詳しい内容は下のTimelineで確認できます。
+        {YEARLY_CAPTION[source]}
       </p>
     </section>
   );
@@ -423,6 +432,7 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
               planId={planId}
               initialSchools={savedSchools}
               editingEnabled={view.blueprintAvailable}
+              planDurationMonths={view.planDurationMonths}
             />
           </div>
         </>
@@ -508,6 +518,7 @@ function renderSectionBody(id: MyPlanSectionId, view: MyPlanView, planId: string
           emptyHelper="現地でやってみたい仕事を、ここに残していきます。"
           layout="chips"
           editingEnabled={editingEnabled}
+          itemTiming={{ planDurationMonths: view.planDurationMonths }}
         />
       );
     case "things":

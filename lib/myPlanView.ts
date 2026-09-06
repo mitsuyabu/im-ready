@@ -98,8 +98,13 @@ export type MyPlanMonthlyTimeline = {
   /** 2〜6 フェーズ。 */
   phases: MyPlanTimelinePhase[];
   durationLabel: string | null;
-  /** "saved-timeline" = 保存済み詳細 Timeline の要約 / "summary" = My Plan + Karte から順序だけ組成。 */
-  source: "saved-timeline" | "summary";
+  /**
+   * 図の出どころ（優先順位・§25）:
+   *   "user-timing"    = ユーザーが School / Work に設定した「何ヶ月目から・何ヶ月間」（最優先）
+   *   "saved-timeline" = 保存済み詳細 Timeline の要約
+   *   "summary"        = My Plan + Karte から順序だけ組成
+   */
+  source: "user-timing" | "saved-timeline" | "summary";
 };
 
 export type MyPlanView = {
@@ -133,6 +138,8 @@ export type MyPlanView = {
   timeline: PlanTimeline | null;
   /** AI 期間プランを生成してよいか（blueprint available ＋ 材料が最低限ある・§56-58）。 */
   timelineCanGenerate: boolean;
+  /** Karte 由来の全体期間（月・概算）。timing 選択肢の範囲 / 超過 warning 用（read-only）。 */
+  planDurationMonths: number | null;
 };
 
 const KARTE_NOTE = "会話やWorksheetから";
@@ -153,6 +160,48 @@ function firstLine(s: string, max = 46): string {
 
 /** fallback（summary）モードの順序ラベル。根拠の無い月数は使わない。 */
 const PHASE_SEQ_LABELS = ["はじめ", "中盤", "後半", "仕上げ", "その先"];
+
+/** 「Nヶ月目」/「N〜Mヶ月目」の月区間ラベル。 */
+function monthRangeLabel(startMonth: number, durationMonths: number): string {
+  const end = startMonth + durationMonths - 1;
+  return durationMonths <= 1 ? `${startMonth}ヶ月目` : `${startMonth}〜${end}ヶ月目`;
+}
+
+/**
+ * ユーザーが My Plan で設定した timing（startMonth ＋ durationMonths 両方あり）を集める。
+ *   - School は実行 Plan に入る selected / preferred のみ（considering は比較候補・§19）
+ *   - Work は saved item すべて
+ * startMonth 昇順。設定していない項目には月を割り当てない（§52）。
+ */
+function collectUserTimedPhases(
+  schools: BlueprintSchool[],
+  workInterests: BlueprintItem[],
+): MyPlanTimelinePhase[] {
+  type Timed = { label: string; startMonth: number; durationMonths: number };
+  const timed: Timed[] = [];
+  for (const s of schools) {
+    if (
+      (s.status === "selected" || s.status === "preferred") &&
+      typeof s.startMonth === "number" &&
+      typeof s.durationMonths === "number"
+    ) {
+      timed.push({ label: s.name, startMonth: s.startMonth, durationMonths: s.durationMonths });
+    }
+  }
+  for (const w of workInterests) {
+    if (typeof w.startMonth === "number" && typeof w.durationMonths === "number") {
+      timed.push({ label: w.label, startMonth: w.startMonth, durationMonths: w.durationMonths });
+    }
+  }
+  timed.sort((a, b) => a.startMonth - b.startMonth || a.durationMonths - b.durationMonths);
+  return timed.slice(0, 6).map((t, i) => ({
+    key: `ut-${i}`,
+    rangeLabel: monthRangeLabel(t.startMonth, t.durationMonths),
+    title: firstLine(t.label, 24),
+    note: null,
+    status: "saved" as const,
+  }));
+}
 
 /**
  * 月ベースの要約タイムライン（横図）用データ。
@@ -175,6 +224,16 @@ function buildMonthlyTimeline(input: {
   durationLabelFromKarte: string | null;
 }): MyPlanMonthlyTimeline | null {
   const { timeline } = input;
+
+  /* 0) ユーザーが設定した timing（School selected/preferred ＋ Work）を最優先（§25） */
+  const userTimed = collectUserTimedPhases(input.schools, input.workInterests);
+  if (userTimed.length > 0) {
+    return {
+      phases: userTimed,
+      durationLabel: input.durationLabelFromKarte,
+      source: "user-timing",
+    };
+  }
 
   /* 1) 保存済みの詳細 Timeline を図に要約 */
   if (timeline && timeline.periods.length > 0) {
@@ -451,11 +510,12 @@ export function buildMyPlanView(
     durationField.certainty === "stated" && typeof durationField.value === "number"
       ? `${durationField.value}週間`
       : null;
-  // 要約タイムラインの全体ラベル用（週→月の概算。根拠が無ければ null）。
-  const durationLabelFromKarte =
+  // Plan 全体期間（週→月の概算。根拠が無ければ null）。timing 選択肢の範囲 / 超過 warning / 図ラベル用。
+  const planDurationMonths =
     durationField.certainty === "stated" && typeof durationField.value === "number"
-      ? `約${Math.max(1, Math.round(durationField.value / 4.345))}ヶ月`
+      ? Math.max(1, Math.round(durationField.value / 4.345))
       : null;
+  const durationLabelFromKarte = planDurationMonths != null ? `約${planDurationMonths}ヶ月` : null;
   const budgetField = karte.budget.totalCap;
   const heroBudget =
     budgetField.certainty === "stated" && typeof budgetField.value === "number"
@@ -546,5 +606,6 @@ export function buildMyPlanView(
     },
     timeline,
     timelineCanGenerate,
+    planDurationMonths,
   };
 }

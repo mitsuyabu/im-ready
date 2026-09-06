@@ -209,6 +209,24 @@ export function buildPlanningBrief(data: BlueprintData, karte: Karte): PlanningB
   data.workInterests.forEach((w) => fixedDecisions.push(`やってみたい仕事（種類）: ${w.label}`));
   data.milestones.forEach((m) => fixedDecisions.push(`目標にしている節目: ${m.label}`));
 
+  // ユーザーが My Plan で設定した「何ヶ月目から・何ヶ月間」は HARD（AI が月をずらさない・§26 / §27）。
+  const monthRange = (s: number, d: number): string =>
+    d <= 1 ? `${s}ヶ月目` : `${s}〜${s + d - 1}ヶ月目`;
+  [...selectedSchools, ...preferredSchools].forEach((s) => {
+    if (typeof s.startMonth === "number" && typeof s.durationMonths === "number") {
+      fixedDecisions.push(
+        `学校「${s.name}」に通う期間（ユーザー設定・固定）: ${monthRange(s.startMonth, s.durationMonths)}`,
+      );
+    }
+  });
+  data.workInterests.forEach((w) => {
+    if (typeof w.startMonth === "number" && typeof w.durationMonths === "number") {
+      fixedDecisions.push(
+        `仕事「${w.label}」をする期間（ユーザー設定・固定）: ${monthRange(w.startMonth, w.durationMonths)}`,
+      );
+    }
+  });
+
   /* ---- goals ---- */
   const goals: string[] = [];
   data.goals.forEach((g) => goals.push(g.label));
@@ -384,6 +402,7 @@ export function buildPlanTimelineUserMessage(data: BlueprintData, karte: Karte):
     "# 指示",
     "上の PLANNING_BRIEF をもとに、propose_plan_timeline ツールで期間プランを提案してください。",
     "- FIXED_DECISIONS と CONSTRAINTS は必ず守る（HARD）。",
+    "- ユーザーが設定した期間（「○ヶ月目」「○〜○ヶ月目」）は固定。月をずらす・打ち消す・別期間へ移すことはしない。",
     "- FLEXIBLE_PREFERENCES は可能な範囲で組み込む（SOFT・必須ではない）。",
     "- 保存されていない学校・都市・目的・施設の固有名詞は追加しない。",
     "- 項目をただ均等に並べるのではなく、順序・準備期間・慣れる時間・優先順位を考える。",

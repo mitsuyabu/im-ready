@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import type { BlueprintSchool, BlueprintSchoolStatus } from "@/lib/planBlueprint";
-import { applySchoolStatus, patchSchoolsSection } from "@/lib/planBlueprintClient";
+import {
+  applySchoolStatus,
+  applySchoolTiming,
+  patchSchoolsSection,
+  type BlueprintTimingPatch,
+} from "@/lib/planBlueprintClient";
+import PlanTimingControl from "@/components/PlanTimingControl";
 
 /**
  * My Plan「School & English」の保存済み学校の編集 island（Step 2-4）。
@@ -36,14 +42,18 @@ export default function EditableSchools({
   planId,
   initialSchools,
   editingEnabled,
+  planDurationMonths = null,
 }: {
   planId: string;
   initialSchools: BlueprintSchool[];
   editingEnabled: boolean;
+  /** Karte 由来の全体期間（月・概算）。timing 選択肢の範囲 / 超過 warning 用。 */
+  planDurationMonths?: number | null;
 }) {
   const [schools, setSchools] = useState<BlueprintSchool[]>(initialSchools);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   async function commit(next: BlueprintSchool[]): Promise<boolean> {
     const prev = schools;
@@ -75,6 +85,17 @@ export default function EditableSchools({
     setBusy(`del:${id}`);
     await commit(schools.filter((s) => s.id !== id));
     setBusy(null);
+  }
+
+  async function changeTiming(id: string, patch: BlueprintTimingPatch) {
+    setBusy(`timing:${id}`);
+    setSavedId(null);
+    const ok = await commit(applySchoolTiming(schools, id, patch));
+    setBusy(null);
+    if (ok) {
+      setSavedId(id);
+      window.setTimeout(() => setSavedId((cur) => (cur === id ? null : cur)), 1800);
+    }
   }
 
   const disabled = busy !== null;
@@ -128,6 +149,24 @@ export default function EditableSchools({
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {/* 通う期間。実行 Plan に入る selected / preferred のみ（considering は比較候補・§19） */}
+          {editingEnabled && (s.status === "selected" || s.status === "preferred") && (
+            <div className="mt-3 border-t border-[#efe9dd] pt-3">
+              <p className="text-[11px] font-medium tracking-wide text-[#7d776c]">通う期間</p>
+              <div className="mt-1.5">
+                <PlanTimingControl
+                  startMonth={s.startMonth}
+                  durationMonths={s.durationMonths}
+                  planDurationMonths={planDurationMonths}
+                  disabled={disabled}
+                  saving={busy === `timing:${s.id}`}
+                  saved={savedId === s.id}
+                  onChange={(patch) => changeTiming(s.id, patch)}
+                />
+              </div>
             </div>
           )}
         </div>

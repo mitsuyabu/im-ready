@@ -13,6 +13,8 @@
 
 import { createClient } from "@/lib/supabase/client";
 import {
+  BLUEPRINT_DURATION_MONTHS_MAX,
+  BLUEPRINT_START_MONTH_MAX,
   sanitizeBlueprintData,
   sanitizePlanTimeline,
   type BlueprintData,
@@ -36,13 +38,15 @@ export type PatchErr = { ok: false; reason: "stale" | "not_owner" | "error" };
 export type PatchResult = PatchOk | PatchErr;
 
 /** BlueprintItem を DB JSON 形へ（余計なキーを送らない）。 */
-export function itemToJson(item: BlueprintItem): Record<string, string> {
-  const json: Record<string, string> = {
+export function itemToJson(item: BlueprintItem): Record<string, unknown> {
+  const json: Record<string, unknown> = {
     id: item.id,
     label: item.label,
     createdAt: item.createdAt,
   };
   if (item.note) json.note = item.note;
+  if (typeof item.startMonth === "number") json.startMonth = item.startMonth;
+  if (typeof item.durationMonths === "number") json.durationMonths = item.durationMonths;
   return json;
 }
 
@@ -97,7 +101,7 @@ export function schoolToJson(s: BlueprintSchool): Record<string, unknown> {
   const snapshot: { reason?: string; caveat?: string } = {};
   if (s.snapshot.reason) snapshot.reason = s.snapshot.reason;
   if (s.snapshot.caveat) snapshot.caveat = s.snapshot.caveat;
-  return {
+  const json: Record<string, unknown> = {
     id: s.id,
     name: s.name,
     city: s.city,
@@ -108,6 +112,9 @@ export function schoolToJson(s: BlueprintSchool): Record<string, unknown> {
     snapshot,
     savedAt: s.savedAt,
   };
+  if (typeof s.startMonth === "number") json.startMonth = s.startMonth;
+  if (typeof s.durationMonths === "number") json.durationMonths = s.durationMonths;
+  return json;
 }
 
 /** schools セクションを丸ごと差し替える（追加 / status 変更 / 削除いずれも最新 state から作って渡す）。 */
@@ -307,4 +314,56 @@ export function applySchoolStatus(
     }
     return s;
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* activity timing（「何ヶ月目から・何ヶ月間」）                                          */
+/* ------------------------------------------------------------------ */
+
+/** timing の変更差分。null = その項目を「未定」に戻す（field を消す）。 */
+export type BlueprintTimingPatch = {
+  startMonth?: number | null;
+  durationMonths?: number | null;
+};
+
+/** 1..max の整数だけ通す（それ以外は null 扱い）。UI は固定リストだが念のため防御。 */
+function clampMonth(v: number | null | undefined, max: number): number | null {
+  if (typeof v !== "number" || !Number.isInteger(v) || v < 1 || v > max) return null;
+  return v;
+}
+
+function withTiming<T extends { startMonth?: number; durationMonths?: number }>(
+  o: T,
+  patch: BlueprintTimingPatch,
+): T {
+  const next = { ...o };
+  if ("startMonth" in patch) {
+    const m = clampMonth(patch.startMonth, BLUEPRINT_START_MONTH_MAX);
+    if (m === null) delete next.startMonth;
+    else next.startMonth = m;
+  }
+  if ("durationMonths" in patch) {
+    const m = clampMonth(patch.durationMonths, BLUEPRINT_DURATION_MONTHS_MAX);
+    if (m === null) delete next.durationMonths;
+    else next.durationMonths = m;
+  }
+  return next;
+}
+
+/** items 配列の 1 件だけ timing を更新した新配列を返す（他項目・他フィールドは不変）。 */
+export function applyItemTiming(
+  items: BlueprintItem[],
+  id: string,
+  patch: BlueprintTimingPatch,
+): BlueprintItem[] {
+  return items.map((it) => (it.id === id ? withTiming(it, patch) : it));
+}
+
+/** schools 配列の 1 件だけ timing を更新した新配列を返す（学校ごとに保持・§20）。 */
+export function applySchoolTiming(
+  schools: BlueprintSchool[],
+  id: string,
+  patch: BlueprintTimingPatch,
+): BlueprintSchool[] {
+  return schools.map((s) => (s.id === id ? withTiming(s, patch) : s));
 }

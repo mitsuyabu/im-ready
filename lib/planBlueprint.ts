@@ -23,6 +23,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export const BLUEPRINT_LABEL_MAX = 120;
 export const BLUEPRINT_NOTE_MAX = 500;
 
+/**
+ * activity timing（「何ヶ月目から・何ヶ月間」）の緩いガード。
+ *   - startMonth      : 留学開始からの月（1 = 1ヶ月目）。calendar 日付ではない。
+ *   - durationMonths  : 月単位の長さ。
+ * どちらもユーザーが My Plan で設定する値。未設定は field 省略（null 相当）。fake default は作らない。
+ */
+export const BLUEPRINT_START_MONTH_MAX = 60;
+export const BLUEPRINT_DURATION_MONTHS_MAX = 24;
+
 // timeline 側の緩いガード（AI 出力の異常な長さを弾くだけ。意味は解釈しない）
 const TIMELINE_SUMMARY_MAX = 1000;
 const TIMELINE_DURATION_LABEL_MAX = 120;
@@ -37,12 +46,23 @@ const TIMELINE_OPEN_QUESTION_MAX = 300;
 /* domain types                                                       */
 /* ------------------------------------------------------------------ */
 
+/**
+ * activity timing。duration activity（School / Work / Accommodation / Farm 等）が
+ * 「何ヶ月目から・何ヶ月間」を持つ。未設定なら field ごと省略（＝null 相当）。
+ */
+export type BlueprintTiming = {
+  /** 留学開始からの月（1 = 1ヶ月目）。calendar 日付ではない。 */
+  startMonth?: number;
+  /** 月単位の長さ。 */
+  durationMonths?: number;
+};
+
 export type BlueprintItem = {
   id: string;
   label: string;
   note?: string;
   createdAt: string;
-};
+} & BlueprintTiming;
 
 export type BlueprintSchoolStatus = "considering" | "preferred" | "selected";
 export type BlueprintSchoolSource = "school_comparison" | "proposal";
@@ -59,7 +79,7 @@ export type BlueprintSchool = {
   /** 保存時点の proposal 由来情報のスナップショットのみ。学校マスタ全体はコピーしない。 */
   snapshot: { reason?: string; caveat?: string };
   savedAt: string;
-};
+} & BlueprintTiming;
 
 export type BlueprintDestinations = {
   primary: BlueprintItem | null;
@@ -166,6 +186,25 @@ function clampString(v: string, max: number): string {
   return v.length > max ? v.slice(0, max) : v;
 }
 
+/**
+ * timing 月数の緩いガード。1..max の整数のみ通す。
+ * 非数値 / 小数 / 0以下 / 範囲外 → undefined（＝field 省略。default 値は作らない・§39 / §52）。
+ */
+function sanitizeMonthValue(v: unknown, max: number): number | undefined {
+  if (typeof v !== "number" || !Number.isInteger(v)) return undefined;
+  if (v < 1 || v > max) return undefined;
+  return v;
+}
+
+/** BlueprintTiming（startMonth / durationMonths）を sanitize して attach する。 */
+function attachTiming<T extends BlueprintTiming>(target: T, value: Record<string, unknown>): T {
+  const startMonth = sanitizeMonthValue(value.startMonth, BLUEPRINT_START_MONTH_MAX);
+  if (startMonth !== undefined) target.startMonth = startMonth;
+  const durationMonths = sanitizeMonthValue(value.durationMonths, BLUEPRINT_DURATION_MONTHS_MAX);
+  if (durationMonths !== undefined) target.durationMonths = durationMonths;
+  return target;
+}
+
 /** 同一 id の重複は最初の 1 件だけ残す（順序維持）。 */
 function dedupeById<T extends { id: string }>(items: T[]): T[] {
   const seen = new Set<string>();
@@ -199,7 +238,7 @@ export function sanitizeBlueprintItem(value: unknown): BlueprintItem | null {
   const note = trimmedNonEmpty(value.note);
   if (note) item.note = clampString(note, BLUEPRINT_NOTE_MAX);
 
-  return item;
+  return attachTiming(item, value);
 }
 
 function sanitizeBlueprintItemArray(value: unknown): BlueprintItem[] {
@@ -254,7 +293,7 @@ export function sanitizeBlueprintSchool(value: unknown): BlueprintSchool | null 
   const status = SCHOOL_STATUSES.find((s) => s === value.status) ?? null;
   if (!source || !status) return null;
 
-  return {
+  const school: BlueprintSchool = {
     id,
     name: clampString(name, BLUEPRINT_LABEL_MAX),
     city: typeof value.city === "string" ? clampString(value.city, BLUEPRINT_LABEL_MAX) : null,
@@ -265,6 +304,7 @@ export function sanitizeBlueprintSchool(value: unknown): BlueprintSchool | null 
     snapshot: sanitizeSchoolSnapshot(value.snapshot),
     savedAt,
   };
+  return attachTiming(school, value);
 }
 
 function sanitizeBlueprintSchoolArray(value: unknown): BlueprintSchool[] {

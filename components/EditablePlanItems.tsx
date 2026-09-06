@@ -4,11 +4,14 @@ import { useState } from "react";
 import type { BlueprintItem } from "@/lib/planBlueprint";
 import type { MyPlanCandidate } from "@/lib/myPlanView";
 import {
+  applyItemTiming,
   canAddLabel,
   makeBlueprintItem,
   patchItemsSection,
+  type BlueprintTimingPatch,
   type ItemSectionKey,
 } from "@/lib/planBlueprintClient";
+import PlanTimingControl from "@/components/PlanTimingControl";
 
 /**
  * Goals / Work / Things to Do / Visa & Milestones の共通編集 island（Step 2-3）。
@@ -52,6 +55,7 @@ export default function EditablePlanItems({
   layout = "rows",
   editingEnabled,
   extraFooter,
+  itemTiming,
 }: {
   planId: string;
   section: ItemSectionKey;
@@ -65,6 +69,8 @@ export default function EditablePlanItems({
   layout?: "rows" | "chips";
   editingEnabled: boolean;
   extraFooter?: React.ReactNode;
+  /** 設定すると各 saved item に「開始 / 期間」control を出す（duration activity 用。Work のみ）。 */
+  itemTiming?: { planDurationMonths: number | null };
 }) {
   const [items, setItems] = useState<BlueprintItem[]>(initialItems);
   const [openCandidates, setOpenCandidates] = useState<MyPlanCandidate[]>(candidates);
@@ -73,8 +79,12 @@ export default function EditablePlanItems({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [timingSavedId, setTimingSavedId] = useState<string | null>(null);
 
   const inputId = `add-${section}`;
+  const showTiming = Boolean(itemTiming) && editingEnabled;
+  // timing control には縦の余白が要るため、その場合は chips でも rows 表示にする。
+  const effectiveLayout: "rows" | "chips" = showTiming ? "rows" : layout;
 
   async function commit(nextItems: BlueprintItem[]): Promise<boolean> {
     const prev = items;
@@ -129,11 +139,22 @@ export default function EditablePlanItems({
     setBusy(null);
   }
 
+  async function handleTiming(id: string, patch: BlueprintTimingPatch) {
+    setBusy(`timing:${id}`);
+    setTimingSavedId(null);
+    const ok = await commit(applyItemTiming(items, id, patch));
+    setBusy(null);
+    if (ok) {
+      setTimingSavedId(id);
+      window.setTimeout(() => setTimingSavedId((cur) => (cur === id ? null : cur)), 1800);
+    }
+  }
+
   const disabled = busy !== null;
 
   /* ---------------- saved ---------------- */
   const savedBlock =
-    items.length === 0 ? null : layout === "chips" ? (
+    items.length === 0 ? null : effectiveLayout === "chips" ? (
       <div className="mt-4 flex flex-wrap gap-2">
         {items.map((it) => (
           <span
@@ -161,24 +182,40 @@ export default function EditablePlanItems({
         {items.map((it) => (
           <li
             key={it.id}
-            className="flex items-start justify-between gap-3 rounded-xl border border-[#e5dfd6] bg-white px-4 py-3"
+            className="rounded-xl border border-[#e5dfd6] bg-white px-4 py-3"
           >
-            <div className="min-w-0">
-              <p className="text-sm font-medium leading-snug text-[#2f2c26]">{it.label}</p>
-              {it.note && (
-                <p className="mt-0.5 text-xs leading-relaxed text-[#6b665d]">{it.note}</p>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium leading-snug text-[#2f2c26]">{it.label}</p>
+                {it.note && (
+                  <p className="mt-0.5 text-xs leading-relaxed text-[#6b665d]">{it.note}</p>
+                )}
+              </div>
+              {editingEnabled && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(it.id)}
+                  disabled={disabled}
+                  aria-label={`「${it.label}」を削除`}
+                  className="mt-0.5 shrink-0 rounded-lg px-2 py-1 text-xs text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
+                >
+                  削除
+                </button>
               )}
             </div>
-            {editingEnabled && (
-              <button
-                type="button"
-                onClick={() => handleDelete(it.id)}
-                disabled={disabled}
-                aria-label={`「${it.label}」を削除`}
-                className="mt-0.5 shrink-0 rounded-lg px-2 py-1 text-xs text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
-              >
-                削除
-              </button>
+
+            {showTiming && itemTiming && (
+              <div className="mt-3 border-t border-[#efe9dd] pt-3">
+                <PlanTimingControl
+                  startMonth={it.startMonth}
+                  durationMonths={it.durationMonths}
+                  planDurationMonths={itemTiming.planDurationMonths}
+                  disabled={disabled}
+                  saving={busy === `timing:${it.id}`}
+                  saved={timingSavedId === it.id}
+                  onChange={(patch) => handleTiming(it.id, patch)}
+                />
+              </div>
             )}
           </li>
         ))}
