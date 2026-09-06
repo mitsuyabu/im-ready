@@ -76,6 +76,38 @@ const ArrowRightIcon = ({ className }: IconProps) => (
     <path d="M5 12h14M13 6l6 6-6 6" />
   </svg>
 );
+/* YOUR YEARLY PLAN の各フェーズに添える小さな line icon（装飾。主役にしない）。 */
+const BookIcon = ({ className }: IconProps) => (
+  <svg {...svgProps(className)}>
+    <path d="M5 4h9a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3Z" />
+    <path d="M17 4h2v13M8.5 8h5.5M8.5 11h5.5" />
+  </svg>
+);
+const BriefcaseIcon = ({ className }: IconProps) => (
+  <svg {...svgProps(className)}>
+    <rect x="3.5" y="7.5" width="17" height="12" rx="2" />
+    <path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5M3.5 12.5h17" />
+  </svg>
+);
+const UsersIcon = ({ className }: IconProps) => (
+  <svg {...svgProps(className)}>
+    <circle cx="9" cy="8" r="3" />
+    <path d="M3.5 19c.6-3 2.9-4.5 5.5-4.5S13.9 16 14.5 19" />
+    <path d="M16 8.2A2.6 2.6 0 0 1 16 14M17 14.6c2 .4 3.4 1.7 3.9 4" />
+  </svg>
+);
+const DocIcon = ({ className }: IconProps) => (
+  <svg {...svgProps(className)}>
+    <path d="M6 3h8l4 4v14H6Z" />
+    <path d="M14 3v4h4M9 12h6M9 16h6" />
+  </svg>
+);
+const CompassIcon = ({ className }: IconProps) => (
+  <svg {...svgProps(className)}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="m15.5 8.5-2 5-5 2 2-5Z" />
+  </svg>
+);
 
 /* ------------------------------------------------------------------ */
 /* section accents（既存 palette 内。scoring ではなく装飾のみ）                          */
@@ -97,81 +129,201 @@ const SECTION_ACCENT: Record<MyPlanSectionId, string> = {
 /* 役割は「1年の流れをひと目で」。詳細な activities / 理由は下の Timeline が担う。  */
 /* ------------------------------------------------------------------ */
 
-const PHASE_STATUS_META: Record<
+/**
+ * フェーズの色（index で機械割り当て。意味による色推論はしない・§23）。
+ * I'm ready! の warm/editorial トーンに合わせ、彩度を抑えた muted pastel を使う（§3 / §22）。
+ * 色は node / top accent / period pill / icon だけに使い、カードはベタ塗りにしない（§13）。
+ */
+const PHASE_PALETTE: { node: string; pillBg: string; pillText: string }[] = [
+  { node: "#8FAFC2", pillBg: "#E9F1F5", pillText: "#567789" }, // 1 dusty blue
+  { node: "#87B7A6", pillBg: "#E6F1EE", pillText: "#4c7368" }, // 2 soft teal
+  { node: "#9EB486", pillBg: "#EDF1E5", pillText: "#5f7050" }, // 3 sage
+  { node: "#D4AE72", pillBg: "#F6EEDF", pillText: "#8a6a3c" }, // 4 sand / ochre
+  { node: "#D98A7B", pillBg: "#F7E8E3", pillText: "#a25e51" }, // 5 dusty coral
+  { node: "#A89ABF", pillBg: "#EEEBF3", pillText: "#6a5e83" }, // 6 muted lavender
+];
+
+/** decorative serif number の色（§19 第一候補）。 */
+const SERIF_NUMBER_COLOR = "#d8d1c5";
+
+/** status badge（小さく・強調しすぎない・§18）。saved=sage / AI=pale blue / considering=sand。 */
+const PHASE_STATUS_BADGE: Record<
   MyPlanTimelinePhase["status"],
-  { label: string; badge: string; card: string; dot: string }
+  { label: string; cls: string }
 > = {
-  saved: {
-    label: "保存済み",
-    badge: "border border-[#cdd8bf] bg-[#eef3e6] text-[#4b5b3e]",
-    card: "border border-[#d7dfcd] bg-white",
-    dot: "bg-[#8fa47f] ring-[#c8d3bb]",
-  },
-  "ai-suggested": {
-    label: "AI提案",
-    badge: "border border-dashed border-[#cdd6e2] bg-[#eef2f7] text-[#4a5c72]",
-    card: "border border-dashed border-[#d3dbe4] bg-[#fcfdff]",
-    dot: "bg-[#9db4c9] ring-[#d2dde6]",
-  },
-  considering: {
-    label: "検討中",
-    badge: "border border-[#e2d8c5] bg-[#faf6ee] text-[#7a6a4e]",
-    card: "border border-dashed border-[#e0d8c8] bg-[#fdfbf6]",
-    dot: "bg-[#cbb892] ring-[#e4d9c1]",
-  },
+  saved: { label: "保存済み", cls: "bg-[#edf1e5] text-[#5f7050]" },
+  "ai-suggested": { label: "AI提案", cls: "bg-[#e9f1f5] text-[#567789]" },
+  considering: { label: "検討中", cls: "bg-[#f6eedf] text-[#8a6a3c]" },
 };
 
+/** フェーズ内容に応じた小さな line icon の種類（装飾。keyword→なければ index 順）。 */
+type PhaseIconKind = "book" | "briefcase" | "users" | "doc" | "compass";
+function phaseIconKind(title: string, index: number): PhaseIconKind {
+  if (/語学|英語|学校|勉強|クラス|study|school|english/i.test(title)) return "book";
+  if (/仕事|ジョブ|バイト|就労|働|ファーム|接客|ホスピタ|job|work|hospitality/i.test(title))
+    return "briefcase";
+  if (/ビザ|visa|書類|申請|手続|セカンド|節目/i.test(title)) return "doc";
+  if (/進路|将来|キャリア|整理|まとめ|振り返|career/i.test(title)) return "compass";
+  if (/仲間|交流|友|ネットワーク|コミュニティ|people|community/i.test(title)) return "users";
+  return (["book", "briefcase", "users", "doc", "compass", "compass"] as const)[index] ?? "compass";
+}
+
+function PhaseIcon({ kind, className }: { kind: PhaseIconKind; className?: string }) {
+  switch (kind) {
+    case "book":
+      return <BookIcon className={className} />;
+    case "briefcase":
+      return <BriefcaseIcon className={className} />;
+    case "users":
+      return <UsersIcon className={className} />;
+    case "doc":
+      return <DocIcon className={className} />;
+    case "compass":
+      return <CompassIcon className={className} />;
+  }
+}
+
+function TimelineNode({ color }: { color: string }) {
+  return (
+    <span
+      aria-hidden
+      className="block h-[18px] w-[18px] rounded-full ring-4 ring-[#fcfbf8]"
+      style={{ backgroundColor: color, boxShadow: "0 0 0 1px rgba(30,28,24,0.06)" }}
+    />
+  );
+}
+
+function PhaseCard({
+  phase,
+  palette,
+  index,
+  className = "",
+}: {
+  phase: MyPlanTimelinePhase;
+  palette: (typeof PHASE_PALETTE)[number];
+  index: number;
+  className?: string;
+}) {
+  const iconKind = phaseIconKind(phase.title, index);
+  const badge = PHASE_STATUS_BADGE[phase.status];
+  return (
+    <div
+      className={`relative w-full max-w-[248px] overflow-hidden rounded-[16px] border border-[#e8e2d8] bg-white p-4 shadow-[0_1px_2px_rgba(30,28,24,0.04)] ${className}`}
+    >
+      {/* phase 色は上辺 accent だけ（カードはベタ塗りにしない・§13/§14） */}
+      <span
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-[3px]"
+        style={{ backgroundColor: palette.node }}
+      />
+      {/* decorative serif number（背景・低コントラスト・§19） */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute right-2 top-1 select-none font-serif text-[38px] font-semibold leading-none"
+        style={{ color: SERIF_NUMBER_COLOR }}
+      >
+        {String(index + 1).padStart(2, "0")}
+      </span>
+
+      <div className="relative">
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold"
+            style={{ backgroundColor: palette.pillBg, color: palette.pillText }}
+          >
+            {phase.rangeLabel}
+          </span>
+          <span aria-hidden className="inline-flex" style={{ color: palette.node }}>
+            <PhaseIcon kind={iconKind} className="h-4 w-4" />
+          </span>
+        </div>
+
+        <p className="mt-2 text-[17px] font-semibold leading-snug text-[#2f2c26] sm:text-[18px]">
+          {phase.title}
+        </p>
+        {phase.note && (
+          <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-[#746e64]">{phase.note}</p>
+        )}
+
+        <span
+          className={`mt-3 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${badge.cls}`}
+        >
+          {badge.label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * YOUR YEARLY PLAN — 月ベースの要約タイムライン（横図）。
+ * 参考画像の「横 timeline / node / 上下交互 / phase 色」は取り入れつつ、原色・poster 感・
+ * 大きな装飾イラストは使わず、My Plan の warm ivory / editorial なトーンに合わせる（§1-§3, §32-§33）。
+ * presentation のみ。データ（buildMonthlyTimeline / source / status / month label）は無変更。
+ */
 function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline }) {
-  const { phases, durationLabel, source } = timeline;
+  const { phases, durationLabel } = timeline;
+  // 5 フェーズ以下は desktop で全幅グリッド。6+ は詰まるので desktop でも横スクロール（§24）。
+  const wide = phases.length <= 5;
+
   return (
     <section
       id="myplan-yearly"
-      className="mt-6 scroll-mt-6 overflow-hidden rounded-[18px] border border-[#e5dfd6] bg-[#fcfbf7] p-5 shadow-[0_1px_3px_rgba(30,28,24,0.05)] sm:p-6 lg:p-7"
+      className="mt-6 scroll-mt-6 rounded-[18px] border border-[#e7e1d7] bg-[#fcfbf8] p-5 shadow-[0_1px_2px_rgba(30,28,24,0.04)] sm:p-6 lg:p-7"
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <p className="text-[11px] font-semibold tracking-[0.18em] text-[#5f7050]">YOUR YEARLY PLAN</p>
+      {/* 見出しは My Plan の section スタイルに合わせる（Hero と張り合わない・§7-§9, §31） */}
+      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+        <div>
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-[#5f7050]">
+            YOUR YEARLY PLAN
+          </p>
+          <h2 className="mt-1 text-[24px] font-semibold leading-tight tracking-tight text-[#172033] sm:text-[30px]">
+            1年の大まかな流れ
+          </h2>
+        </div>
         {durationLabel && (
-          <p className="text-[11px] font-medium tracking-wide text-[#8a8578]">{durationLabel}</p>
+          <span className="text-xs font-medium text-[#8a8578]">{durationLabel}</span>
         )}
       </div>
-      <p className="mt-1 text-sm text-[#7e786d] sm:text-[15px]">1年の大まかな流れ</p>
 
-      <div className="mt-5">
+      <div className="relative mt-7">
+        {/* 中央の細い warm-gray line（desktop のみ・§10） */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-1/2 hidden h-px -translate-y-1/2 bg-[#d8d3ca] sm:block"
+        />
         <ol
-          className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:thin] sm:grid sm:gap-4 sm:overflow-visible"
-          style={{ gridTemplateColumns: `repeat(${phases.length}, minmax(0, 1fr))` }}
+          className={`relative flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:thin] ${
+            wide ? "sm:grid sm:gap-3 sm:overflow-visible sm:pb-0 sm:snap-none" : "sm:gap-5"
+          }`}
+          style={wide ? { gridTemplateColumns: `repeat(${phases.length}, minmax(0, 1fr))` } : undefined}
         >
-          {phases.map((p) => {
-            const meta = PHASE_STATUS_META[p.status];
+          {phases.map((p, i) => {
+            const palette = PHASE_PALETTE[i % PHASE_PALETTE.length];
+            const isUp = i % 2 === 0;
             return (
               <li
                 key={p.key}
-                className="flex w-[230px] shrink-0 snap-start flex-col sm:w-auto sm:shrink"
+                className={`relative flex w-[230px] shrink-0 snap-start ${
+                  wide ? "sm:w-auto sm:min-w-0 sm:shrink" : "sm:w-[240px]"
+                }`}
               >
-                {/* ベースライン（1本線）＋ ノード。desktop のみ。mobile は線を描かず横スクロール。 */}
-                <div className="relative mb-3 hidden h-3 sm:block" aria-hidden>
-                  <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-[#d9dfcd]" />
-                  <span
-                    className={`absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ${meta.dot}`}
-                  />
+                {/* mobile: 上下交互にしない。同じ高さで横スクロール（§25/§26） */}
+                <div className="h-full w-full sm:hidden">
+                  <PhaseCard phase={p} palette={palette} index={i} className="h-full" />
                 </div>
-                <div className={`h-full rounded-2xl p-4 ${meta.card}`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#7c8a6b]">
-                      {p.rangeLabel}
-                    </span>
-                    <span
-                      className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${meta.badge}`}
-                    >
-                      {meta.label}
-                    </span>
+
+                {/* desktop: 中央線に対して phase card を上下交互配置（§12） */}
+                <div className="hidden w-full sm:grid sm:grid-rows-[1fr_auto_1fr]">
+                  <div className="flex items-end justify-center px-2 pb-4">
+                    {isUp && <PhaseCard phase={p} palette={palette} index={i} />}
                   </div>
-                  <p className="mt-1.5 text-[15px] font-bold leading-snug text-[#2f3a2b]">{p.title}</p>
-                  {p.note && (
-                    <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-[#6f6a64]">
-                      {p.note}
-                    </p>
-                  )}
+                  <div className="relative z-10 flex items-center justify-center">
+                    <TimelineNode color={palette.node} />
+                  </div>
+                  <div className="flex items-start justify-center px-2 pt-4">
+                    {!isUp && <PhaseCard phase={p} palette={palette} index={i} />}
+                  </div>
                 </div>
               </li>
             );
@@ -179,13 +331,11 @@ function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline 
         </ol>
       </div>
 
-      <p className="mt-3 text-[11px] leading-relaxed text-[#8a8578] sm:hidden">
+      <p className="mt-5 text-[11px] leading-relaxed text-[#7d776c] sm:hidden">
         横にスクロールすると、全体の流れを追えます。
       </p>
-      <p className="mt-2 text-[11px] leading-relaxed text-[#8a8578]">
-        {source === "saved-timeline"
-          ? "保存済みのTimelineをもとに要約しています。詳しい内容は下のTimelineをご覧ください。"
-          : "My Planの保存内容から、進み方の目安をまとめています。月ごとの詳しい流れは、下のTimelineでAIに提案してもらえます。"}
+      <p className="mt-2 text-[11px] leading-relaxed text-[#7d776c] sm:mt-5">
+        これは留学期間全体の大まかな流れです。詳しい内容は下のTimelineで確認できます。
       </p>
     </section>
   );
