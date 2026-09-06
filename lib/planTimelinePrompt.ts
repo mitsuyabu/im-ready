@@ -132,6 +132,8 @@ export function buildPlanTimelineSystemPrompt(): string {
     "",
     "【期間】",
     "- 期間が与えられていればそれに従う（8週間・3ヶ月・6ヶ月・12ヶ月・18ヶ月 など）。1年に固定しない。",
+    "- CONSTRAINTS に『留学全体の期間（ユーザー設定・固定）』がある場合、その月数は HARD。勝手に延長・短縮しない。",
+    "  出力の durationLabel もその期間に合わせる（例: 9ヶ月なら『約9ヶ月』。別の数字を返さない）。",
     "- 期間が未定なら durationLabel を『未定』にし、openQuestions に『留学の期間がまだ決まっていません。』を入れる。",
     "",
     "【学校の扱い】",
@@ -267,12 +269,22 @@ export function buildPlanningBrief(data: BlueprintData, karte: Karte): PlanningB
 
   /* ---- constraints ---- */
   const constraints: string[] = [];
+
+  // 留学全体の期間: My Plan user-saved（planSettings.durationMonths）が最優先で HARD。
+  // それがある場合、Karte の durationWeeks は prompt に重複して渡さない（§41 / §42 / §43）。
+  const userDurationMonths =
+    typeof data.planSettings.durationMonths === "number" ? data.planSettings.durationMonths : null;
   const durationWeeks = karte.timing.durationWeeks;
-  const hasDuration =
+  const karteHasDuration =
     durationWeeks.certainty === "stated" &&
     typeof durationWeeks.value === "number" &&
     !conflictKeys.has("timing.durationWeeks");
-  if (hasDuration) constraints.push(`滞在期間: ${durationWeeks.value}週間`);
+  if (userDurationMonths != null) {
+    constraints.push(`留学全体の期間（ユーザー設定・固定）: ${userDurationMonths}ヶ月`);
+  } else if (karteHasDuration) {
+    constraints.push(`滞在期間: ${durationWeeks.value}週間`);
+  }
+  const hasDuration = userDurationMonths != null || karteHasDuration;
 
   const departure = stated("timing.departureTiming");
   if (departure) constraints.push(`出発時期: ${departure}`);
@@ -403,6 +415,7 @@ export function buildPlanTimelineUserMessage(data: BlueprintData, karte: Karte):
     "上の PLANNING_BRIEF をもとに、propose_plan_timeline ツールで期間プランを提案してください。",
     "- FIXED_DECISIONS と CONSTRAINTS は必ず守る（HARD）。",
     "- ユーザーが設定した期間（「○ヶ月目」「○〜○ヶ月目」）は固定。月をずらす・打ち消す・別期間へ移すことはしない。",
+    "- 『留学全体の期間（ユーザー設定・固定）』がある場合はその月数を厳守し、durationLabel も一致させる。",
     "- FLEXIBLE_PREFERENCES は可能な範囲で組み込む（SOFT・必須ではない）。",
     "- 保存されていない学校・都市・目的・施設の固有名詞は追加しない。",
     "- 項目をただ均等に並べるのではなく、順序・準備期間・慣れる時間・優先順位を考える。",

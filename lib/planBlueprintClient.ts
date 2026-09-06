@@ -14,11 +14,13 @@
 import { createClient } from "@/lib/supabase/client";
 import {
   BLUEPRINT_DURATION_MONTHS_MAX,
+  BLUEPRINT_PLAN_DURATION_MONTHS_MAX,
   BLUEPRINT_START_MONTH_MAX,
   sanitizeBlueprintData,
   sanitizePlanTimeline,
   type BlueprintData,
   type BlueprintItem,
+  type BlueprintPlanSettings,
   type BlueprintSchool,
   type BlueprintSchoolSource,
   type BlueprintSchoolStatus,
@@ -26,6 +28,7 @@ import {
 } from "@/lib/planBlueprint";
 
 export type BlueprintSectionKey =
+  | "planSettings"
   | "goals"
   | "destinations"
   | "workInterests"
@@ -84,7 +87,10 @@ async function callPatch(
 }
 
 /** BlueprintItem[] セクション（goals / workInterests / thingsToDo / milestones）。 */
-export type ItemSectionKey = Exclude<BlueprintSectionKey, "destinations" | "schools">;
+export type ItemSectionKey = Exclude<
+  BlueprintSectionKey,
+  "destinations" | "schools" | "planSettings"
+>;
 
 /** goals / workInterests / thingsToDo / milestones（BlueprintItem[] セクション）を丸ごと差し替える。 */
 export function patchItemsSection(
@@ -115,6 +121,29 @@ export function schoolToJson(s: BlueprintSchool): Record<string, unknown> {
   if (typeof s.startMonth === "number") json.startMonth = s.startMonth;
   if (typeof s.durationMonths === "number") json.durationMonths = s.durationMonths;
   return json;
+}
+
+/** Plan 全体期間 select の選択肢（1..24 は 1 ヶ月刻み、その先は 30 / 36）。§9 / §10。 */
+export const PLAN_DURATION_MONTH_OPTIONS: number[] = [
+  ...Array.from({ length: 24 }, (_, i) => i + 1),
+  30,
+  36,
+].filter((m) => m <= BLUEPRINT_PLAN_DURATION_MONTHS_MAX);
+
+/** BlueprintPlanSettings を DB JSON 形へ（未設定キーは持たせない）。 */
+export function planSettingsToJson(s: BlueprintPlanSettings): Record<string, unknown> {
+  const json: Record<string, unknown> = {};
+  if (typeof s.durationMonths === "number") json.durationMonths = s.durationMonths;
+  return json;
+}
+
+/** planSettings セクション（Plan 全体設定）を丸ごと差し替える。「未定」は {} を渡す（override 解除・§20）。 */
+export function patchPlanSettingsSection(
+  planId: string,
+  settings: BlueprintPlanSettings,
+  expectedUpdatedAt: string | null,
+): Promise<PatchResult> {
+  return callPatch("planSettings", planId, planSettingsToJson(settings), expectedUpdatedAt);
 }
 
 /** schools セクションを丸ごと差し替える（追加 / status 変更 / 削除いずれも最新 state から作って渡す）。 */

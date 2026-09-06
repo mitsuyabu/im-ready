@@ -19,10 +19,18 @@ const SELECT_CLS =
   "min-h-[40px] w-full rounded-xl border border-[#d8d1c5] bg-[#fffefa] px-2.5 py-1.5 text-base text-[#3f3c37] transition-colors focus:border-[#b9c4a8] focus:outline-none focus:ring-2 focus:ring-[#c9d3bb]/50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-[128px] sm:text-[13px]";
 const LABEL_CLS = "text-[11px] font-medium tracking-wide text-[#7d776c]";
 
-function optionCount(planDurationMonths: number | null): number {
-  // 分からなければ 12。分かれば Plan 期間（12〜24 にクランプ）。
+/** 1..max の連番。既存の保存値が範囲外でも option から消さない（§27 / §28）。 */
+function monthOptions(max: number, current: number | undefined): number[] {
+  const set = new Set<number>();
+  for (let i = 1; i <= max; i += 1) set.add(i);
+  if (typeof current === "number" && Number.isInteger(current) && current >= 1) set.add(current);
+  return [...set].sort((a, b) => a - b);
+}
+
+/** activity timing の選択肢上限。Plan 全体期間が分かればそれに合わせる（§27）。分からなければ 12。 */
+function activityMonthMax(planDurationMonths: number | null): number {
   if (planDurationMonths == null) return 12;
-  return Math.min(24, Math.max(12, planDurationMonths));
+  return Math.min(24, Math.max(3, planDurationMonths));
 }
 
 export default function PlanTimingControl({
@@ -44,8 +52,9 @@ export default function PlanTimingControl({
 }) {
   const startId = useId();
   const durId = useId();
-  const count = optionCount(planDurationMonths);
-  const startMax = Math.min(24, Math.max(count, planDurationMonths ?? 12));
+  const max = activityMonthMax(planDurationMonths);
+  const startOpts = monthOptions(max, startMonth);
+  const durOpts = monthOptions(max, durationMonths);
 
   const overPlan =
     typeof startMonth === "number" &&
@@ -68,7 +77,7 @@ export default function PlanTimingControl({
             }
           >
             <option value="">未定</option>
-            {Array.from({ length: startMax }, (_, i) => i + 1).map((m) => (
+            {startOpts.map((m) => (
               <option key={m} value={m}>
                 {m}ヶ月目
               </option>
@@ -88,7 +97,7 @@ export default function PlanTimingControl({
             }
           >
             <option value="">未定</option>
-            {Array.from({ length: count }, (_, i) => i + 1).map((m) => (
+            {durOpts.map((m) => (
               <option key={m} value={m}>
                 {m}ヶ月
               </option>

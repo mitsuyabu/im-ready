@@ -76,9 +76,11 @@ export type MyPlanHero = {
   destination: { text: string; fromKarte: boolean } | null;
   school: string | null;
   departure: string | null;
-  duration: string | null;
   budget: string | null;
 };
+
+/** Plan 全体期間の由来（UI の source 表示 / AI の HARD 判定に使う・§1 / §23）。 */
+export type PlanDurationSource = "blueprint" | "karte" | "unknown";
 
 /* ---- 月ベースの要約タイムライン（YOUR PLAN AT A GLANCE 直下の横図・§配置） ----
  * 役割は「1年の流れをひと目で」。詳細な activities / 理由は既存の詳細 Timeline セクションが担う。
@@ -138,8 +140,15 @@ export type MyPlanView = {
   timeline: PlanTimeline | null;
   /** AI 期間プランを生成してよいか（blueprint available ＋ 材料が最低限ある・§56-58）。 */
   timelineCanGenerate: boolean;
-  /** Karte 由来の全体期間（月・概算）。timing 選択肢の範囲 / 超過 warning 用（read-only）。 */
+  /**
+   * 留学全体の期間（月）。優先度: My Plan user-saved（planSettings） > Karte stated 由来 > null（§1 / §22）。
+   * School / Work timing の選択肢範囲・超過 warning・YEARLY PLAN の durationLabel・AI の HARD 条件に使う。
+   */
   planDurationMonths: number | null;
+  /** 上の値の由来。 */
+  planDurationSource: PlanDurationSource;
+  /** My Plan override とは別に、Karte から機械変換した期間（月）。override 解除時の即時 fallback 表示用。 */
+  planDurationKarteMonths: number | null;
 };
 
 const KARTE_NOTE = "会話やWorksheetから";
@@ -221,7 +230,8 @@ function buildMonthlyTimeline(input: {
   workHints: MyPlanCandidate[];
   milestoneHints: MyPlanCandidate[];
   goalCandidates: MyPlanCandidate[];
-  durationLabelFromKarte: string | null;
+  /** 解決済みの Plan 全体期間ラベル（My Plan user-saved > Karte 由来）。図の右上に出す。 */
+  planDurationLabel: string | null;
 }): MyPlanMonthlyTimeline | null {
   const { timeline } = input;
 
@@ -230,7 +240,7 @@ function buildMonthlyTimeline(input: {
   if (userTimed.length > 0) {
     return {
       phases: userTimed,
-      durationLabel: input.durationLabelFromKarte,
+      durationLabel: input.planDurationLabel,
       source: "user-timing",
     };
   }
@@ -251,7 +261,8 @@ function buildMonthlyTimeline(input: {
     });
     return {
       phases,
-      durationLabel: timeline.durationLabel.trim() || input.durationLabelFromKarte,
+      // §47: 全体 durationLabel は新しい My Plan duration を優先（保存済み Timeline のラベルより）。
+      durationLabel: input.planDurationLabel ?? (timeline.durationLabel.trim() || null),
       source: "saved-timeline",
     };
   }
@@ -317,7 +328,7 @@ function buildMonthlyTimeline(input: {
     p.rangeLabel = PHASE_SEQ_LABELS[i] ?? `${i + 1}`;
   });
 
-  return { phases: trimmed, durationLabel: input.durationLabelFromKarte, source: "summary" };
+  return { phases: trimmed, durationLabel: input.planDurationLabel, source: "summary" };
 }
 
 /**
@@ -506,16 +517,17 @@ export function buildMyPlanView(
   }
 
   const durationField = karte.timing.durationWeeks;
-  const heroDuration =
-    durationField.certainty === "stated" && typeof durationField.value === "number"
-      ? `${durationField.value}週間`
-      : null;
-  // Plan 全体期間（週→月の概算。根拠が無ければ null）。timing 選択肢の範囲 / 超過 warning / 図ラベル用。
-  const planDurationMonths =
+  // Plan 全体期間: My Plan user-saved（planSettings.durationMonths） > Karte stated（週→月概算） > null（§1）。
+  const planDurationKarteMonths =
     durationField.certainty === "stated" && typeof durationField.value === "number"
       ? Math.max(1, Math.round(durationField.value / 4.345))
       : null;
-  const durationLabelFromKarte = planDurationMonths != null ? `約${planDurationMonths}ヶ月` : null;
+  const blueprintDurationMonths =
+    typeof data.planSettings.durationMonths === "number" ? data.planSettings.durationMonths : null;
+  const planDurationMonths = blueprintDurationMonths ?? planDurationKarteMonths;
+  const planDurationSource: PlanDurationSource =
+    blueprintDurationMonths != null ? "blueprint" : planDurationKarteMonths != null ? "karte" : "unknown";
+  const planDurationLabel = planDurationMonths != null ? `約${planDurationMonths}ヶ月` : null;
   const budgetField = karte.budget.totalCap;
   const heroBudget =
     budgetField.certainty === "stated" && typeof budgetField.value === "number"
@@ -535,7 +547,6 @@ export function buildMyPlanView(
     destination: heroDestination,
     school: heroSchool,
     departure: heroDeparture,
-    duration: heroDuration,
     budget: heroBudget,
   };
 
@@ -551,7 +562,7 @@ export function buildMyPlanView(
     workHints,
     milestoneHints,
     goalCandidates,
-    durationLabelFromKarte,
+    planDurationLabel,
   });
 
   /* ---- hasAnyContent（§50） ---- */
@@ -607,5 +618,7 @@ export function buildMyPlanView(
     timeline,
     timelineCanGenerate,
     planDurationMonths,
+    planDurationSource,
+    planDurationKarteMonths,
   };
 }

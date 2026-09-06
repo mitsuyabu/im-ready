@@ -10,6 +10,7 @@ import EditablePlanItems from "@/components/EditablePlanItems";
 import EditableDestination from "@/components/EditableDestination";
 import EditableSchools from "@/components/EditableSchools";
 import EditableTimeline from "@/components/EditableTimeline";
+import EditablePlanDuration from "@/components/EditablePlanDuration";
 import SavedSchoolMainCard from "@/components/SavedSchoolCard";
 
 /**
@@ -46,12 +47,6 @@ const PinIcon = ({ className }: IconProps) => (
   <svg {...svgProps(className)}>
     <path d="M12 21s7-5.6 7-11a7 7 0 0 0-14 0c0 5.4 7 11 7 11Z" />
     <circle cx="12" cy="10" r="2.5" />
-  </svg>
-);
-const ClockIcon = ({ className }: IconProps) => (
-  <svg {...svgProps(className)}>
-    <circle cx="12" cy="12" r="8.5" />
-    <path d="M12 7.5V12l3 2" />
   </svg>
 );
 const CalendarIcon = ({ className }: IconProps) => (
@@ -681,7 +676,14 @@ export default function MyPlan({
             note={hero.destination?.fromKarte ? "Karteから" : null}
           />
           <HeroItem icon={<CalendarIcon className="h-4 w-4" />} label="出発目安" value={hero.departure} />
-          <HeroItem icon={<ClockIcon className="h-4 w-4" />} label="期間" value={hero.duration} />
+          <EditablePlanDuration
+            planId={planId}
+            blueprintMonths={
+              view.planDurationSource === "blueprint" ? view.planDurationMonths : null
+            }
+            karteMonths={view.planDurationKarteMonths}
+            editingEnabled={view.blueprintAvailable}
+          />
           <HeroItem icon={<WalletIcon className="h-4 w-4" />} label="予算" value={hero.budget} />
         </div>
       </section>

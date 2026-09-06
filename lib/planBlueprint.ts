@@ -31,6 +31,8 @@ export const BLUEPRINT_NOTE_MAX = 500;
  */
 export const BLUEPRINT_START_MONTH_MAX = 60;
 export const BLUEPRINT_DURATION_MONTHS_MAX = 24;
+/** 留学全体の期間（My Plan user-saved）。1..36 ヶ月。未設定は field 省略（Karte fallback へ）。 */
+export const BLUEPRINT_PLAN_DURATION_MONTHS_MAX = 36;
 
 // timeline 側の緩いガード（AI 出力の異常な長さを弾くだけ。意味は解釈しない）
 const TIMELINE_SUMMARY_MAX = 1000;
@@ -86,7 +88,17 @@ export type BlueprintDestinations = {
   interested: BlueprintItem[];
 };
 
+/**
+ * My Plan 全体の設定（ユーザーが My Plan で直接管理する。Karte は書き換えない）。
+ * 将来 departure timing 等を足せる。未設定のキーは持たない（fake を書き込まない）。
+ */
+export type BlueprintPlanSettings = {
+  /** 留学全体の期間（月）。My Plan user-saved。無ければ Karte fallback。 */
+  durationMonths?: number;
+};
+
 export type BlueprintData = {
+  planSettings: BlueprintPlanSettings;
   goals: BlueprintItem[];
   destinations: BlueprintDestinations;
   schools: BlueprintSchool[];
@@ -153,6 +165,7 @@ export type LoadedPlanBlueprint = ParsedPlanBlueprint & {
 
 export function createEmptyBlueprintData(): BlueprintData {
   return {
+    planSettings: {},
     goals: [],
     destinations: { primary: null, interested: [] },
     schools: [],
@@ -319,12 +332,22 @@ function sanitizeBlueprintSchoolArray(value: unknown): BlueprintSchool[] {
 /* BlueprintData                                                      */
 /* ------------------------------------------------------------------ */
 
+/** planSettings jsonb → BlueprintPlanSettings。不正な値は field ごと落とす（§29 / §30）。 */
+export function sanitizeBlueprintPlanSettings(value: unknown): BlueprintPlanSettings {
+  if (!isRecord(value)) return {};
+  const out: BlueprintPlanSettings = {};
+  const durationMonths = sanitizeMonthValue(value.durationMonths, BLUEPRINT_PLAN_DURATION_MONTHS_MAX);
+  if (durationMonths !== undefined) out.durationMonths = durationMonths;
+  return out;
+}
+
 /** DB jsonb → BlueprintData。どんな入力でも throw せず、必ず完全な BlueprintData を返す。 */
 export function sanitizeBlueprintData(value: unknown): BlueprintData {
   const empty = createEmptyBlueprintData();
   if (!isRecord(value)) return empty;
 
   return {
+    planSettings: sanitizeBlueprintPlanSettings(value.planSettings),
     goals: sanitizeBlueprintItemArray(value.goals),
     destinations: sanitizeBlueprintDestinations(value.destinations),
     schools: sanitizeBlueprintSchoolArray(value.schools),
