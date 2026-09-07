@@ -115,6 +115,11 @@ export type PlanTimelinePeriod = {
   title: string;
   activities: string[];
   reason: string;
+  /**
+   * そのフェーズで滞在・訪問する都市（AI 提案。後方互換のため optional）。
+   * server 側で「ユーザー保存済み / 相談で述べた都市」の allowlist と照合し、一致しないものは drop（§51 / §52）。
+   */
+  locations?: string[];
 };
 
 export type PlanTimeline = {
@@ -200,18 +205,26 @@ function clampString(v: string, max: number): string {
 }
 
 /**
- * timing 月数の緩いガード。1..max の整数のみ通す。
- * 非数値 / 小数 / 0以下 / 範囲外 → undefined（＝field 省略。default 値は作らない・§39 / §52）。
+ * timing 月数の緩いガード。min..max の整数のみ通す（min 既定 1）。
+ * 非数値 / 小数 / 範囲外 → undefined（＝field 省略。default 値は作らない・§39 / §52）。
+ * Destination の startMonth だけ min=0（＝到着時）を許可する（§4）。
  */
-function sanitizeMonthValue(v: unknown, max: number): number | undefined {
+function sanitizeMonthValue(v: unknown, max: number, min = 1): number | undefined {
   if (typeof v !== "number" || !Number.isInteger(v)) return undefined;
-  if (v < 1 || v > max) return undefined;
+  if (v < min || v > max) return undefined;
   return v;
 }
 
-/** BlueprintTiming（startMonth / durationMonths）を sanitize して attach する。 */
-function attachTiming<T extends BlueprintTiming>(target: T, value: Record<string, unknown>): T {
-  const startMonth = sanitizeMonthValue(value.startMonth, BLUEPRINT_START_MONTH_MAX);
+/**
+ * BlueprintTiming（startMonth / durationMonths）を sanitize して attach する。
+ * startMin=0 で startMonth の 0（到着時）を許可（Destination 用・§4）。School / Work は 1 のまま（§3）。
+ */
+function attachTiming<T extends BlueprintTiming>(
+  target: T,
+  value: Record<string, unknown>,
+  startMin = 1,
+): T {
+  const startMonth = sanitizeMonthValue(value.startMonth, BLUEPRINT_START_MONTH_MAX, startMin);
   if (startMonth !== undefined) target.startMonth = startMonth;
   const durationMonths = sanitizeMonthValue(value.durationMonths, BLUEPRINT_DURATION_MONTHS_MAX);
   if (durationMonths !== undefined) target.durationMonths = durationMonths;
@@ -262,11 +275,50 @@ function sanitizeBlueprintItemArray(value: unknown): BlueprintItem[] {
   return dedupeById(items);
 }
 
+/**
+ * Destination 1 件を sanitize（都市 = label）。
+ *   - 旧データが素の文字列（primary: "Gold Coast" 等）でも壊さず object へ normalize（§8 / §67）。
+ *   - startMonth は 0（到着時）を許可（§4）。fake timing は付けない（§11）。
+ */
+export function sanitizeDestinationItem(value: unknown): BlueprintItem | null {
+  if (typeof value === "string") {
+    const label = value.trim();
+    if (label.length === 0) return null;
+    return {
+      id: `legacy:${label.toLowerCase()}`,
+      label: clampString(label, BLUEPRINT_LABEL_MAX),
+      createdAt: "1970-01-01T00:00:00.000Z",
+    };
+  }
+  if (!isRecord(value)) return null;
+
+  const id = rawNonEmptyString(value.id);
+  const label = trimmedNonEmpty(value.label);
+  const createdAt = rawNonEmptyString(value.createdAt);
+  if (!id || !label || !createdAt) return null;
+
+  const item: BlueprintItem = {
+    id,
+    label: clampString(label, BLUEPRINT_LABEL_MAX),
+    createdAt,
+  };
+  const note = trimmedNonEmpty(value.note);
+  if (note) item.note = clampString(note, BLUEPRINT_NOTE_MAX);
+  return attachTiming(item, value, 0);
+}
+
+function sanitizeDestinationArray(value: unknown): BlueprintItem[] {
+  if (!Array.isArray(value)) return [];
+  return dedupeById(
+    value.map(sanitizeDestinationItem).filter((it): it is BlueprintItem => it !== null),
+  );
+}
+
 function sanitizeBlueprintDestinations(value: unknown): BlueprintDestinations {
   if (!isRecord(value)) return { primary: null, interested: [] };
   return {
-    primary: sanitizeBlueprintItem(value.primary),
-    interested: sanitizeBlueprintItemArray(value.interested),
+    primary: sanitizeDestinationItem(value.primary),
+    interested: sanitizeDestinationArray(value.interested),
   };
 }
 
@@ -379,13 +431,26 @@ function sanitizePlanTimelinePeriod(value: unknown): PlanTimelinePeriod | null {
     if (t.length > 0) activities.push(clampString(t, TIMELINE_ACTIVITY_MAX));
   }
 
-  return {
+  const period: PlanTimelinePeriod = {
     id,
     label: clampString(label, TIMELINE_PERIOD_LABEL_MAX),
     title: clampString(title, TIMELINE_PERIOD_TITLE_MAX),
     activities,
     reason: clampString(value.reason.trim(), TIMELINE_PERIOD_REASON_MAX),
   };
+
+  // locations は optional。壊れていても period ごと無効化はせず、その field だけ落とす（後方互換）。
+  if (Array.isArray(value.locations)) {
+    const locations: string[] = [];
+    for (const raw of value.locations) {
+      if (typeof raw !== "string") continue;
+      const t = raw.trim();
+      if (t.length > 0 && locations.length < 6) locations.push(clampString(t, BLUEPRINT_LABEL_MAX));
+    }
+    if (locations.length > 0) period.locations = locations;
+  }
+
+  return period;
 }
 
 /**

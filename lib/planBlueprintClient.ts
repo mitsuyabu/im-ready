@@ -285,6 +285,7 @@ function timelineToJson(t: PlanTimeline): Record<string, unknown> {
       title: p.title,
       activities: p.activities,
       reason: p.reason,
+      ...(p.locations && p.locations.length > 0 ? { locations: p.locations } : {}),
     })),
     openQuestions: t.openQuestions,
     generatedAt: t.generatedAt,
@@ -355,19 +356,20 @@ export type BlueprintTimingPatch = {
   durationMonths?: number | null;
 };
 
-/** 1..max の整数だけ通す（それ以外は null 扱い）。UI は固定リストだが念のため防御。 */
-function clampMonth(v: number | null | undefined, max: number): number | null {
-  if (typeof v !== "number" || !Number.isInteger(v) || v < 1 || v > max) return null;
+/** min..max の整数だけ通す（それ以外は null 扱い）。UI は固定リストだが念のため防御。 */
+function clampMonth(v: number | null | undefined, max: number, min = 1): number | null {
+  if (typeof v !== "number" || !Number.isInteger(v) || v < min || v > max) return null;
   return v;
 }
 
 function withTiming<T extends { startMonth?: number; durationMonths?: number }>(
   o: T,
   patch: BlueprintTimingPatch,
+  startMin = 1,
 ): T {
   const next = { ...o };
   if ("startMonth" in patch) {
-    const m = clampMonth(patch.startMonth, BLUEPRINT_START_MONTH_MAX);
+    const m = clampMonth(patch.startMonth, BLUEPRINT_START_MONTH_MAX, startMin);
     if (m === null) delete next.startMonth;
     else next.startMonth = m;
   }
@@ -395,4 +397,12 @@ export function applySchoolTiming(
   patch: BlueprintTimingPatch,
 ): BlueprintSchool[] {
   return schools.map((s) => (s.id === id ? withTiming(s, patch) : s));
+}
+
+/**
+ * Destination 1 件（primary or interested）の timing を更新した新しい値を返す。
+ * Destination だけ startMonth 0（到着時）を許可（§4）。都市ごとに保持し、コピーしない（§23）。
+ */
+export function withDestinationTiming(item: BlueprintItem, patch: BlueprintTimingPatch): BlueprintItem {
+  return withTiming(item, patch, 0);
 }

@@ -3,7 +3,14 @@
 import { useState } from "react";
 import type { BlueprintItem } from "@/lib/planBlueprint";
 import type { MyPlanCandidate } from "@/lib/myPlanView";
-import { canAddLabel, makeBlueprintItem, patchDestinationsSection } from "@/lib/planBlueprintClient";
+import {
+  canAddLabel,
+  makeBlueprintItem,
+  patchDestinationsSection,
+  withDestinationTiming,
+  type BlueprintTimingPatch,
+} from "@/lib/planBlueprintClient";
+import PlanTimingControl from "@/components/PlanTimingControl";
 
 /**
  * Destination セクションの編集 island（Step 2-3）。
@@ -41,6 +48,7 @@ export default function EditableDestination({
   candidates = [],
   hints = [],
   editingEnabled,
+  planDurationMonths = null,
 }: {
   planId: string;
   initialPrimary: BlueprintItem | null;
@@ -48,6 +56,8 @@ export default function EditableDestination({
   candidates?: MyPlanCandidate[];
   hints?: MyPlanCandidate[];
   editingEnabled: boolean;
+  /** 都市 timing の選択肢範囲 / 超過 warning 用（§19 / §58）。 */
+  planDurationMonths?: number | null;
 }) {
   const [primary, setPrimary] = useState<BlueprintItem | null>(initialPrimary);
   const [interested, setInterested] = useState<BlueprintItem[]>(initialInterested);
@@ -57,6 +67,7 @@ export default function EditableDestination({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [timingSavedId, setTimingSavedId] = useState<string | null>(null);
 
   const allLabels = () => [primary, ...interested].filter((x): x is BlueprintItem => x !== null);
 
@@ -133,8 +144,44 @@ export default function EditableDestination({
     setBusy(null);
   }
 
+  /** 都市（primary or interested）の timing を auto-save。都市ごとに保持・コピーしない（§23）。 */
+  async function handleTiming(id: string, patch: BlueprintTimingPatch) {
+    setBusy(`timing:${id}`);
+    setTimingSavedId(null);
+    const nextPrimary =
+      primary && primary.id === id ? withDestinationTiming(primary, patch) : primary;
+    const nextInterested = interested.map((i) =>
+      i.id === id ? withDestinationTiming(i, patch) : i,
+    );
+    const ok = await commit(nextPrimary, nextInterested);
+    setBusy(null);
+    if (ok) {
+      setTimingSavedId(id);
+      window.setTimeout(() => setTimingSavedId((cur) => (cur === id ? null : cur)), 1800);
+    }
+  }
+
   const disabled = busy !== null;
   const nothing = !primary && interested.length === 0 && openCandidates.length === 0 && hints.length === 0;
+
+  const cityTiming = (item: BlueprintItem) => (
+    <div className="mt-2 border-t border-[#eef0e9] pt-2.5">
+      <p className="text-[11px] font-medium tracking-wide text-[#7d776c]">滞在する時期</p>
+      <div className="mt-1.5">
+        <PlanTimingControl
+          startMonth={item.startMonth}
+          durationMonths={item.durationMonths}
+          planDurationMonths={planDurationMonths}
+          minStartMonth={0}
+          zeroMonthLabel="到着時"
+          disabled={disabled}
+          saving={busy === `timing:${item.id}`}
+          saved={timingSavedId === item.id}
+          onChange={(patch) => handleTiming(item.id, patch)}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div>
@@ -149,22 +196,25 @@ export default function EditableDestination({
 
       {primary && (
         <div className="mt-4">
-          <p className="text-[10px] font-medium tracking-wide text-[#6b665d]">第一候補</p>
-          <div className="mt-1 flex items-center gap-2">
-            <span className="inline-flex rounded-xl border border-[#cfdbe6] bg-[#eef3f7] px-4 py-2 text-base font-semibold text-[#2f3a4a]">
-              {primary.label}
-            </span>
-            {editingEnabled && (
-              <button
-                type="button"
-                onClick={handleDeletePrimary}
-                disabled={disabled}
-                aria-label={`第一候補「${primary.label}」を外す`}
-                className="rounded-lg p-1 text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
-              >
-                <XIcon className="h-4 w-4" />
-              </button>
-            )}
+          <p className="text-[10px] font-medium tracking-wide text-[#6b665d]">第一候補（最初の滞在都市）</p>
+          <div className="mt-1 rounded-xl border border-[#cfdbe6] bg-[#eef3f7] px-3.5 py-2.5">
+            <div className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 text-base font-semibold text-[#2f3a4a]">
+                {primary.label}
+              </span>
+              {editingEnabled && (
+                <button
+                  type="button"
+                  onClick={handleDeletePrimary}
+                  disabled={disabled}
+                  aria-label={`第一候補「${primary.label}」を外す`}
+                  className="shrink-0 rounded-lg p-1 text-[#8a8578] transition-colors hover:bg-[#e2ecf3] hover:text-[#57534b] disabled:opacity-40"
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            {editingEnabled && cityTiming(primary)}
           </div>
         </div>
       )}
@@ -176,30 +226,33 @@ export default function EditableDestination({
             {interested.map((d) => (
               <li
                 key={d.id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-[#e5dfd6] bg-white px-3 py-2"
+                className="rounded-xl border border-[#e5dfd6] bg-white px-3 py-2"
               >
-                <span className="min-w-0 text-[13px] text-[#3f3a34]">{d.label}</span>
-                {editingEnabled && (
-                  <span className="flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleMakePrimary(d)}
-                      disabled={disabled}
-                      className="rounded-full border border-[#cfdbe6] bg-[#eef3f7] px-2.5 py-1 text-[11px] font-medium text-[#3a5266] transition-colors hover:bg-[#e2ecf3] disabled:opacity-40"
-                    >
-                      {busy === `primary:${d.id}` ? "…" : "第一候補にする"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteInterested(d.id)}
-                      disabled={disabled}
-                      aria-label={`「${d.label}」を削除`}
-                      className="rounded-full p-1 text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
-                    >
-                      <XIcon className="h-3.5 w-3.5" />
-                    </button>
-                  </span>
-                )}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 text-[13px] text-[#3f3a34]">{d.label}</span>
+                  {editingEnabled && (
+                    <span className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleMakePrimary(d)}
+                        disabled={disabled}
+                        className="rounded-full border border-[#cfdbe6] bg-[#eef3f7] px-2.5 py-1 text-[11px] font-medium text-[#3a5266] transition-colors hover:bg-[#e2ecf3] disabled:opacity-40"
+                      >
+                        {busy === `primary:${d.id}` ? "…" : "第一候補にする"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteInterested(d.id)}
+                        disabled={disabled}
+                        aria-label={`「${d.label}」を削除`}
+                        className="rounded-full p-1 text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
+                      >
+                        <XIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
+                  )}
+                </div>
+                {editingEnabled && cityTiming(d)}
               </li>
             ))}
           </ul>

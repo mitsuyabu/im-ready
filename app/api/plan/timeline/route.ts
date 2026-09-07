@@ -7,6 +7,7 @@ import { loadPlanKarte } from "@/lib/planChat";
 import { loadPlanBlueprint } from "@/lib/planBlueprint";
 import {
   blueprintHasTimelineMaterial,
+  buildAllowedCityKeys,
   buildPlanTimelineSystemPrompt,
   buildPlanTimelineUserMessage,
   composePlanTimelineFromDraft,
@@ -95,7 +96,12 @@ export async function POST(req: NextRequest) {
     );
 
     timeline = toolUse
-      ? composePlanTimelineFromDraft(toolUse.input, new Date().toISOString(), randomUUID)
+      ? composePlanTimelineFromDraft(
+          toolUse.input,
+          new Date().toISOString(),
+          randomUUID,
+          buildAllowedCityKeys(blueprint.data, karte),
+        )
       : null;
   } catch (err) {
     const isApiError = err instanceof Anthropic.APIError;

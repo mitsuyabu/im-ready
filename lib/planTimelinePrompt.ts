@@ -72,6 +72,12 @@ export const PLAN_TIMELINE_TOOL: Anthropic.Tool = {
               description:
                 "なぜこの順番・この時期にこれをするのか、を短く説明する（単なる説明ではなく、順序・準備・優先順位の理由）。",
             },
+            locations: {
+              type: "array",
+              items: { type: "string" },
+              description:
+                "そのフェーズで滞在・訪問する都市。DESTINATIONS に挙がった都市（primary / interested / user-saved）と相談で述べられた都市のみ。新しい都市を作らない。無ければ空配列。最大 3 件。",
+            },
           },
           required: ["label", "title", "activities", "reason"],
         },
@@ -145,6 +151,14 @@ export function buildPlanTimelineSystemPrompt(): string {
     "- 仕事は希望であり、その仕事に就ける保証はしない。Timeline では『仕事さがしを始める』『候補を探す』等にする。",
     "- Things to Do・行ってみたい都市は願望であり、すべて実行必須ではない。無理に全部詰め込まない。",
     "",
+    "【都市 / 滞在地】",
+    "- Primary は STRONG PREFERENCE。到着地・軸になる都市として扱ってよいが、絶対ではない。",
+    "- User-fixed timing の都市（『到着〜○ヶ月目』等）は HARD。時期をずらさない。",
+    "- Interested / Unscheduled の都市は SOFT。School・Work・期間との整合を見て『○〜○ヶ月目に○○へ滞在してはどうか』と提案してよい。",
+    "  提案した都市・時期は各 period の locations に入れ、reason で「なぜこの時期か」を短く述べる。ユーザー保存値へ確定として書き戻さない。",
+    "- locations に入れてよいのは DESTINATIONS の都市（primary / interested / user-saved）と相談で述べられた都市のみ。新しい都市を作らない。",
+    "- 都市の季節・天候・イベント・ベストシーズンなど、根拠のない事実を断定しない（外部情報を持っていない）。",
+    "",
     "【Milestone / ビザ】",
     "ユーザーが設定した目標。制度条件は別。特にビザは『条件を確認する』を含める。",
     "OK例: 「セカンドビザ取得を目標にする場合は、対象条件を公式情報で確認しながら時期を検討します。」",
@@ -166,6 +180,15 @@ export type PlanningBrief = {
   constraints: string[];
   openQuestions: string[];
   planningConsiderations: string[];
+  /** 行き先（都市）。primary = STRONG PREFERENCE / interested = SOFT / user timing = HARD（§47 / §48）。 */
+  destinations: {
+    primary: string | null;
+    interested: string[];
+    /** ユーザーが My Plan で設定した滞在時期（HARD）。例: "Gold Coast: 到着〜2ヶ月目"。 */
+    fixedTiming: string[];
+    /** 時期未設定の都市（AI が Plan 全体と整合させて提案してよい・SOFT）。 */
+    unscheduled: string[];
+  };
 };
 
 const STATUS_JA: Record<string, string> = {
@@ -228,6 +251,33 @@ export function buildPlanningBrief(data: BlueprintData, karte: Karte): PlanningB
       );
     }
   });
+
+  /* ---- destinations（§47 / §48）---- */
+  // Destination だけ startMonth 0（到着時）を許容。start=0 duration=3 → end 2 → "到着〜2ヶ月目"。
+  const destRange = (s: number, d: number): string => {
+    const end = s + d - 1;
+    if (s === 0) return end <= 0 ? "到着時" : `到着〜${end}ヶ月目`;
+    return monthRange(s, d);
+  };
+  const destCities: { item: (typeof data.destinations.interested)[number]; isPrimary: boolean }[] = [];
+  if (data.destinations.primary) destCities.push({ item: data.destinations.primary, isPrimary: true });
+  data.destinations.interested.forEach((c) => destCities.push({ item: c, isPrimary: false }));
+  const destFixedTiming: string[] = [];
+  const destUnscheduled: string[] = [];
+  for (const { item } of destCities) {
+    if (typeof item.startMonth === "number" && typeof item.durationMonths === "number") {
+      const range = destRange(item.startMonth, item.durationMonths);
+      destFixedTiming.push(`${item.label}: ${range}`);
+      // ユーザーが設定した滞在時期は HARD。
+      fixedDecisions.push(`都市「${item.label}」の滞在時期（ユーザー設定・固定）: ${range}`);
+    } else if (typeof item.startMonth === "number") {
+      const from = item.startMonth === 0 ? "到着から" : `${item.startMonth}ヶ月目から`;
+      destFixedTiming.push(`${item.label}: ${from}（期間は未定）`);
+      fixedDecisions.push(`都市「${item.label}」に入る時期（ユーザー設定・固定）: ${from}`);
+    } else {
+      destUnscheduled.push(item.label);
+    }
+  }
 
   /* ---- goals ---- */
   const goals: string[] = [];
@@ -363,6 +413,12 @@ export function buildPlanningBrief(data: BlueprintData, karte: Karte): PlanningB
     constraints,
     openQuestions: openQuestionsCapped,
     planningConsiderations,
+    destinations: {
+      primary: data.destinations.primary ? data.destinations.primary.label : null,
+      interested: data.destinations.interested.map((c) => c.label),
+      fixedTiming: destFixedTiming,
+      unscheduled: destUnscheduled,
+    },
   };
 }
 
@@ -408,15 +464,31 @@ export function buildPlanTimelineUserMessage(data: BlueprintData, karte: Karte):
     "",
     section("PLANNING_CONSIDERATIONS（時間軸を考えるときの観点）", brief.planningConsiderations, "（なし）"),
     "",
+    "## DESTINATIONS（行き先の都市）",
+    `- Primary（第一候補・STRONG PREFERENCE）: ${brief.destinations.primary ?? "（未設定）"}`,
+    `- Interested（行ってみたい・SOFT）: ${
+      brief.destinations.interested.length > 0 ? brief.destinations.interested.join(" / ") : "（なし）"
+    }`,
+    `- User-fixed timing（HARD・動かさない）: ${
+      brief.destinations.fixedTiming.length > 0 ? brief.destinations.fixedTiming.join(" / ") : "（なし）"
+    }`,
+    `- Unscheduled（時期の提案可・SOFT）: ${
+      brief.destinations.unscheduled.length > 0 ? brief.destinations.unscheduled.join(" / ") : "（なし）"
+    }`,
+    "",
     "## SAVED_SCHOOLS（status 付き）",
     ...savedSchoolLines,
     "",
     "# 指示",
     "上の PLANNING_BRIEF をもとに、propose_plan_timeline ツールで期間プランを提案してください。",
     "- FIXED_DECISIONS と CONSTRAINTS は必ず守る（HARD）。",
-    "- ユーザーが設定した期間（「○ヶ月目」「○〜○ヶ月目」）は固定。月をずらす・打ち消す・別期間へ移すことはしない。",
+    "- ユーザーが設定した期間（「○ヶ月目」「○〜○ヶ月目」「到着〜○ヶ月目」）は固定。月をずらす・打ち消す・別期間へ移すことはしない。",
     "- 『留学全体の期間（ユーザー設定・固定）』がある場合はその月数を厳守し、durationLabel も一致させる。",
     "- FLEXIBLE_PREFERENCES は可能な範囲で組み込む（SOFT・必須ではない）。",
+    "- 都市: Unscheduled の都市は、School / Work / 期間との整合を見て『いつ頃その都市に滞在するか』を提案してよい（各 period の locations と reason で示す）。",
+    "  ただし User-fixed timing の都市は動かさない。提案はあくまで提案であり、ユーザー保存値へ確定として扱わない。",
+    "- 都市名は DESTINATIONS に挙がっている都市（primary / interested / user-saved）と、相談で述べられた都市のみ。新しい都市を発明しない。",
+    "- 都市の『ベストシーズン』『天候』『イベント』など、根拠のない季節情報を断定しない。",
     "- 保存されていない学校・都市・目的・施設の固有名詞は追加しない。",
     "- 項目をただ均等に並べるのではなく、順序・準備期間・慣れる時間・優先順位を考える。",
     "- 決まっていないことは openQuestions に入れ、勝手に埋めない。",
@@ -463,23 +535,60 @@ export function karteHasTimelineMaterial(karte: Karte): boolean {
 /* ------------------------------------------------------------------ */
 
 /**
+ * AI が返した都市を許可リストと照合するための正規化キー（大小・空白・全角記号のゆらぎを吸収）。
+ */
+function cityKey(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, "").replace(/[・･,、]/g, "");
+}
+
+/**
+ * ユーザー保存済み / 相談で述べられた都市の allowlist を作る（§52）。
+ * AI が返した period.locations はこの集合と exact 一致（正規化後）するものだけ残す。
+ */
+export function buildAllowedCityKeys(data: BlueprintData, karte: Karte): Set<string> {
+  const keys = new Set<string>();
+  const add = (v: string | null | undefined) => {
+    if (v && v.trim().length > 0) keys.add(cityKey(v));
+  };
+  if (data.destinations.primary) add(data.destinations.primary.label);
+  data.destinations.interested.forEach((c) => add(c.label));
+  data.schools.forEach((s) => add(s.city));
+  // Karte stated の希望都市（相談で述べられた都市）。
+  const summary = new Map(getKarteSummaryItems(karte).map((it) => [`${it.block}.${it.key}`, it]));
+  const conflictKeys = new Set(karte.handoff.conflicts.map((c) => `${c.block}.${c.key}`));
+  const pc = summary.get("schoolPrefs.preferredCity");
+  if (pc && pc.certainty === "stated" && !conflictKeys.has("schoolPrefs.preferredCity")) add(pc.value);
+  return keys;
+}
+
+/**
  * tool_use.input（AI raw）を PlanTimeline に合成する。
  *   - 各 period に server 生成の id を付ける（AI に UUID を作らせない）
+ *   - period.locations は allowedCityKeys と照合し、一致しない都市は drop（AI の都市発明を弾く・§51 / §52）
  *   - generatedAt は server 時刻
- *   - 最終判定は Step 2-1 の sanitizePlanTimeline（壊れていたら null）。schema は変更しない（後方互換）。
+ *   - 最終判定は sanitizePlanTimeline（壊れていたら null）。
  */
 export function composePlanTimelineFromDraft(
   raw: unknown,
   generatedAtIso: string,
   makeId: () => string,
+  allowedCityKeys?: Set<string>,
 ): PlanTimeline | null {
   if (typeof raw !== "object" || raw === null) return null;
   const r = raw as Record<string, unknown>;
 
   const periodsWithId = Array.isArray(r.periods)
-    ? r.periods.map((p) =>
-        p && typeof p === "object" ? { ...(p as Record<string, unknown>), id: makeId() } : p,
-      )
+    ? r.periods.map((p) => {
+        if (!p || typeof p !== "object") return p;
+        const period: Record<string, unknown> = { ...(p as Record<string, unknown>), id: makeId() };
+        if (Array.isArray(period.locations)) {
+          period.locations = (period.locations as unknown[])
+            .filter((c): c is string => typeof c === "string" && c.trim().length > 0)
+            .filter((c) => !allowedCityKeys || allowedCityKeys.has(cityKey(c)))
+            .slice(0, 3);
+        }
+        return period;
+      })
     : r.periods;
 
   return sanitizePlanTimeline({

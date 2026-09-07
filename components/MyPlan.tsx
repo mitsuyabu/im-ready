@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type {
+  MyPlanDestPhase,
   MyPlanMonthlyTimeline,
   MyPlanPointPhase,
   MyPlanSectionId,
@@ -269,12 +270,27 @@ const YEARLY_CAPTION: Record<MyPlanMonthlyTimeline["source"], string> = {
     "My Planの保存内容から、進み方の目安をまとめています。月ごとの詳しい流れは、下のTimelineでAIに提案してもらえます。",
 };
 
-/** month m（1始まり）の軸上の位置（%）。month 1 = 0%（左端・§5）。 */
-function monthPercent(month: number, totalMonths: number): number {
-  return (Math.max(0, month - 1) / totalMonths) * 100;
+/* ---- 0ヶ月目（到着）から始まる実時間軸の位置計算（§33 / §34） ----
+ * 軸は boundary 0..N（N+1 点）。0 = 到着、N = 期間終了。
+ * duration bar は月区間として配置。School/Work（start>=1）の bar 幾何は従来と不変（§35 / §36）:
+ *   left = (start-1)/N,  width = duration/N
+ * Destination の start=0（到着時）だけ: left = 0, width = (duration-1)/N（到着＋その後の月数）。 */
+function boundaryPercent(boundary: number, totalMonths: number): number {
+  return (Math.max(0, Math.min(boundary, totalMonths)) / totalMonths) * 100;
+}
+function barLeftPercent(startMonth: number, totalMonths: number): number {
+  return boundaryPercent(Math.max(0, startMonth - 1), totalMonths);
+}
+function barWidthPercent(
+  startMonth: number,
+  durationMonths: number,
+  totalMonths: number,
+): number {
+  const months = startMonth === 0 ? durationMonths - 1 : durationMonths;
+  return (Math.max(months, 0.5) / totalMonths) * 100;
 }
 
-/** month label の間引き（§28）。tick は全 month 分持つ。 */
+/** month label の間引き（§28）。tick は全 boundary 分持つ。 */
 function axisLabelMonths(totalMonths: number): number[] {
   const step =
     totalMonths <= 12 ? 1 : totalMonths <= 18 ? 2 : totalMonths <= 24 ? 3 : Math.ceil(totalMonths / 12);
@@ -288,35 +304,95 @@ function MonthScaleTimeline({
   totalMonths,
   timedPhases,
   pointPhases,
+  destinationPhases,
+  arrival,
 }: {
   totalMonths: number;
   timedPhases: MyPlanTimedPhase[];
   pointPhases: MyPlanPointPhase[];
+  destinationPhases: MyPlanDestPhase[];
+  arrival: { city: string; hasBar: boolean } | null;
 }) {
   const labels = axisLabelMonths(totalMonths);
   // 内部 canvas は最低幅を持ち、狭い画面では横スクロール（縮めない・§29）。desktop 12ヶ月は収まる。
-  const minWidthPx = Math.max(720, totalMonths * 74);
+  const minWidthPx = Math.max(760, totalMonths * 74);
 
   return (
     <div className="mt-6 overflow-x-auto pb-1 [scrollbar-width:thin]">
       <div className="relative pr-1" style={{ minWidth: `${minWidthPx}px` }}>
-        {/* month axis: 細い warm-gray line ＋ 各 month に small tick（§4） */}
-        <div className="relative h-7">
+        {/* 到着アンカー（Month 0・§30 / §56）＋ DESTINATIONS lane（§26 / §27） */}
+        {(arrival || destinationPhases.length > 0) && (
+          <div className="mb-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7c8a6b]">
+              DESTINATIONS
+            </p>
+            {arrival && (
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="rounded-full bg-[#e9f1f5] px-1.5 py-0.5 text-[10px] font-semibold text-[#567789]">
+                  到着
+                </span>
+                <span className="text-[13px] font-semibold text-[#2f3a4a]">{arrival.city}</span>
+                <span className="text-[10px] text-[#8a949c]">最初の滞在都市</span>
+              </div>
+            )}
+            <div className="mt-1.5 space-y-1.5">
+              {destinationPhases.map((d, i) => {
+                const pal = PHASE_PALETTE[i % PHASE_PALETTE.length];
+                const left = barLeftPercent(d.startMonth, totalMonths);
+                return (
+                  <div key={d.key} className="relative h-4">
+                    {d.durationMonths != null ? (
+                      <span
+                        className="absolute top-1 h-2 rounded-full opacity-90"
+                        style={{
+                          left: `${left}%`,
+                          width: `${barWidthPercent(d.startMonth, d.durationMonths, totalMonths)}%`,
+                          backgroundColor: pal.node,
+                        }}
+                      />
+                    ) : (
+                      <span
+                        aria-hidden
+                        className="absolute top-0.5 h-2.5 w-2.5 -translate-x-1/2 rounded-full ring-2 ring-[#fcfbf8]"
+                        style={{ left: `${left}%`, backgroundColor: pal.node }}
+                      />
+                    )}
+                    <span
+                      className="absolute top-0 whitespace-nowrap text-[11px] font-medium text-[#3f3a34]"
+                      style={{ left: `min(${left}%, calc(100% - 140px))`, paddingLeft: 4 }}
+                    >
+                      {d.city}
+                      <span className="ml-1 text-[10px] text-[#8a8578]">{d.rangeLabel}</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* month axis: 細い warm-gray line ＋ 各 boundary に small tick（§4）。左端 = 到着 / 0 */}
+        <div className="relative h-8">
           <span aria-hidden className="absolute inset-x-0 bottom-1 h-px bg-[#d8d3ca]" />
-          {Array.from({ length: totalMonths }, (_, i) => i + 1).map((m) => (
+          {Array.from({ length: totalMonths + 1 }, (_, b) => b).map((b) => (
             <span
-              key={`t${m}`}
+              key={`t${b}`}
               aria-hidden
               className="absolute bottom-1 h-2 w-px bg-[#d8d3ca]"
-              style={{ left: `${monthPercent(m, totalMonths)}%` }}
+              style={{ left: `${boundaryPercent(b, totalMonths)}%` }}
             />
           ))}
-          <span aria-hidden className="absolute bottom-1 right-0 h-2 w-px bg-[#d8d3ca]" />
+          <span
+            className="absolute bottom-3 text-[10px] font-semibold text-[#7c8a6b]"
+            style={{ left: "0%" }}
+          >
+            到着
+          </span>
           {labels.map((m) => (
             <span
               key={`l${m}`}
               className="absolute bottom-3 -translate-x-1/2 text-[10px] font-medium text-[#8a8578]"
-              style={{ left: `${monthPercent(m, totalMonths)}%` }}
+              style={{ left: `${boundaryPercent(m, totalMonths)}%` }}
             >
               {m}
             </span>
@@ -327,8 +403,8 @@ function MonthScaleTimeline({
         <div className="mt-2 space-y-3">
           {timedPhases.map((p, i) => {
             const pal = PHASE_PALETTE[i % PHASE_PALETTE.length];
-            const left = monthPercent(p.startMonth, totalMonths);
-            const width = (p.durationMonths / totalMonths) * 100;
+            const left = barLeftPercent(p.startMonth, totalMonths);
+            const width = barWidthPercent(p.startMonth, p.durationMonths, totalMonths);
             return (
               <div key={p.key} className="relative">
                 <div className="relative h-2.5">
@@ -363,7 +439,7 @@ function MonthScaleTimeline({
 
           {pointPhases.map((p, i) => {
             const pal = PHASE_PALETTE[(timedPhases.length + i) % PHASE_PALETTE.length];
-            const left = monthPercent(p.startMonth, totalMonths);
+            const left = barLeftPercent(p.startMonth, totalMonths);
             return (
               <div key={p.key} className="relative pt-1">
                 <div className="relative h-3">
@@ -473,8 +549,17 @@ function UnscheduledArea({ phases }: { phases: MyPlanUnscheduledPhase[] }) {
 }
 
 function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline }) {
-  const { source, totalMonths, durationLabel, timedPhases, pointPhases, summaryPhases, unscheduledPhases } =
-    timeline;
+  const {
+    source,
+    totalMonths,
+    durationLabel,
+    timedPhases,
+    pointPhases,
+    summaryPhases,
+    destinationPhases,
+    arrival,
+    unscheduledPhases,
+  } = timeline;
   const scaleMonths = source === "month-scale" && totalMonths != null ? totalMonths : null;
   const isScale = scaleMonths != null;
 
@@ -502,6 +587,8 @@ function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline 
           totalMonths={scaleMonths}
           timedPhases={timedPhases}
           pointPhases={pointPhases}
+          destinationPhases={destinationPhases}
+          arrival={arrival}
         />
       ) : (
         summaryPhases.length > 0 && <SummaryPhases phases={summaryPhases} />
@@ -672,6 +759,7 @@ function renderSectionBody(id: MyPlanSectionId, view: MyPlanView, planId: string
           candidates={view.destination.candidates}
           hints={view.destination.hints}
           editingEnabled={editingEnabled}
+          planDurationMonths={view.planDurationMonths}
         />
       );
     case "school":

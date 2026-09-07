@@ -19,6 +19,7 @@ import type { Karte } from "@/lib/karte";
 import { getKarteSummaryItems } from "@/lib/karte";
 import type { School } from "@/lib/data/schools";
 import type {
+  BlueprintDestinations,
   BlueprintItem,
   BlueprintSchool,
   BlueprintSchoolStatus,
@@ -123,15 +124,28 @@ export type MyPlanPointPhase = {
   section: "school" | "work";
 };
 
-/** 時期を決めていない保存済み activity（§15 / §16 / §19）。Timeline から消さず別領域に出す。 */
+/** 時期を決めていない保存済み activity（§15 / §16 / §19 / §55）。Timeline から消さず別領域に出す。 */
 export type MyPlanUnscheduledPhase = {
   key: string;
   title: string;
   status: MyPlanTimelinePhaseStatus;
   /** "時期を設定" リンク先セクション。 */
-  section: "school" | "work";
-  /** durationMonths だけ設定されている場合の補足（"約Nヶ月"）。位置は作らない（§15）。 */
+  section: "school" | "work" | "destination";
+  /** durationMonths だけ / range だけ設定されている場合の補足。位置は作らない（§15）。 */
   durationNote: string | null;
+};
+
+/** month-scale の DESTINATIONS lane に配置する滞在都市（§25-§29）。Destination だけ startMonth 0 を許可。 */
+export type MyPlanDestPhase = {
+  key: string;
+  city: string;
+  /** 0 = 到着時（§4）。 */
+  startMonth: number;
+  /** null = 開始のみ判明（point）。 */
+  durationMonths: number | null;
+  /** 例: "到着〜2ヶ月目" / "6〜8ヶ月目" / "3ヶ月目〜"。 */
+  rangeLabel: string;
+  isPrimary: boolean;
 };
 
 export type MyPlanMonthlyTimeline = {
@@ -152,6 +166,11 @@ export type MyPlanMonthlyTimeline = {
 
   /** summary モードで並べる順序フェーズ。 */
   summaryPhases: MyPlanTimelinePhase[];
+
+  /** month-scale モードの DESTINATIONS lane（滞在都市）。他モードでは空（§26 / §54）。 */
+  destinationPhases: MyPlanDestPhase[];
+  /** Month 0 の到着アンカー。primary city があれば表示（§30 / §56）。hasBar = primary に timing あり（§57）。 */
+  arrival: { city: string; hasBar: boolean } | null;
 
   /** 両モード共通で下部に出す「時期未定」の保存済み activity。 */
   unscheduledPhases: MyPlanUnscheduledPhase[];
@@ -218,10 +237,25 @@ function firstLine(s: string, max = 46): string {
 /** fallback（summary）モードの順序ラベル。根拠の無い月数は使わない。 */
 const PHASE_SEQ_LABELS = ["はじめ", "中盤", "後半", "仕上げ", "その先"];
 
-/** 「Nヶ月目」/「N〜Mヶ月目」の月区間ラベル。 */
+/** 「Nヶ月目」/「N〜Mヶ月目」の月区間ラベル（School / Work。start >= 1・§35 / §36 で不変）。 */
 function monthRangeLabel(startMonth: number, durationMonths: number): string {
   const end = startMonth + durationMonths - 1;
   return durationMonths <= 1 ? `${startMonth}ヶ月目` : `${startMonth}〜${end}ヶ月目`;
+}
+
+/**
+ * Destination の月区間ラベル（startMonth 0 = 到着時 を許容・§15-§17）。
+ *   start=0 duration=3 → end 2 → "到着〜2ヶ月目"（0,1,2 の 3ヶ月相当）
+ *   start=6 duration=2 → "6〜7ヶ月目"
+ *   duration 未設定（開始のみ）→ "到着〜" / "Nヶ月目〜"
+ */
+function destRangeLabel(startMonth: number, durationMonths: number | null): string {
+  if (durationMonths == null) {
+    return startMonth === 0 ? "到着〜" : `${startMonth}ヶ月目〜`;
+  }
+  const end = startMonth + durationMonths - 1;
+  if (startMonth === 0) return end <= 0 ? "到着時" : `到着〜${end}ヶ月目`;
+  return monthRangeLabel(startMonth, durationMonths);
 }
 
 /**
@@ -308,6 +342,69 @@ function collectYearlyActivities(
   return { timed: timed.slice(0, 8), point: point.slice(0, 8), unscheduled: unscheduled.slice(0, 8) };
 }
 
+/**
+ * Destination（primary ＋ interested）を DESTINATIONS lane 用に整理する（§25-§29 / §55-§57）。
+ *   - startMonth あり（0 含む）→ dest phase（軸に配置。durationMonths が無ければ point 扱いで durationMonths=null）
+ *   - startMonth なし → unscheduled（section "destination"）
+ * primary は「到着アンカー」用に city / hasTiming を返す（§30 / §56 / §57）。都市ごとに保持。
+ */
+function collectDestinationPhases(dest: BlueprintDestinations): {
+  phases: MyPlanDestPhase[];
+  unscheduled: MyPlanUnscheduledPhase[];
+  arrival: { city: string; hasTiming: boolean } | null;
+} {
+  const rows: { item: BlueprintItem; isPrimary: boolean }[] = [];
+  if (dest.primary) rows.push({ item: dest.primary, isPrimary: true });
+  dest.interested.forEach((c) => rows.push({ item: c, isPrimary: false }));
+
+  const phases: MyPlanDestPhase[] = [];
+  const unscheduled: MyPlanUnscheduledPhase[] = [];
+  for (const { item, isPrimary } of rows) {
+    const hasStart = typeof item.startMonth === "number";
+    const hasDur = typeof item.durationMonths === "number";
+    if (hasStart) {
+      const start = item.startMonth as number;
+      const dur = hasDur ? (item.durationMonths as number) : null;
+      phases.push({
+        key: `dst-${item.id}`,
+        city: firstLine(item.label, 24),
+        startMonth: start,
+        durationMonths: dur,
+        rangeLabel: destRangeLabel(start, dur),
+        isPrimary,
+      });
+    } else if (!isPrimary) {
+      // primary で timing 無しは「到着アンカー」で表現するため 時期未定 には出さない（§56）。
+      // interested の timing 未設定は消さず 時期未定 へ（§55）。
+      unscheduled.push({
+        key: `dst-${item.id}`,
+        title: firstLine(item.label, 24),
+        status: "saved",
+        section: "destination",
+        durationNote: hasDur ? `約${item.durationMonths}ヶ月` : null,
+      });
+    }
+  }
+  phases.sort((a, b) => a.startMonth - b.startMonth || (b.durationMonths ?? 0) - (a.durationMonths ?? 0));
+
+  const arrival = dest.primary
+    ? { city: firstLine(dest.primary.label, 24), hasTiming: typeof dest.primary.startMonth === "number" }
+    : null;
+
+  return { phases: phases.slice(0, 8), unscheduled: unscheduled.slice(0, 8), arrival };
+}
+
+/** dest phase を（軸が作れないとき）unscheduled として扱う。range だけ note に残す（§55）。 */
+function destPhaseToUnscheduled(p: MyPlanDestPhase): MyPlanUnscheduledPhase {
+  return {
+    key: p.key,
+    title: p.city,
+    status: "saved",
+    section: "destination",
+    durationNote: p.rangeLabel,
+  };
+}
+
 /** point phase を（軸が作れないとき）unscheduled として扱う。開始月だけは note に残す。 */
 function pointToUnscheduled(p: MyPlanPointPhase): MyPlanUnscheduledPhase {
   return {
@@ -334,6 +431,7 @@ function buildMonthlyTimeline(input: {
   workInterests: BlueprintItem[];
   milestones: BlueprintItem[];
   schools: BlueprintSchool[];
+  destinations: BlueprintDestinations;
   englishRef: MyPlanCandidate[];
   schoolCandidates: MyPlanSchoolCandidate[];
   workHints: MyPlanCandidate[];
@@ -350,9 +448,22 @@ function buildMonthlyTimeline(input: {
     input.schools,
     input.workInterests,
   );
-  const hasScaleContent = timed.length > 0 || point.length > 0;
+  const dst = collectDestinationPhases(input.destinations);
 
-  /* 0-a) month-scale モード: 全体期間あり ＋ 軸に載る activity あり（§1 / §33 / §38） */
+  // 軸に載せられる中身: School/Work の timed/point、滞在都市、または到着都市（primary）。
+  const hasScaleContent =
+    timed.length > 0 || point.length > 0 || dst.phases.length > 0 || dst.arrival != null;
+
+  /** 軸が無いモードでは滞在都市もすべて「時期未定」に回す（fake placement しない・§55）。 */
+  const noAxisUnscheduled = () =>
+    [
+      ...point.map(pointToUnscheduled),
+      ...unscheduled,
+      ...dst.phases.map(destPhaseToUnscheduled),
+      ...dst.unscheduled,
+    ].slice(0, 10);
+
+  /* 0-a) month-scale モード: 全体期間あり ＋ 軸に載る中身あり（§1 / §33 / §38） */
   if (planDurationMonths != null && hasScaleContent) {
     return {
       source: "month-scale",
@@ -361,7 +472,9 @@ function buildMonthlyTimeline(input: {
       timedPhases: timed,
       pointPhases: point,
       summaryPhases: [],
-      unscheduledPhases: unscheduled,
+      destinationPhases: dst.phases,
+      arrival: dst.arrival ? { city: dst.arrival.city, hasBar: dst.arrival.hasTiming } : null,
+      unscheduledPhases: [...unscheduled, ...dst.unscheduled].slice(0, 10),
     };
   }
 
@@ -380,7 +493,9 @@ function buildMonthlyTimeline(input: {
         note: null,
         status: t.status,
       })),
-      unscheduledPhases: [...point.map(pointToUnscheduled), ...unscheduled].slice(0, 8),
+      destinationPhases: [],
+      arrival: null,
+      unscheduledPhases: noAxisUnscheduled(),
     };
   }
 
@@ -405,7 +520,9 @@ function buildMonthlyTimeline(input: {
       timedPhases: [],
       pointPhases: [],
       summaryPhases,
-      unscheduledPhases: [...point.map(pointToUnscheduled), ...unscheduled].slice(0, 8),
+      destinationPhases: [],
+      arrival: null,
+      unscheduledPhases: noAxisUnscheduled(),
     };
   }
 
@@ -463,7 +580,7 @@ function buildMonthlyTimeline(input: {
     if (c) add("進路を整理する", firstLine(c.label, 30), "considering");
   }
 
-  const unscheduledAll = [...point.map(pointToUnscheduled), ...unscheduled].slice(0, 8);
+  const unscheduledAll = noAxisUnscheduled();
 
   // 順序フェーズが 2 件未満でも、時期未定の保存済み activity があればセクションは出す（§19）。
   if (phases.length < 2 && unscheduledAll.length === 0) return null;
@@ -480,6 +597,8 @@ function buildMonthlyTimeline(input: {
     timedPhases: [],
     pointPhases: [],
     summaryPhases: trimmed,
+    destinationPhases: [],
+    arrival: null,
     unscheduledPhases: unscheduledAll,
   };
 }
@@ -710,6 +829,7 @@ export function buildMyPlanView(
     workInterests: data.workInterests,
     milestones: data.milestones,
     schools: data.schools,
+    destinations: data.destinations,
     englishRef,
     schoolCandidates,
     workHints,
