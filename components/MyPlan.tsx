@@ -1,8 +1,11 @@
 import Link from "next/link";
 import type {
   MyPlanMonthlyTimeline,
+  MyPlanPointPhase,
   MyPlanSectionId,
+  MyPlanTimedPhase,
   MyPlanTimelinePhase,
+  MyPlanUnscheduledPhase,
   MyPlanView,
 } from "@/lib/myPlanView";
 import { MY_PLAN_SECTIONS } from "@/lib/myPlanView";
@@ -251,38 +254,242 @@ function PhaseCard({
 }
 
 /**
- * YOUR YEARLY PLAN — 月ベースの要約タイムライン（横図）。
- * 参考画像の「横 timeline / node / 上下交互 / phase 色」は取り入れつつ、原色・poster 感・
- * 大きな装飾イラストは使わず、My Plan の warm ivory / editorial なトーンに合わせる。
- * source は "user-timing"（ユーザー設定の月区間・最優先） / "saved-timeline" / "summary"。
+ * YOUR PLAN TIMELINE — Plan 全体期間を軸にした「実時間スケール」の横タイムライン。
+ * activity は実際の startMonth / durationMonths の位置へ配置する（Month 1 が左端・§1-§7）。
+ * 全体期間が不明なときだけ従来の「順序だけ」の summary モードにフォールバック（§25）。
+ * 期間未設定の保存済み activity は消さず「時期未定」領域へ（§16-§19）。
+ * I'm ready! の warm ivory / editorial トーンを維持し、派手なガントチャートにはしない（§8）。
  */
 const YEARLY_CAPTION: Record<MyPlanMonthlyTimeline["source"], string> = {
-  "user-timing":
-    "あなたが設定した「何ヶ月目から・何ヶ月間」をもとに表示しています。詳しい内容は下のTimelineで確認できます。",
+  "month-scale":
+    "あなたが設定した月ごとの予定を、Plan全体の期間に合わせて表示しています。編集は下の各セクションで行えます。",
   "saved-timeline":
-    "保存済みのTimelineをもとに要約しています。詳しい内容は下のTimelineで確認できます。",
+    "保存済みのTimelineをAI提案として表示しています。詳しい内容は下のTimelineで確認できます。",
   summary:
     "My Planの保存内容から、進み方の目安をまとめています。月ごとの詳しい流れは、下のTimelineでAIに提案してもらえます。",
 };
 
-function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline }) {
-  const { phases, durationLabel, source } = timeline;
-  // 5 フェーズ以下は desktop で全幅グリッド。6+ は詰まるので desktop でも横スクロール（§24）。
+/** month m（1始まり）の軸上の位置（%）。month 1 = 0%（左端・§5）。 */
+function monthPercent(month: number, totalMonths: number): number {
+  return (Math.max(0, month - 1) / totalMonths) * 100;
+}
+
+/** month label の間引き（§28）。tick は全 month 分持つ。 */
+function axisLabelMonths(totalMonths: number): number[] {
+  const step =
+    totalMonths <= 12 ? 1 : totalMonths <= 18 ? 2 : totalMonths <= 24 ? 3 : Math.ceil(totalMonths / 12);
+  const out: number[] = [];
+  for (let m = 1; m <= totalMonths; m += step) out.push(m);
+  if (out[out.length - 1] !== totalMonths) out.push(totalMonths);
+  return out;
+}
+
+function MonthScaleTimeline({
+  totalMonths,
+  timedPhases,
+  pointPhases,
+}: {
+  totalMonths: number;
+  timedPhases: MyPlanTimedPhase[];
+  pointPhases: MyPlanPointPhase[];
+}) {
+  const labels = axisLabelMonths(totalMonths);
+  // 内部 canvas は最低幅を持ち、狭い画面では横スクロール（縮めない・§29）。desktop 12ヶ月は収まる。
+  const minWidthPx = Math.max(720, totalMonths * 74);
+
+  return (
+    <div className="mt-6 overflow-x-auto pb-1 [scrollbar-width:thin]">
+      <div className="relative pr-1" style={{ minWidth: `${minWidthPx}px` }}>
+        {/* month axis: 細い warm-gray line ＋ 各 month に small tick（§4） */}
+        <div className="relative h-7">
+          <span aria-hidden className="absolute inset-x-0 bottom-1 h-px bg-[#d8d3ca]" />
+          {Array.from({ length: totalMonths }, (_, i) => i + 1).map((m) => (
+            <span
+              key={`t${m}`}
+              aria-hidden
+              className="absolute bottom-1 h-2 w-px bg-[#d8d3ca]"
+              style={{ left: `${monthPercent(m, totalMonths)}%` }}
+            />
+          ))}
+          <span aria-hidden className="absolute bottom-1 right-0 h-2 w-px bg-[#d8d3ca]" />
+          {labels.map((m) => (
+            <span
+              key={`l${m}`}
+              className="absolute bottom-3 -translate-x-1/2 text-[10px] font-medium text-[#8a8578]"
+              style={{ left: `${monthPercent(m, totalMonths)}%` }}
+            >
+              {m}
+            </span>
+          ))}
+        </div>
+
+        {/* 1 activity = 1 lane（重ならない・月位置は bar が保持・§11 / §12） */}
+        <div className="mt-2 space-y-3">
+          {timedPhases.map((p, i) => {
+            const pal = PHASE_PALETTE[i % PHASE_PALETTE.length];
+            const left = monthPercent(p.startMonth, totalMonths);
+            const width = (p.durationMonths / totalMonths) * 100;
+            return (
+              <div key={p.key} className="relative">
+                <div className="relative h-2.5">
+                  <span
+                    className="absolute h-2.5 rounded-full"
+                    style={{
+                      left: `${left}%`,
+                      width: `${Math.max(width, 1.5)}%`,
+                      backgroundColor: pal.node,
+                    }}
+                  />
+                </div>
+                <div
+                  className="mt-1.5"
+                  style={{ marginLeft: `min(${left}%, calc(100% - 248px))`, width: 248 }}
+                >
+                  <PhaseCard
+                    phase={{
+                      key: p.key,
+                      rangeLabel: p.rangeLabel,
+                      title: p.title,
+                      note: p.note,
+                      status: p.status,
+                    }}
+                    palette={pal}
+                    index={i}
+                  />
+                </div>
+              </div>
+            );
+          })}
+
+          {pointPhases.map((p, i) => {
+            const pal = PHASE_PALETTE[(timedPhases.length + i) % PHASE_PALETTE.length];
+            const left = monthPercent(p.startMonth, totalMonths);
+            return (
+              <div key={p.key} className="relative pt-1">
+                <div className="relative h-3">
+                  <span
+                    aria-hidden
+                    className="absolute h-3 w-3 -translate-x-1/2 rounded-full ring-4 ring-[#fcfbf8]"
+                    style={{
+                      left: `${left}%`,
+                      backgroundColor: pal.node,
+                      boxShadow: "0 0 0 1px rgba(30,28,24,0.06)",
+                    }}
+                  />
+                </div>
+                <div
+                  className="mt-1"
+                  style={{ marginLeft: `min(${left}%, calc(100% - 220px))`, maxWidth: 220 }}
+                >
+                  <p className="text-[13px] font-semibold text-[#2f2c26]">{p.title}</p>
+                  <p className="mt-0.5 text-[11px] text-[#8a8578]">{p.label}・期間未定</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** summary モード（全体期間 不明）の従来レイアウト（順序だけ・中央線＋上下交互）。 */
+function SummaryPhases({ phases }: { phases: MyPlanTimelinePhase[] }) {
   const wide = phases.length <= 5;
+  return (
+    <div className="relative mt-6">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-1/2 hidden h-px -translate-y-1/2 bg-[#d8d3ca] sm:block"
+      />
+      <ol
+        className={`relative flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:thin] ${
+          wide ? "sm:grid sm:gap-3 sm:overflow-visible sm:pb-0 sm:snap-none" : "sm:gap-5"
+        }`}
+        style={wide ? { gridTemplateColumns: `repeat(${phases.length}, minmax(0, 1fr))` } : undefined}
+      >
+        {phases.map((p, i) => {
+          const palette = PHASE_PALETTE[i % PHASE_PALETTE.length];
+          const isUp = i % 2 === 0;
+          return (
+            <li
+              key={p.key}
+              className={`relative flex w-[230px] shrink-0 snap-start ${
+                wide ? "sm:w-auto sm:min-w-0 sm:shrink" : "sm:w-[240px]"
+              }`}
+            >
+              <div className="h-full w-full sm:hidden">
+                <PhaseCard phase={p} palette={palette} index={i} className="h-full" />
+              </div>
+              <div className="hidden w-full sm:grid sm:grid-rows-[1fr_auto_1fr]">
+                <div className="flex items-end justify-center px-2 pb-4">
+                  {isUp && <PhaseCard phase={p} palette={palette} index={i} />}
+                </div>
+                <div className="relative z-10 flex items-center justify-center">
+                  <TimelineNode color={palette.node} />
+                </div>
+                <div className="flex items-start justify-center px-2 pt-4">
+                  {!isUp && <PhaseCard phase={p} palette={palette} index={i} />}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+/** 時期未定エリア（§17 / §18）。保存済みだが時期未設定の activity を消さずに出す。 */
+function UnscheduledArea({ phases }: { phases: MyPlanUnscheduledPhase[] }) {
+  return (
+    <div className="mt-6 rounded-[14px] border border-dashed border-[#e0d9ca] bg-[#fdfbf6] p-4">
+      <p className="text-[11px] font-semibold tracking-wide text-[#7d776c]">時期未定</p>
+      <p className="mt-0.5 text-[11px] text-[#8a8578]">まだ時期を決めていない予定です。</p>
+      <ul className="mt-2.5 space-y-1.5">
+        {phases.map((p) => (
+          <li
+            key={p.key}
+            className="flex items-center justify-between gap-3 rounded-lg border border-[#ece5d8] bg-white px-3 py-2"
+          >
+            <span className="min-w-0 truncate text-[13px] text-[#3f3c37]">
+              {p.title}
+              {p.durationNote && (
+                <span className="ml-1.5 text-[11px] text-[#8a8578]">{p.durationNote}</span>
+              )}
+            </span>
+            <a
+              href={`#myplan-${p.section}`}
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#c9c2b4] bg-white px-2.5 py-1 text-[11px] font-medium text-[#3f3a34] transition-colors hover:bg-[#f2efe7]"
+            >
+              時期を設定
+              <ArrowRightIcon className="h-3 w-3" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline }) {
+  const { source, totalMonths, durationLabel, timedPhases, pointPhases, summaryPhases, unscheduledPhases } =
+    timeline;
+  const scaleMonths = source === "month-scale" && totalMonths != null ? totalMonths : null;
+  const isScale = scaleMonths != null;
 
   return (
     <section
       id="myplan-yearly"
       className="mt-6 scroll-mt-6 rounded-[18px] border border-[#e7e1d7] bg-[#fcfbf8] p-5 shadow-[0_1px_2px_rgba(30,28,24,0.04)] sm:p-6 lg:p-7"
     >
-      {/* 見出しは My Plan の section スタイルに合わせる（Hero と張り合わない・§7-§9, §31） */}
       <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
         <div>
           <p className="text-[11px] font-semibold tracking-[0.18em] text-[#5f7050]">
-            YOUR YEARLY PLAN
+            YOUR PLAN TIMELINE
           </p>
           <h2 className="mt-1 text-[24px] font-semibold leading-tight tracking-tight text-[#172033] sm:text-[30px]">
-            1年の大まかな流れ
+            {isScale ? "留学プランの大まかな流れ" : "Plan全体の流れ"}
           </h2>
         </div>
         {durationLabel && (
@@ -290,55 +497,24 @@ function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline 
         )}
       </div>
 
-      <div className="relative mt-7">
-        {/* 中央の細い warm-gray line（desktop のみ・§10） */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-1/2 hidden h-px -translate-y-1/2 bg-[#d8d3ca] sm:block"
+      {scaleMonths != null ? (
+        <MonthScaleTimeline
+          totalMonths={scaleMonths}
+          timedPhases={timedPhases}
+          pointPhases={pointPhases}
         />
-        <ol
-          className={`relative flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:thin] ${
-            wide ? "sm:grid sm:gap-3 sm:overflow-visible sm:pb-0 sm:snap-none" : "sm:gap-5"
-          }`}
-          style={wide ? { gridTemplateColumns: `repeat(${phases.length}, minmax(0, 1fr))` } : undefined}
-        >
-          {phases.map((p, i) => {
-            const palette = PHASE_PALETTE[i % PHASE_PALETTE.length];
-            const isUp = i % 2 === 0;
-            return (
-              <li
-                key={p.key}
-                className={`relative flex w-[230px] shrink-0 snap-start ${
-                  wide ? "sm:w-auto sm:min-w-0 sm:shrink" : "sm:w-[240px]"
-                }`}
-              >
-                {/* mobile: 上下交互にしない。同じ高さで横スクロール（§25/§26） */}
-                <div className="h-full w-full sm:hidden">
-                  <PhaseCard phase={p} palette={palette} index={i} className="h-full" />
-                </div>
+      ) : (
+        summaryPhases.length > 0 && <SummaryPhases phases={summaryPhases} />
+      )}
 
-                {/* desktop: 中央線に対して phase card を上下交互配置（§12） */}
-                <div className="hidden w-full sm:grid sm:grid-rows-[1fr_auto_1fr]">
-                  <div className="flex items-end justify-center px-2 pb-4">
-                    {isUp && <PhaseCard phase={p} palette={palette} index={i} />}
-                  </div>
-                  <div className="relative z-10 flex items-center justify-center">
-                    <TimelineNode color={palette.node} />
-                  </div>
-                  <div className="flex items-start justify-center px-2 pt-4">
-                    {!isUp && <PhaseCard phase={p} palette={palette} index={i} />}
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      </div>
+      {unscheduledPhases.length > 0 && <UnscheduledArea phases={unscheduledPhases} />}
 
-      <p className="mt-5 text-[11px] leading-relaxed text-[#7d776c] sm:hidden">
-        横にスクロールすると、全体の流れを追えます。
-      </p>
-      <p className="mt-2 text-[11px] leading-relaxed text-[#7d776c] sm:mt-5">
+      {isScale && (
+        <p className="mt-3 text-[11px] leading-relaxed text-[#7d776c] sm:hidden">
+          横にスクロールすると、全期間を確認できます。
+        </p>
+      )}
+      <p className="mt-2 text-[11px] leading-relaxed text-[#7d776c] sm:mt-4">
         {YEARLY_CAPTION[source]}
       </p>
     </section>

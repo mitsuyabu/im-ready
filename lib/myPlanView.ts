@@ -82,9 +82,11 @@ export type MyPlanHero = {
 /** Plan 全体期間の由来（UI の source 表示 / AI の HARD 判定に使う・§1 / §23）。 */
 export type PlanDurationSource = "blueprint" | "karte" | "unknown";
 
-/* ---- 月ベースの要約タイムライン（YOUR PLAN AT A GLANCE 直下の横図・§配置） ----
- * 役割は「1年の流れをひと目で」。詳細な activities / 理由は既存の詳細 Timeline セクションが担う。
- * fake は入れない。作れる範囲だけ（無理に 12 ヶ月を埋めない）。 */
+/* ---- YOUR PLAN TIMELINE（YOUR PLAN AT A GLANCE 直下の横図） ----
+ * Plan 全体期間（planSettings.durationMonths > Karte 由来）を軸にした「実時間スケール」の
+ * タイムライン。activity は実際の startMonth / durationMonths の位置へ配置する。
+ * 全体期間が不明なときだけ従来の「順序だけ」の summary モードにフォールバックする。
+ * 期間未設定の保存済み activity も消さず「時期未定」領域に出す。fake な月レンジは作らない。 */
 export type MyPlanTimelinePhaseStatus = "saved" | "ai-suggested" | "considering";
 
 export type MyPlanTimelinePhase = {
@@ -96,17 +98,63 @@ export type MyPlanTimelinePhase = {
   status: MyPlanTimelinePhaseStatus;
 };
 
+/** month-scale 上に「幅」を持って配置される activity（startMonth ＋ durationMonths 両方あり・§13）。 */
+export type MyPlanTimedPhase = {
+  key: string;
+  title: string;
+  note: string | null;
+  status: MyPlanTimelinePhaseStatus;
+  startMonth: number;
+  durationMonths: number;
+  /** 視覚に依存しない range text（例: "1〜2ヶ月目"・§32）。 */
+  rangeLabel: string;
+  /** 時期を編集するセクション（"時期を設定" リンク先）。 */
+  section: "school" | "work";
+};
+
+/** startMonth のみ判明（durationMonths 不明）。月位置に point marker として置く（§14）。終了月は作らない。 */
+export type MyPlanPointPhase = {
+  key: string;
+  title: string;
+  status: MyPlanTimelinePhaseStatus;
+  startMonth: number;
+  /** 例: "4ヶ月目〜"。 */
+  label: string;
+  section: "school" | "work";
+};
+
+/** 時期を決めていない保存済み activity（§15 / §16 / §19）。Timeline から消さず別領域に出す。 */
+export type MyPlanUnscheduledPhase = {
+  key: string;
+  title: string;
+  status: MyPlanTimelinePhaseStatus;
+  /** "時期を設定" リンク先セクション。 */
+  section: "school" | "work";
+  /** durationMonths だけ設定されている場合の補足（"約Nヶ月"）。位置は作らない（§15）。 */
+  durationNote: string | null;
+};
+
 export type MyPlanMonthlyTimeline = {
-  /** 2〜6 フェーズ。 */
-  phases: MyPlanTimelinePhase[];
-  durationLabel: string | null;
   /**
-   * 図の出どころ（優先順位・§25）:
-   *   "user-timing"    = ユーザーが School / Work に設定した「何ヶ月目から・何ヶ月間」（最優先）
-   *   "saved-timeline" = 保存済み詳細 Timeline の要約
-   *   "summary"        = My Plan + Karte から順序だけ組成
+   * 図の出どころ:
+   *   "month-scale"    = Plan 全体期間を軸にした実スケール表示（timedPhases / pointPhases を配置）
+   *   "saved-timeline" = 保存済み詳細 Timeline の要約（AI 提案として表示・§36）
+   *   "summary"        = My Plan + Karte から順序だけ組成（全体期間が不明なとき等）
    */
-  source: "user-timing" | "saved-timeline" | "summary";
+  source: "month-scale" | "saved-timeline" | "summary";
+  /** month-scale モードの軸の全長（月）。null なら summary モード。 */
+  totalMonths: number | null;
+  durationLabel: string | null;
+
+  /** month-scale モードで軸に配置する activity。 */
+  timedPhases: MyPlanTimedPhase[];
+  pointPhases: MyPlanPointPhase[];
+
+  /** summary モードで並べる順序フェーズ。 */
+  summaryPhases: MyPlanTimelinePhase[];
+
+  /** 両モード共通で下部に出す「時期未定」の保存済み activity。 */
+  unscheduledPhases: MyPlanUnscheduledPhase[];
 };
 
 export type MyPlanView = {
@@ -177,47 +225,108 @@ function monthRangeLabel(startMonth: number, durationMonths: number): string {
 }
 
 /**
- * ユーザーが My Plan で設定した timing（startMonth ＋ durationMonths 両方あり）を集める。
- *   - School は実行 Plan に入る selected / preferred のみ（considering は比較候補・§19）
- *   - Work は saved item すべて
- * startMonth 昇順。設定していない項目には月を割り当てない（§52）。
+ * Yearly Plan で扱う activity（§20-§23）:
+ *   - School は実行 Plan に入る selected / preferred のみ（considering は比較候補・§22）
+ *   - Work は saved workInterests すべて（§23）
+ * を timing の埋まり方で 3 分類する。設定していない項目に fake な月を割り当てない（§15 / §37）。
  */
-function collectUserTimedPhases(
+type ActivityCandidate = {
+  key: string;
+  title: string;
+  section: "school" | "work";
+  startMonth: number | undefined;
+  durationMonths: number | undefined;
+};
+
+function collectYearlyActivities(
   schools: BlueprintSchool[],
   workInterests: BlueprintItem[],
-): MyPlanTimelinePhase[] {
-  type Timed = { label: string; startMonth: number; durationMonths: number };
-  const timed: Timed[] = [];
-  for (const s of schools) {
-    if (
-      (s.status === "selected" || s.status === "preferred") &&
-      typeof s.startMonth === "number" &&
-      typeof s.durationMonths === "number"
-    ) {
-      timed.push({ label: s.name, startMonth: s.startMonth, durationMonths: s.durationMonths });
-    }
-  }
-  for (const w of workInterests) {
-    if (typeof w.startMonth === "number" && typeof w.durationMonths === "number") {
-      timed.push({ label: w.label, startMonth: w.startMonth, durationMonths: w.durationMonths });
+): {
+  timed: MyPlanTimedPhase[];
+  point: MyPlanPointPhase[];
+  unscheduled: MyPlanUnscheduledPhase[];
+} {
+  const cands: ActivityCandidate[] = [];
+  schools.forEach((s, i) => {
+    if (s.status !== "selected" && s.status !== "preferred") return;
+    cands.push({
+      key: `sch-${s.id || i}`,
+      title: firstLine(s.name, 24),
+      section: "school",
+      startMonth: typeof s.startMonth === "number" ? s.startMonth : undefined,
+      durationMonths: typeof s.durationMonths === "number" ? s.durationMonths : undefined,
+    });
+  });
+  workInterests.forEach((w, i) => {
+    cands.push({
+      key: `wrk-${w.id || i}`,
+      title: firstLine(w.label, 24),
+      section: "work",
+      startMonth: typeof w.startMonth === "number" ? w.startMonth : undefined,
+      durationMonths: typeof w.durationMonths === "number" ? w.durationMonths : undefined,
+    });
+  });
+
+  const timed: MyPlanTimedPhase[] = [];
+  const point: MyPlanPointPhase[] = [];
+  const unscheduled: MyPlanUnscheduledPhase[] = [];
+  for (const c of cands) {
+    const hasStart = c.startMonth != null;
+    const hasDur = c.durationMonths != null;
+    if (hasStart && hasDur) {
+      timed.push({
+        key: c.key,
+        title: c.title,
+        note: null,
+        status: "saved",
+        startMonth: c.startMonth as number,
+        durationMonths: c.durationMonths as number,
+        rangeLabel: monthRangeLabel(c.startMonth as number, c.durationMonths as number),
+        section: c.section,
+      });
+    } else if (hasStart) {
+      point.push({
+        key: c.key,
+        title: c.title,
+        status: "saved",
+        startMonth: c.startMonth as number,
+        label: `${c.startMonth}ヶ月目〜`,
+        section: c.section,
+      });
+    } else {
+      unscheduled.push({
+        key: c.key,
+        title: c.title,
+        status: "saved",
+        section: c.section,
+        durationNote: hasDur ? `約${c.durationMonths}ヶ月` : null,
+      });
     }
   }
   timed.sort((a, b) => a.startMonth - b.startMonth || a.durationMonths - b.durationMonths);
-  return timed.slice(0, 6).map((t, i) => ({
-    key: `ut-${i}`,
-    rangeLabel: monthRangeLabel(t.startMonth, t.durationMonths),
-    title: firstLine(t.label, 24),
-    note: null,
-    status: "saved" as const,
-  }));
+  point.sort((a, b) => a.startMonth - b.startMonth);
+  return { timed: timed.slice(0, 8), point: point.slice(0, 8), unscheduled: unscheduled.slice(0, 8) };
+}
+
+/** point phase を（軸が作れないとき）unscheduled として扱う。開始月だけは note に残す。 */
+function pointToUnscheduled(p: MyPlanPointPhase): MyPlanUnscheduledPhase {
+  return {
+    key: p.key,
+    title: p.title,
+    status: p.status,
+    section: p.section,
+    durationNote: p.label,
+  };
 }
 
 /**
- * 月ベースの要約タイムライン（横図）用データ。
- *   1) 保存済みの詳細 Timeline があれば、その period をそのまま要約図にする（最優先・§優先順位）
- *   2) 無ければ My Plan 保存内容（＋ Karte hint）から「順序」だけの summary phase を組成する
- *      （根拠のある phase だけ。month 数は AI Timeline を作るまで入れない）
- * どちらも作れない（phase < 2）なら null。
+ * YOUR PLAN TIMELINE 用データ。
+ *   0) Plan 全体期間（planDurationMonths）があり、軸に載る activity（timed / point）が 1 件以上
+ *      → month-scale モード（実時間スケール・§1-§7）。未設定の保存済み activity は unscheduled へ。
+ *   1) 軸は作れないが保存済み詳細 Timeline がある → その period を要約（AI 提案として・§36）
+ *   2) それ以外 → My Plan 保存内容（＋ Karte hint）から順序だけの summary phase
+ * 全体期間が無くても user timing があれば、その month レンジで順序表示する（§25 / §33）。
+ * 何も出せない（軸なし / summary < 2 / unscheduled 0）なら null。
  */
 function buildMonthlyTimeline(input: {
   timeline: PlanTimeline | null;
@@ -230,24 +339,54 @@ function buildMonthlyTimeline(input: {
   workHints: MyPlanCandidate[];
   milestoneHints: MyPlanCandidate[];
   goalCandidates: MyPlanCandidate[];
-  /** 解決済みの Plan 全体期間ラベル（My Plan user-saved > Karte 由来）。図の右上に出す。 */
+  /** 解決済みの Plan 全体期間（月・My Plan user-saved > Karte 由来）。null なら軸を作れない（§24 / §25）。 */
+  planDurationMonths: number | null;
+  /** 上の値のラベル（"約12ヶ月"）。図の右上に出す。 */
   planDurationLabel: string | null;
 }): MyPlanMonthlyTimeline | null {
-  const { timeline } = input;
+  const { timeline, planDurationMonths, planDurationLabel } = input;
 
-  /* 0) ユーザーが設定した timing（School selected/preferred ＋ Work）を最優先（§25） */
-  const userTimed = collectUserTimedPhases(input.schools, input.workInterests);
-  if (userTimed.length > 0) {
+  const { timed, point, unscheduled } = collectYearlyActivities(
+    input.schools,
+    input.workInterests,
+  );
+  const hasScaleContent = timed.length > 0 || point.length > 0;
+
+  /* 0-a) month-scale モード: 全体期間あり ＋ 軸に載る activity あり（§1 / §33 / §38） */
+  if (planDurationMonths != null && hasScaleContent) {
     return {
-      phases: userTimed,
-      durationLabel: input.planDurationLabel,
-      source: "user-timing",
+      source: "month-scale",
+      totalMonths: planDurationMonths,
+      durationLabel: planDurationLabel,
+      timedPhases: timed,
+      pointPhases: point,
+      summaryPhases: [],
+      unscheduledPhases: unscheduled,
     };
   }
 
-  /* 1) 保存済みの詳細 Timeline を図に要約 */
+  /* 0-b) 全体期間は不明だが user timing はある → その month レンジで順序表示（軸なし・§25） */
+  if (planDurationMonths == null && timed.length > 0) {
+    return {
+      source: "summary",
+      totalMonths: null,
+      durationLabel: planDurationLabel,
+      timedPhases: [],
+      pointPhases: [],
+      summaryPhases: timed.map((t) => ({
+        key: t.key,
+        rangeLabel: t.rangeLabel,
+        title: t.title,
+        note: null,
+        status: t.status,
+      })),
+      unscheduledPhases: [...point.map(pointToUnscheduled), ...unscheduled].slice(0, 8),
+    };
+  }
+
+  /* 1) 保存済みの詳細 Timeline を要約（AI 提案として・§36） */
   if (timeline && timeline.periods.length > 0) {
-    const phases: MyPlanTimelinePhase[] = timeline.periods.slice(0, 6).map((p, i) => {
+    const summaryPhases: MyPlanTimelinePhase[] = timeline.periods.slice(0, 6).map((p, i) => {
       const rawNote =
         p.activities.find((a) => a.trim().length > 0)?.trim() ??
         (p.reason.trim() ? p.reason.trim() : null);
@@ -256,14 +395,17 @@ function buildMonthlyTimeline(input: {
         rangeLabel: p.label.trim().slice(0, 16) || `${i + 1}`,
         title: p.title.trim() || "—",
         note: rawNote ? firstLine(rawNote) : null,
-        status: "saved" as const,
+        status: "ai-suggested" as const,
       };
     });
     return {
-      phases,
-      // §47: 全体 durationLabel は新しい My Plan duration を優先（保存済み Timeline のラベルより）。
-      durationLabel: input.planDurationLabel ?? (timeline.durationLabel.trim() || null),
       source: "saved-timeline",
+      totalMonths: null,
+      durationLabel: planDurationLabel ?? (timeline.durationLabel.trim() || null),
+      timedPhases: [],
+      pointPhases: [],
+      summaryPhases,
+      unscheduledPhases: [...point.map(pointToUnscheduled), ...unscheduled].slice(0, 8),
     };
   }
 
@@ -321,14 +463,25 @@ function buildMonthlyTimeline(input: {
     if (c) add("進路を整理する", firstLine(c.label, 30), "considering");
   }
 
-  if (phases.length < 2) return null;
+  const unscheduledAll = [...point.map(pointToUnscheduled), ...unscheduled].slice(0, 8);
+
+  // 順序フェーズが 2 件未満でも、時期未定の保存済み activity があればセクションは出す（§19）。
+  if (phases.length < 2 && unscheduledAll.length === 0) return null;
 
   const trimmed = phases.slice(0, 5);
   trimmed.forEach((p, i) => {
     p.rangeLabel = PHASE_SEQ_LABELS[i] ?? `${i + 1}`;
   });
 
-  return { phases: trimmed, durationLabel: input.planDurationLabel, source: "summary" };
+  return {
+    source: "summary",
+    totalMonths: null,
+    durationLabel: planDurationLabel,
+    timedPhases: [],
+    pointPhases: [],
+    summaryPhases: trimmed,
+    unscheduledPhases: unscheduledAll,
+  };
 }
 
 /**
@@ -562,6 +715,7 @@ export function buildMyPlanView(
     workHints,
     milestoneHints,
     goalCandidates,
+    planDurationMonths,
     planDurationLabel,
   });
 
