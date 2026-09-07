@@ -6,7 +6,13 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createEmptyKarte, type FieldPatch, type Karte, type KarteProposals } from "@/lib/karte";
+import {
+  createEmptyKarte,
+  normalizeKarte,
+  type FieldPatch,
+  type Karte,
+  type KarteProposals,
+} from "@/lib/karte";
 import type { DisplayMessage, ProposalMessageData } from "@/lib/chat";
 
 type ChatSessionRow = { id: string };
@@ -106,7 +112,11 @@ export async function loadLastChatMessageAt(
   return (message as { created_at: string } | null)?.created_at ?? null;
 }
 
-/** そのPlanのkarteを復元する。行が無ければ空カルテを返す（DBへは書き込まない） */
+/**
+ * そのPlanのkarteを復元する。行が無ければ空カルテを返す（DBへは書き込まない）。
+ * DB の raw jsonb は旧schema / block欠損 / 非object の可能性があるため、必ず
+ * normalizeKarte を通して現行 Karte schema に整えてから返す（consumer の型前提を守る）。
+ */
 export async function loadPlanKarte(supabase: SupabaseClient, planId: string): Promise<Karte> {
   const { data } = await supabase
     .from("plan_karte")
@@ -114,8 +124,7 @@ export async function loadPlanKarte(supabase: SupabaseClient, planId: string): P
     .eq("plan_id", planId)
     .maybeSingle();
 
-  if (data?.karte) return data.karte as Karte;
-  return createEmptyKarte(planId);
+  return normalizeKarte(data?.karte, planId);
 }
 
 /**

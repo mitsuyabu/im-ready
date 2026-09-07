@@ -304,6 +304,122 @@ export function createEmptyKarte(karteId: string, mode: "text" | "voice" = "text
   };
 }
 
+/* ------------------------------------------------------------------ */
+/* load 境界の防御的 normalize                                          */
+/*                                                                    */
+/* DB の plan_karte.karte は jsonb。旧 schema / block 欠損 / sub-key 欠損 /  */
+/* 非 object でも、consumer（buildMyPlanView / getKarteSummaryItems /       */
+/* buildPlanningBrief / documents・chat 系）が「全 block・全 Field が必ず   */
+/* 存在する」前提で dereference して未捕捉 TypeError で 500 にならないよう、  */
+/* load 時に 1 回だけ現行 Karte schema へ整える。                          */
+/*   - fake stated/inferred 値は作らない（不明は unknown / null / []）      */
+/*   - 既存の有効値は保持（block 単位で潰さない）                          */
+/*   - DB へは書き戻さない（read boundary の防御のみ）                     */
+/* ------------------------------------------------------------------ */
+
+const FIELD_CERTAINTIES: readonly FieldCertainty[] = ["stated", "inferred", "unknown"];
+const FIELD_SOURCES: readonly FieldSource[] = ["chat", "worksheet", "profile"];
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/**
+ * 1 つの Field を防御的に整える。raw が Field 形の object でなければ empty（unknown）。
+ * value は再型付けしない（consumer 側が型ガードする。formatFieldValue も String 安全）。
+ * certainty が不正なら "unknown"、source が不正なら省略（fake は作らない・§7-§9 / §14）。
+ */
+function normalizeField(raw: unknown): Field<unknown> {
+  if (!isPlainObject(raw)) return unknownField();
+  const certainty: FieldCertainty = FIELD_CERTAINTIES.includes(raw.certainty as FieldCertainty)
+    ? (raw.certainty as FieldCertainty)
+    : "unknown";
+  const field: Field<unknown> = {
+    value: raw.value === undefined ? null : (raw.value as unknown),
+    certainty,
+  };
+  if (FIELD_SOURCES.includes(raw.source as FieldSource)) {
+    field.source = raw.source as FieldSource;
+  }
+  return field;
+}
+
+/** 1 ブロックを SPEC のキー集合で整える。既存の有効な Field は保持、欠損キーは empty（§13）。 */
+function normalizeBlock<S extends BlockSpec>(raw: unknown, spec: S): BlockFromSpec<S> {
+  const src = isPlainObject(raw) ? raw : {};
+  const out: Record<string, Field<unknown>> = {};
+  for (const key of Object.keys(spec)) {
+    out[key] = key in src ? normalizeField(src[key]) : unknownField();
+  }
+  return out as BlockFromSpec<S>;
+}
+
+function stringArray(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+}
+function objectArray(v: unknown): Record<string, unknown>[] {
+  return Array.isArray(v) ? v.filter(isPlainObject) : [];
+}
+
+/**
+ * DB から読んだ raw な karte を現行 Karte schema に沿って防御的に整える。
+ *   - raw が object でなければ createEmptyKarte(planId)（§5）
+ *   - 12 の Field ブロック: SPEC のキーで正規化。既存の有効値は保持、欠損は empty（§13 / §20）
+ *   - handoff / proposals / meta: 欠損 sub-key を補完し、配列を保証（§10-§12）
+ */
+export function normalizeKarte(raw: unknown, planId: string): Karte {
+  if (!isPlainObject(raw)) return createEmptyKarte(planId);
+
+  const seed = createEmptyKarte(planId);
+  const rawMeta = isPlainObject(raw.meta) ? raw.meta : {};
+  const rawHandoff = isPlainObject(raw.handoff) ? raw.handoff : {};
+  const rawProposals = isPlainObject(raw.proposals) ? raw.proposals : {};
+  const rawConsents = isPlainObject(rawHandoff.consents) ? rawHandoff.consents : {};
+  const boolOrNull = (v: unknown): boolean | null => (typeof v === "boolean" ? v : null);
+
+  return {
+    meta: {
+      karteId:
+        typeof rawMeta.karteId === "string" && rawMeta.karteId.length > 0
+          ? rawMeta.karteId
+          : seed.meta.karteId,
+      createdAt: typeof rawMeta.createdAt === "string" ? rawMeta.createdAt : seed.meta.createdAt,
+      updatedAt: typeof rawMeta.updatedAt === "string" ? rawMeta.updatedAt : seed.meta.updatedAt,
+      mode: rawMeta.mode === "voice" || rawMeta.mode === "text" ? rawMeta.mode : seed.meta.mode,
+      summary: typeof rawMeta.summary === "string" ? rawMeta.summary : null,
+    },
+    profile: normalizeBlock(raw.profile, PROFILE_SPEC),
+    motivation: normalizeBlock(raw.motivation, MOTIVATION_SPEC),
+    language: normalizeBlock(raw.language, LANGUAGE_SPEC),
+    budget: normalizeBlock(raw.budget, BUDGET_SPEC),
+    timing: normalizeBlock(raw.timing, TIMING_SPEC),
+    work: normalizeBlock(raw.work, WORK_SPEC),
+    lifestyle: normalizeBlock(raw.lifestyle, LIFESTYLE_SPEC),
+    personality: normalizeBlock(raw.personality, PERSONALITY_SPEC),
+    constraints: normalizeBlock(raw.constraints, CONSTRAINTS_SPEC),
+    support: normalizeBlock(raw.support, SUPPORT_SPEC),
+    schoolPrefs: normalizeBlock(raw.schoolPrefs, SCHOOL_PREFS_SPEC),
+    decision: normalizeBlock(raw.decision, DECISION_SPEC),
+    proposals: {
+      presented: objectArray(rawProposals.presented) as unknown as ProposalRecord[],
+      rejected: objectArray(rawProposals.rejected) as unknown as RejectedProposalRecord[],
+      introNote: typeof rawProposals.introNote === "string" ? rawProposals.introNote : null,
+    },
+    handoff: {
+      confirmedItems: stringArray(rawHandoff.confirmedItems),
+      openQuestions: stringArray(rawHandoff.openQuestions),
+      conflicts: objectArray(rawHandoff.conflicts) as unknown as KarteConflict[],
+      nextAction: typeof rawHandoff.nextAction === "string" ? rawHandoff.nextAction : null,
+      consents: {
+        infoSharing: boolOrNull(rawConsents.infoSharing),
+        recontact: boolOrNull(rawConsents.recontact),
+        personalData: boolOrNull(rawConsents.personalData),
+      },
+      immediateProposalRequested: rawHandoff.immediateProposalRequested === true,
+    },
+  };
+}
+
 // ---- update_karte ツール入力のサニタイズ ----
 // tool use の入力は unknown として届くため、*_SPEC と照合しながら安全な KartePatch に変換する。
 // certainty は "stated" | "inferred" のみ許可する（"unknown" は「まだ判明していない」を意味するため、
