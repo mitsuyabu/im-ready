@@ -10,7 +10,7 @@ import type {
   MyPlanUnscheduledPhase,
   MyPlanView,
 } from "@/lib/myPlanView";
-import { MY_PLAN_SECTIONS } from "@/lib/myPlanView";
+import { MY_PLAN_SECTIONS, packActivityLanes } from "@/lib/myPlanView";
 import EditablePlanItems from "@/components/EditablePlanItems";
 import EditableDestination from "@/components/EditableDestination";
 import EditableAccommodation from "@/components/EditableAccommodation";
@@ -261,8 +261,10 @@ function PhaseCard({
 }
 
 /**
- * month-scale モードの compact summary card（§2）。
- * 横幅は約2ヶ月分（184px 固定）、情報は range pill / タイトル / badge / 補助文1行 のみ。
+ * month-scale モードの compact activity card（§2 / §18-§21）。
+ * 横幅は grid 側で durationMonths に連動（§2-§5）。ここでは最小幅だけ持たせ、狭すぎる 1ヶ月
+ * カードは視覚補助として少しだけ右に溢れてよい（bar の開始・終了位置は grid が保持・§6 / §7）。
+ * content density は durationMonths で調整（1ヶ月: title + range + status のみ・§19 / §21）。
  * serif number・icon は出さない（流れの可読性を優先）。
  */
 function TimelineBarCard({
@@ -271,18 +273,22 @@ function TimelineBarCard({
   note,
   status,
   color,
+  durationMonths,
 }: {
   rangeLabel: string;
   title: string;
   note: string | null;
   status: MyPlanTimelinePhase["status"];
   color: string;
+  /** content density の判定に使う（1 は subtext 省略・§19）。 */
+  durationMonths: number;
 }) {
   const badge = PHASE_STATUS_BADGE[status];
+  const showNote = note != null && durationMonths >= 2;
   return (
-    <div className="relative w-full overflow-hidden rounded-[12px] border border-[#e8e2d8] bg-white p-2.5 shadow-[0_1px_2px_rgba(30,28,24,0.04)]">
+    <div className="relative w-full min-w-[100px] overflow-hidden rounded-[11px] border border-[#e8e2d8] bg-white px-2.5 py-2 shadow-[0_1px_2px_rgba(30,28,24,0.04)]">
       <span aria-hidden className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: color }} />
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1">
         <span
           className="inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
           style={{ backgroundColor: color + "22", color: "#4a4640" }}
@@ -293,8 +299,10 @@ function TimelineBarCard({
           {badge.label}
         </span>
       </div>
-      <p className="mt-1 text-[13px] font-semibold leading-snug text-[#2f2c26]">{title}</p>
-      {note && <p className="mt-0.5 line-clamp-1 text-[10px] text-[#8a8578]">{note}</p>}
+      <p className="mt-1 text-[12px] font-semibold leading-snug text-[#2f2c26] sm:text-[13px]">
+        {title}
+      </p>
+      {showNote && <p className="mt-0.5 line-clamp-1 text-[10px] text-[#8a8578]">{note}</p>}
     </div>
   );
 }
@@ -361,8 +369,11 @@ function MonthScaleTimeline({
   arrival: { city: string; hasBar: boolean } | null;
 }) {
   const labels = axisLabelMonths(totalMonths);
-  // 内部 canvas は最低幅を持ち、狭い画面では横スクロール（縮めない・§29）。desktop 12ヶ月は収まる。
+  // 内部 canvas は最低幅を持ち、狭い画面では横スクロール（縮めない・§29 / §30）。desktop 12ヶ月は収まる。
   const minWidthPx = Math.max(760, totalMonths * 74);
+  // ACTIVITIES（School / Work）を lane packing（§9-§16）。色は元の並び順で固定（lane で再割りしない）。
+  const activityLanes = packActivityLanes(timedPhases);
+  const colorByKey = new Map(timedPhases.map((p, i) => [p.key, i]));
 
   return (
     <div className="mt-6 overflow-x-auto pb-1 [scrollbar-width:thin]">
@@ -487,68 +498,91 @@ function MonthScaleTimeline({
           ))}
         </div>
 
-        {/* 1 activity = 1 lane（重ならない・月位置は bar が保持）。card は compact summary（§2） */}
-        <div className="mt-2 space-y-2.5">
-          {timedPhases.map((p, i) => {
-            const pal = PHASE_PALETTE[i % PHASE_PALETTE.length];
-            const left = barLeftPercent(p.startMonth, totalMonths);
-            const width = barWidthPercent(p.startMonth, p.durationMonths, totalMonths);
-            return (
-              <div key={p.key} className="relative">
-                <div className="relative h-2">
-                  <span
-                    className="absolute h-2 rounded-full"
-                    style={{
-                      left: `${left}%`,
-                      width: `${Math.max(width, 1.5)}%`,
-                      backgroundColor: pal.node,
-                    }}
-                  />
-                </div>
-                <div
-                  className="mt-1"
-                  style={{ marginLeft: `min(${left}%, calc(100% - 184px))`, width: 184 }}
-                >
-                  <TimelineBarCard
-                    rangeLabel={p.rangeLabel}
-                    title={p.title}
-                    note={p.note}
-                    status={p.status}
-                    color={pal.node}
-                  />
-                </div>
-              </div>
-            );
-          })}
+        {/* ACTIVITIES（§16）: 重ならない School / Work は同じ lane に横並び（§9-§13）。
+            card 幅は grid（repeat(totalMonths, 1fr)）で durationMonths に連動し、月境界で
+            自然につながる（§4 / §5 / §22-§25）。card 上辺の色帯が duration bar（§28）。 */}
+        {(activityLanes.length > 0 || pointPhases.length > 0) && (
+          <div className="mt-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8a8578]">
+              ACTIVITIES
+            </p>
 
-          {pointPhases.map((p, i) => {
-            const pal = PHASE_PALETTE[(timedPhases.length + i) % PHASE_PALETTE.length];
-            const left = barLeftPercent(p.startMonth, totalMonths);
-            return (
-              <div key={p.key} className="relative pt-1">
-                <div className="relative h-3">
-                  <span
-                    aria-hidden
-                    className="absolute h-3 w-3 -translate-x-1/2 rounded-full ring-4 ring-[#fcfbf8]"
-                    style={{
-                      left: `${left}%`,
-                      backgroundColor: pal.node,
-                      boxShadow: "0 0 0 1px rgba(30,28,24,0.06)",
-                    }}
-                  />
-                </div>
+            <div className="mt-1.5 space-y-2">
+              {activityLanes.map((lane, laneIdx) => (
                 <div
-                  className="mt-1"
-                  style={{ marginLeft: `min(${left}%, calc(100% - 184px))`, maxWidth: 184 }}
+                  key={`lane-${laneIdx}`}
+                  className="grid items-start"
+                  style={{ gridTemplateColumns: `repeat(${totalMonths}, minmax(0, 1fr))` }}
                 >
-                  <p className="text-[12px] font-semibold text-[#2f2c26]">{p.title}</p>
-                  {p.note && <p className="text-[10px] text-[#8a8578]">{p.note}</p>}
-                  <p className="mt-0.5 text-[10px] text-[#8a8578]">{p.label}・期間未定</p>
+                  {lane.map((p) => {
+                    const start = Math.max(1, Math.min(p.startMonth, totalMonths));
+                    const span = Math.max(
+                      1,
+                      Math.min(p.durationMonths, totalMonths - start + 1),
+                    );
+                    const pal =
+                      PHASE_PALETTE[(colorByKey.get(p.key) ?? 0) % PHASE_PALETTE.length];
+                    return (
+                      <div
+                        key={p.key}
+                        className="min-w-0 pr-[3px]"
+                        style={{ gridColumn: `${start} / span ${span}` }}
+                      >
+                        <TimelineBarCard
+                          rangeLabel={p.rangeLabel}
+                          title={p.title}
+                          note={p.note}
+                          status={p.status}
+                          color={pal.node}
+                          durationMonths={p.durationMonths}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
+              ))}
+            </div>
+
+            {/* start のみ判明（durationMonths 不明）: card 幅を作らず point 表示（§32・既存維持）。 */}
+            {pointPhases.length > 0 && (
+              <div className="mt-2 space-y-2.5">
+                {pointPhases.map((p, i) => {
+                  const pal =
+                    PHASE_PALETTE[(timedPhases.length + i) % PHASE_PALETTE.length];
+                  const left = barLeftPercent(p.startMonth, totalMonths);
+                  return (
+                    <div key={p.key} className="relative pt-1">
+                      <div className="relative h-3">
+                        <span
+                          aria-hidden
+                          className="absolute h-3 w-3 -translate-x-1/2 rounded-full ring-4 ring-[#fcfbf8]"
+                          style={{
+                            left: `${left}%`,
+                            backgroundColor: pal.node,
+                            boxShadow: "0 0 0 1px rgba(30,28,24,0.06)",
+                          }}
+                        />
+                      </div>
+                      <div
+                        className="mt-1"
+                        style={{
+                          marginLeft: `min(${left}%, calc(100% - 184px))`,
+                          maxWidth: 184,
+                        }}
+                      >
+                        <p className="text-[12px] font-semibold text-[#2f2c26]">{p.title}</p>
+                        {p.note && <p className="text-[10px] text-[#8a8578]">{p.note}</p>}
+                        <p className="mt-0.5 text-[10px] text-[#8a8578]">
+                          {p.label}・期間未定
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -374,6 +374,30 @@ function collectYearlyActivities(
 }
 
 /**
+ * ACTIVITIES の lane packing（§9-§13）。時間範囲が重ならない timed activity（School / Work）を
+ * 同じ lane にまとめる。startMonth 昇順（同着は短い方が先）で処理し、各 phase を
+ * 「startMonth > その lane 末尾の endMonth」を満たす最初の lane へ配置。無ければ新 lane。
+ * endMonth = startMonth + durationMonths - 1（§13）。Destination / Accommodation は対象外（§15）。
+ */
+export function packActivityLanes(phases: MyPlanTimedPhase[]): MyPlanTimedPhase[][] {
+  const sorted = [...phases].sort(
+    (a, b) => a.startMonth - b.startMonth || a.durationMonths - b.durationMonths,
+  );
+  const lanes: { items: MyPlanTimedPhase[]; lastEnd: number }[] = [];
+  for (const p of sorted) {
+    const end = p.startMonth + p.durationMonths - 1;
+    const lane = lanes.find((l) => p.startMonth > l.lastEnd);
+    if (lane) {
+      lane.items.push(p);
+      lane.lastEnd = end;
+    } else {
+      lanes.push({ items: [p], lastEnd: end });
+    }
+  }
+  return lanes.map((l) => l.items);
+}
+
+/**
  * Destination（stays ＋ interests）を DESTINATIONS lane 用に整理する。
  *   - stays: startMonth あり（0 含む）→ dest phase（軸に配置。durationMonths 無しは point）
  *            startMonth なし → 時期未定（section "destination"）
