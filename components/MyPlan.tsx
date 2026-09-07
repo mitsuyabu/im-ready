@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type {
+  MyPlanAccPhase,
   MyPlanDestPhase,
   MyPlanMonthlyTimeline,
   MyPlanPointPhase,
@@ -12,6 +13,7 @@ import type {
 import { MY_PLAN_SECTIONS } from "@/lib/myPlanView";
 import EditablePlanItems from "@/components/EditablePlanItems";
 import EditableDestination from "@/components/EditableDestination";
+import EditableAccommodation from "@/components/EditableAccommodation";
 import EditableSchools from "@/components/EditableSchools";
 import EditableTimeline from "@/components/EditableTimeline";
 import EditablePlanDuration from "@/components/EditablePlanDuration";
@@ -116,12 +118,16 @@ const CompassIcon = ({ className }: IconProps) => (
 const SECTION_ACCENT: Record<MyPlanSectionId, string> = {
   goals: "#4b5b3e",
   destination: "#33506a",
+  accommodation: "#5b5270",
   school: "#3f5a3b",
   work: "#7a4a30",
   things: "#9a4d38",
   milestones: "#45413a",
   timeline: "#1e2b3d",
 };
+
+/** ACCOMMODATION lane / bar の色（soft lavender・§27）。 */
+const ACCOMMODATION_BAR_COLOR = "#a89abf";
 
 /* ------------------------------------------------------------------ */
 /* Monthly summary timeline（YOUR PLAN AT A GLANCE の直下・横図）           */
@@ -344,12 +350,14 @@ function MonthScaleTimeline({
   timedPhases,
   pointPhases,
   destinationPhases,
+  accommodationPhases,
   arrival,
 }: {
   totalMonths: number;
   timedPhases: MyPlanTimedPhase[];
   pointPhases: MyPlanPointPhase[];
   destinationPhases: MyPlanDestPhase[];
+  accommodationPhases: MyPlanAccPhase[];
   arrival: { city: string; hasBar: boolean } | null;
 }) {
   const labels = axisLabelMonths(totalMonths);
@@ -402,6 +410,47 @@ function MonthScaleTimeline({
                     >
                       {d.city}
                       <span className="ml-1 text-[10px] text-[#8a8578]">{d.rangeLabel}</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ACCOMMODATION lane（滞在方法・§25 / §27）。soft lavender bar。 */}
+        {accommodationPhases.length > 0 && (
+          <div className="mb-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7c6f8a]">
+              ACCOMMODATION
+            </p>
+            <div className="mt-1.5 space-y-1.5">
+              {accommodationPhases.map((a) => {
+                const left = barLeftPercent(a.startMonth, totalMonths);
+                return (
+                  <div key={a.key} className="relative h-4">
+                    {a.durationMonths != null ? (
+                      <span
+                        className="absolute top-1 h-1.5 rounded-full"
+                        style={{
+                          left: `${left}%`,
+                          width: `${barWidthPercent(a.startMonth, a.durationMonths, totalMonths)}%`,
+                          backgroundColor: ACCOMMODATION_BAR_COLOR,
+                        }}
+                      />
+                    ) : (
+                      <span
+                        aria-hidden
+                        className="absolute top-0.5 h-2.5 w-2.5 -translate-x-1/2 rounded-full ring-2 ring-[#fcfbf8]"
+                        style={{ left: `${left}%`, backgroundColor: ACCOMMODATION_BAR_COLOR }}
+                      />
+                    )}
+                    <span
+                      className="absolute top-0 whitespace-nowrap text-[11px] font-medium text-[#3f3a34]"
+                      style={{ left: `min(${left}%, calc(100% - 160px))`, paddingLeft: 4 }}
+                    >
+                      {a.label}
+                      <span className="ml-1 text-[10px] text-[#8a8578]">{a.rangeLabel}</span>
                     </span>
                   </div>
                 );
@@ -593,6 +642,7 @@ function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline 
     pointPhases,
     summaryPhases,
     destinationPhases,
+    accommodationPhases,
     arrival,
     unscheduledPhases,
   } = timeline;
@@ -624,6 +674,7 @@ function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline 
           timedPhases={timedPhases}
           pointPhases={pointPhases}
           destinationPhases={destinationPhases}
+          accommodationPhases={accommodationPhases}
           arrival={arrival}
         />
       ) : (
@@ -795,6 +846,16 @@ function renderSectionBody(id: MyPlanSectionId, view: MyPlanView, planId: string
           initialStays={view.destination.savedStays}
           candidates={view.destination.candidates}
           hints={view.destination.hints}
+          editingEnabled={editingEnabled}
+          planDurationMonths={view.planDurationMonths}
+        />
+      );
+    case "accommodation":
+      return (
+        <EditableAccommodation
+          planId={planId}
+          initialAccommodations={view.accommodation.saved}
+          candidate={view.accommodation.candidate}
           editingEnabled={editingEnabled}
           planDurationMonths={view.planDurationMonths}
         />

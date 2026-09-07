@@ -18,7 +18,9 @@
 import type { Karte } from "@/lib/karte";
 import { getKarteSummaryItems } from "@/lib/karte";
 import type { School } from "@/lib/data/schools";
+import { accommodationLabel, guessAccommodationType } from "@/lib/planBlueprint";
 import type {
+  BlueprintAccommodation,
   BlueprintDestinations,
   BlueprintItem,
   BlueprintSchool,
@@ -31,6 +33,7 @@ import type {
 export type MyPlanSectionId =
   | "goals"
   | "destination"
+  | "accommodation"
   | "school"
   | "work"
   | "things"
@@ -43,10 +46,11 @@ export type MyPlanSectionMeta = {
   subtitle: string;
 };
 
-/** 固定 7 セクション（順序も固定）。 */
+/** 固定セクション（順序も固定）。「どこにいるか → どう住むか → 何を学ぶか → どう働くか」の流れ（§17）。 */
 export const MY_PLAN_SECTIONS: MyPlanSectionMeta[] = [
   { id: "goals", enName: "Goals", subtitle: "この留学で実現したいこと" },
   { id: "destination", enName: "Destination", subtitle: "暮らしたい場所、行ってみたい場所" },
+  { id: "accommodation", enName: "Accommodation", subtitle: "どこで、どんなふうに暮らすか" },
   { id: "school", enName: "School & English", subtitle: "学校と英語についての計画" },
   { id: "work", enName: "Work", subtitle: "現地で興味のある仕事" },
   { id: "things", enName: "Things to Do", subtitle: "この留学で経験したいこと" },
@@ -133,7 +137,7 @@ export type MyPlanUnscheduledPhase = {
   title: string;
   status: MyPlanTimelinePhaseStatus;
   /** "時期を設定" リンク先セクション。 */
-  section: "school" | "work" | "destination";
+  section: "school" | "work" | "destination" | "accommodation";
   /** durationMonths だけ / range だけ設定されている場合の補足。位置は作らない（§15）。 */
   durationNote: string | null;
 };
@@ -149,6 +153,16 @@ export type MyPlanDestPhase = {
   /** 例: "到着〜2ヶ月目" / "6〜8ヶ月目" / "3ヶ月目〜"。 */
   rangeLabel: string;
   isPrimary: boolean;
+};
+
+/** month-scale の ACCOMMODATION lane（滞在方法）。startMonth 0 = 到着時 を許可。 */
+export type MyPlanAccPhase = {
+  key: string;
+  label: string;
+  startMonth: number;
+  /** null = 開始のみ判明（point）。 */
+  durationMonths: number | null;
+  rangeLabel: string;
 };
 
 export type MyPlanMonthlyTimeline = {
@@ -170,9 +184,11 @@ export type MyPlanMonthlyTimeline = {
   /** summary モードで並べる順序フェーズ。 */
   summaryPhases: MyPlanTimelinePhase[];
 
-  /** month-scale モードの DESTINATIONS lane（滞在都市）。他モードでは空（§26 / §54）。 */
+  /** month-scale モードの DESTINATIONS lane（滞在都市）。他モードでは空。 */
   destinationPhases: MyPlanDestPhase[];
-  /** Month 0 の到着アンカー。primary city があれば表示（§30 / §56）。hasBar = primary に timing あり（§57）。 */
+  /** month-scale モードの ACCOMMODATION lane（滞在方法・§25）。他モードでは空。 */
+  accommodationPhases: MyPlanAccPhase[];
+  /** Month 0 の到着アンカー。primary city があれば表示。hasBar = 到着 stay あり。 */
   arrival: { city: string; hasBar: boolean } | null;
 
   /** 両モード共通で下部に出す「時期未定」の保存済み activity。 */
@@ -194,6 +210,11 @@ export type MyPlanView = {
     savedStays: BlueprintStay[];
     candidates: MyPlanCandidate[];
     hints: MyPlanCandidate[];
+  };
+  accommodation: {
+    saved: BlueprintAccommodation[];
+    /** Karte stated（schoolPrefs.accommodation）由来の候補。未採用。1 件だけ。 */
+    candidate: { type: string; label: string } | null;
   };
   school: {
     /** 保存済み学校（raw BlueprintSchool）。My Plan 側で status 変更 / 削除するため丸ごと持つ。 */
@@ -424,6 +445,46 @@ function collectDestinationPhases(dest: BlueprintDestinations): {
   return { phases: phases.slice(0, 10), unscheduled: unscheduled.slice(0, 10), arrival };
 }
 
+/**
+ * Accommodation（滞在方法）を ACCOMMODATION lane 用に整理する（§22-§28）。
+ *   - startMonth あり（0 含む）→ acc phase（durationMonths 無しは point・§23）
+ *   - startMonth なし → 時期未定（section "accommodation"・§24 / §49）
+ * 同じ type が複数あってもそれぞれ別バー（key = record id・§21）。
+ */
+function collectAccommodationPhases(accs: BlueprintAccommodation[]): {
+  phases: MyPlanAccPhase[];
+  unscheduled: MyPlanUnscheduledPhase[];
+} {
+  const phases: MyPlanAccPhase[] = [];
+  const unscheduled: MyPlanUnscheduledPhase[] = [];
+  for (const a of accs) {
+    const label = accommodationLabel(a);
+    const hasStart = typeof a.startMonth === "number";
+    const hasDur = typeof a.durationMonths === "number";
+    if (hasStart) {
+      const start = a.startMonth as number;
+      const dur = hasDur ? (a.durationMonths as number) : null;
+      phases.push({
+        key: `acc-${a.id}`,
+        label: firstLine(label, 24),
+        startMonth: start,
+        durationMonths: dur,
+        rangeLabel: destRangeLabel(start, dur),
+      });
+    } else {
+      unscheduled.push({
+        key: `acc-${a.id}`,
+        title: firstLine(label, 24),
+        status: "saved",
+        section: "accommodation",
+        durationNote: hasDur ? `約${a.durationMonths}ヶ月` : null,
+      });
+    }
+  }
+  phases.sort((x, y) => x.startMonth - y.startMonth || (y.durationMonths ?? 0) - (x.durationMonths ?? 0));
+  return { phases: phases.slice(0, 10), unscheduled: unscheduled.slice(0, 10) };
+}
+
 /** dest phase を（軸が作れないとき）unscheduled として扱う。range だけ note に残す（§55）。 */
 function destPhaseToUnscheduled(p: MyPlanDestPhase): MyPlanUnscheduledPhase {
   return {
@@ -431,6 +492,17 @@ function destPhaseToUnscheduled(p: MyPlanDestPhase): MyPlanUnscheduledPhase {
     title: p.city,
     status: "saved",
     section: "destination",
+    durationNote: p.rangeLabel,
+  };
+}
+
+/** acc phase を（軸が作れないとき）unscheduled として扱う。range だけ note に残す。 */
+function accPhaseToUnscheduled(p: MyPlanAccPhase): MyPlanUnscheduledPhase {
+  return {
+    key: p.key,
+    title: p.label,
+    status: "saved",
+    section: "accommodation",
     durationNote: p.rangeLabel,
   };
 }
@@ -462,6 +534,7 @@ function buildMonthlyTimeline(input: {
   milestones: BlueprintItem[];
   schools: BlueprintSchool[];
   destinations: BlueprintDestinations;
+  accommodations: BlueprintAccommodation[];
   englishRef: MyPlanCandidate[];
   schoolCandidates: MyPlanSchoolCandidate[];
   workHints: MyPlanCandidate[];
@@ -479,21 +552,28 @@ function buildMonthlyTimeline(input: {
     input.workInterests,
   );
   const dst = collectDestinationPhases(input.destinations);
+  const acc = collectAccommodationPhases(input.accommodations);
 
-  // 軸に載せられる中身: School/Work の timed/point、滞在都市、または到着都市（primary）。
+  // 軸に載せられる中身: School/Work、滞在都市、滞在方法、または到着都市。
   const hasScaleContent =
-    timed.length > 0 || point.length > 0 || dst.phases.length > 0 || dst.arrival != null;
+    timed.length > 0 ||
+    point.length > 0 ||
+    dst.phases.length > 0 ||
+    acc.phases.length > 0 ||
+    dst.arrival != null;
 
-  /** 軸が無いモードでは滞在都市もすべて「時期未定」に回す（fake placement しない・§55）。 */
+  /** 軸が無いモードでは滞在都市・滞在方法もすべて「時期未定」に回す（fake placement しない）。 */
   const noAxisUnscheduled = () =>
     [
       ...point.map(pointToUnscheduled),
       ...unscheduled,
       ...dst.phases.map(destPhaseToUnscheduled),
       ...dst.unscheduled,
-    ].slice(0, 10);
+      ...acc.phases.map(accPhaseToUnscheduled),
+      ...acc.unscheduled,
+    ].slice(0, 12);
 
-  /* 0-a) month-scale モード: 全体期間あり ＋ 軸に載る中身あり（§1 / §33 / §38） */
+  /* 0-a) month-scale モード: 全体期間あり ＋ 軸に載る中身あり */
   if (planDurationMonths != null && hasScaleContent) {
     return {
       source: "month-scale",
@@ -503,8 +583,9 @@ function buildMonthlyTimeline(input: {
       pointPhases: point,
       summaryPhases: [],
       destinationPhases: dst.phases,
+      accommodationPhases: acc.phases,
       arrival: dst.arrival ? { city: dst.arrival.city, hasBar: dst.arrival.hasTiming } : null,
-      unscheduledPhases: [...unscheduled, ...dst.unscheduled].slice(0, 10),
+      unscheduledPhases: [...unscheduled, ...dst.unscheduled, ...acc.unscheduled].slice(0, 12),
     };
   }
 
@@ -524,6 +605,7 @@ function buildMonthlyTimeline(input: {
         status: t.status,
       })),
       destinationPhases: [],
+      accommodationPhases: [],
       arrival: null,
       unscheduledPhases: noAxisUnscheduled(),
     };
@@ -551,6 +633,7 @@ function buildMonthlyTimeline(input: {
       pointPhases: [],
       summaryPhases,
       destinationPhases: [],
+      accommodationPhases: [],
       arrival: null,
       unscheduledPhases: noAxisUnscheduled(),
     };
@@ -628,6 +711,7 @@ function buildMonthlyTimeline(input: {
     pointPhases: [],
     summaryPhases: trimmed,
     destinationPhases: [],
+    accommodationPhases: [],
     arrival: null,
     unscheduledPhases: unscheduledAll,
   };
@@ -860,6 +944,7 @@ export function buildMyPlanView(
     milestones: data.milestones,
     schools: data.schools,
     destinations: data.destinations,
+    accommodations: data.accommodations,
     englishRef,
     schoolCandidates,
     workHints,
@@ -875,6 +960,7 @@ export function buildMyPlanView(
     data.destinations.primary !== null ||
     data.destinations.interested.length > 0 ||
     data.destinations.stays.length > 0 ||
+    data.accommodations.length > 0 ||
     data.schools.length > 0 ||
     data.workInterests.length > 0 ||
     data.thingsToDo.length > 0 ||
@@ -912,6 +998,14 @@ export function buildMyPlanView(
       savedStays: data.destinations.stays,
       candidates: destinationCandidates,
       hints: destinationHints,
+    },
+    accommodation: {
+      saved: data.accommodations,
+      candidate: (() => {
+        const it = stated("schoolPrefs", "accommodation");
+        if (!it) return null;
+        return { type: guessAccommodationType(it.value), label: it.value };
+      })(),
     },
     school: { savedSchools, candidates: schoolCandidates, englishRef },
     work: { saved: data.workInterests, hints: workHints },

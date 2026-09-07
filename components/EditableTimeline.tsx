@@ -50,14 +50,23 @@ function TimelineView({ timeline }: { timeline: PlanTimeline }) {
               {p.title}
             </h3>
 
-            {p.locations && p.locations.length > 0 && (
+            {((p.locations && p.locations.length > 0) ||
+              (p.accommodations && p.accommodations.length > 0)) && (
               <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {p.locations.map((loc, j) => (
+                {(p.locations ?? []).map((loc, j) => (
                   <span
-                    key={j}
+                    key={`loc-${j}`}
                     className="inline-flex items-center rounded-full bg-[#e9f1f5] px-2 py-0.5 text-[11px] font-medium text-[#567789]"
                   >
                     {loc}
+                  </span>
+                ))}
+                {(p.accommodations ?? []).map((a, j) => (
+                  <span
+                    key={`acc-${j}`}
+                    className="inline-flex items-center rounded-full bg-[#eeebf3] px-2 py-0.5 text-[11px] font-medium text-[#6a5e83]"
+                  >
+                    {a}
                   </span>
                 ))}
               </div>

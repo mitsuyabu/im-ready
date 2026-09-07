@@ -18,6 +18,7 @@ import {
   BLUEPRINT_START_MONTH_MAX,
   sanitizeBlueprintData,
   sanitizePlanTimeline,
+  type BlueprintAccommodation,
   type BlueprintData,
   type BlueprintItem,
   type BlueprintPlanSettings,
@@ -32,6 +33,7 @@ export type BlueprintSectionKey =
   | "planSettings"
   | "goals"
   | "destinations"
+  | "accommodations"
   | "workInterests"
   | "thingsToDo"
   | "milestones"
@@ -90,7 +92,7 @@ async function callPatch(
 /** BlueprintItem[] セクション（goals / workInterests / thingsToDo / milestones）。 */
 export type ItemSectionKey = Exclude<
   BlueprintSectionKey,
-  "destinations" | "schools" | "planSettings"
+  "destinations" | "schools" | "planSettings" | "accommodations"
 >;
 
 /** goals / workInterests / thingsToDo / milestones（BlueprintItem[] セクション）を丸ごと差し替える。 */
@@ -299,6 +301,9 @@ function timelineToJson(t: PlanTimeline): Record<string, unknown> {
       activities: p.activities,
       reason: p.reason,
       ...(p.locations && p.locations.length > 0 ? { locations: p.locations } : {}),
+      ...(p.accommodations && p.accommodations.length > 0
+        ? { accommodations: p.accommodations }
+        : {}),
     })),
     openQuestions: t.openQuestions,
     generatedAt: t.generatedAt,
@@ -418,6 +423,70 @@ export function applySchoolTiming(
  */
 export function withDestinationTiming(item: BlueprintItem, patch: BlueprintTimingPatch): BlueprintItem {
   return withTiming(item, patch, 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* Accommodation（滞在方法）                                                        */
+/* ------------------------------------------------------------------ */
+
+export function accToJson(a: BlueprintAccommodation): Record<string, unknown> {
+  const json: Record<string, unknown> = { id: a.id, type: a.type, createdAt: a.createdAt };
+  if (a.label) json.label = a.label;
+  if (typeof a.startMonth === "number") json.startMonth = a.startMonth;
+  if (typeof a.durationMonths === "number") json.durationMonths = a.durationMonths;
+  if (a.city) json.city = a.city;
+  if (a.note) json.note = a.note;
+  return json;
+}
+
+/** accommodations セクションを丸ごと差し替える。 */
+export function patchAccommodationsSection(
+  planId: string,
+  accommodations: BlueprintAccommodation[],
+  expectedUpdatedAt: string | null,
+): Promise<PatchResult> {
+  return callPatch("accommodations", planId, accommodations.map(accToJson), expectedUpdatedAt);
+}
+
+export function makeBlueprintAccommodation(type: string, label?: string): BlueprintAccommodation {
+  const acc: BlueprintAccommodation = {
+    id: crypto.randomUUID(),
+    type,
+    createdAt: new Date().toISOString(),
+  };
+  if (type === "other" && label && label.trim().length > 0) {
+    acc.label = label.trim().slice(0, BLUEPRINT_LABEL_MAX);
+  }
+  return acc;
+}
+
+/** 1 件だけ type / label を差し替える。 */
+export function applyAccType(
+  accommodations: BlueprintAccommodation[],
+  id: string,
+  type: string,
+  label?: string,
+): BlueprintAccommodation[] {
+  return accommodations.map((a) => {
+    if (a.id !== id) return a;
+    const next: BlueprintAccommodation = { ...a, type };
+    if (type === "other") {
+      if (label && label.trim().length > 0) next.label = label.trim().slice(0, BLUEPRINT_LABEL_MAX);
+      else delete next.label;
+    } else {
+      delete next.label;
+    }
+    return next;
+  });
+}
+
+/** 1 件だけ timing を更新（startMonth 0 許可）。他 record は不変。 */
+export function applyAccTiming(
+  accommodations: BlueprintAccommodation[],
+  id: string,
+  patch: BlueprintTimingPatch,
+): BlueprintAccommodation[] {
+  return accommodations.map((a) => (a.id === id ? withTiming(a, patch, 0) : a));
 }
 
 /* ------------------------------------------------------------------ */

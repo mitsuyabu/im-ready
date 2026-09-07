@@ -22,7 +22,13 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { Karte } from "@/lib/karte";
 import { getKarteSummaryItems } from "@/lib/karte";
-import { sanitizePlanTimeline, type BlueprintData, type PlanTimeline } from "@/lib/planBlueprint";
+import {
+  ACCOMMODATION_PRESETS,
+  accommodationLabel,
+  sanitizePlanTimeline,
+  type BlueprintData,
+  type PlanTimeline,
+} from "@/lib/planBlueprint";
 
 /* ------------------------------------------------------------------ */
 /* tool schema（period の id / timeline の generatedAt は含めない＝server 付与）           */
@@ -77,6 +83,12 @@ export const PLAN_TIMELINE_TOOL: Anthropic.Tool = {
               items: { type: "string" },
               description:
                 "そのフェーズで滞在・訪問する都市。DESTINATIONS に挙がった都市（primary / interested / user-saved）と相談で述べられた都市のみ。新しい都市を作らない。無ければ空配列。最大 3 件。",
+            },
+            accommodations: {
+              type: "array",
+              items: { type: "string" },
+              description:
+                "そのフェーズの滞在方法（例: ホームステイ / シェアハウス / 学生寮 / ホステル・ホテル）。ACCOMMODATION に挙がったもの、または左記 preset のみ。新しい滞在方法を作らない。無ければ空配列。最大 2 件。",
             },
           },
           required: ["label", "title", "activities", "reason"],
@@ -159,6 +171,13 @@ export function buildPlanTimelineSystemPrompt(): string {
     "- locations に入れてよいのは DESTINATIONS の都市（primary / interested / saved stay）と相談で述べられた都市のみ。新しい都市を作らない。",
     "- 都市の季節・天候・イベント・ベストシーズンなど、根拠のない事実を断定しない（外部情報を持っていない）。",
     "",
+    "【滞在方法 / accommodation】",
+    "- ACCOMMODATION の『Saved with fixed timing』は HARD。時期をずらさない。同じ種類が複数回あってもそれぞれ尊重する。",
+    "- type だけ保存 / Karte preference / 未保存 は SOFT。『到着後1〜2ヶ月はホームステイを検討』のように時期を提案してよい。",
+    "  ただし Karte / 保存が種類しか言っていない場合、期間を勝手に固定しない（fake duration 禁止）。提案は各 period の accommodations に入れる。",
+    "- accommodations に入れてよいのは preset（ホームステイ / シェアハウス / 学生寮 / ホステル・ホテル）と、ユーザー保存済み / 相談で述べられた滞在方法のみ。",
+    "  『豪華コンドミニアム』のような未提示の滞在方法を勝手に作らない。ユーザーの保存データへ書き戻さない（採用はユーザー）。",
+    "",
     "【Milestone / ビザ】",
     "ユーザーが設定した目標。制度条件は別。特にビザは『条件を確認する』を含める。",
     "OK例: 「セカンドビザ取得を目標にする場合は、対象条件を公式情報で確認しながら時期を検討します。」",
@@ -180,7 +199,7 @@ export type PlanningBrief = {
   constraints: string[];
   openQuestions: string[];
   planningConsiderations: string[];
-  /** 行き先（都市）。primary = STRONG PREFERENCE / interested = SOFT / user timing = HARD（§47 / §48）。 */
+  /** 行き先（都市）。primary = STRONG PREFERENCE / interested = SOFT / user timing = HARD。 */
   destinations: {
     primary: string | null;
     interested: string[];
@@ -188,6 +207,15 @@ export type PlanningBrief = {
     fixedTiming: string[];
     /** 時期未設定の都市（AI が Plan 全体と整合させて提案してよい・SOFT）。 */
     unscheduled: string[];
+  };
+  /** 滞在方法。user timing = HARD / type だけ = SOFT / Karte stated = SOFT（§36 / §37）。 */
+  accommodations: {
+    /** ユーザー設定の滞在方法＋時期（HARD）。例: "ホームステイ: 到着〜1ヶ月目"。 */
+    fixedTiming: string[];
+    /** type は保存済みだが時期未設定（SOFT）。 */
+    unscheduled: string[];
+    /** Karte stated の滞在方法の希望（SOFT・未保存）。 */
+    kartePreference: string | null;
   };
 };
 
@@ -281,6 +309,25 @@ export function buildPlanningBrief(data: BlueprintData, karte: Karte): PlanningB
   data.destinations.interested.forEach((c) => {
     if (!stayCities.has(c.label.trim().toLowerCase())) destUnscheduled.push(c.label);
   });
+
+  /* ---- accommodations（滞在方法・§35-§37）---- */
+  const accFixedTiming: string[] = [];
+  const accUnscheduled: string[] = [];
+  for (const a of data.accommodations) {
+    const label = accommodationLabel(a);
+    if (typeof a.startMonth === "number" && typeof a.durationMonths === "number") {
+      const range = destRange(a.startMonth, a.durationMonths);
+      accFixedTiming.push(`${label}: ${range}`);
+      fixedDecisions.push(`滞在方法（ユーザー設定・固定）: ${label} を ${range}`);
+    } else if (typeof a.startMonth === "number") {
+      const from = a.startMonth === 0 ? "到着から" : `${a.startMonth}ヶ月目から`;
+      accFixedTiming.push(`${label}: ${from}（期間は未定）`);
+      fixedDecisions.push(`滞在方法（ユーザー設定・固定）: ${label} を ${from}`);
+    } else {
+      accUnscheduled.push(label);
+    }
+  }
+  const karteAccommodation = stated("schoolPrefs.accommodation");
 
   /* ---- goals ---- */
   const goals: string[] = [];
@@ -422,6 +469,11 @@ export function buildPlanningBrief(data: BlueprintData, karte: Karte): PlanningB
       fixedTiming: destFixedTiming,
       unscheduled: destUnscheduled,
     },
+    accommodations: {
+      fixedTiming: accFixedTiming,
+      unscheduled: accUnscheduled,
+      kartePreference: karteAccommodation,
+    },
   };
 }
 
@@ -479,6 +531,17 @@ export function buildPlanTimelineUserMessage(data: BlueprintData, karte: Karte):
       brief.destinations.unscheduled.length > 0 ? brief.destinations.unscheduled.join(" / ") : "（なし）"
     }`,
     "",
+    "## ACCOMMODATION（滞在方法・どう住むか。Destination とは別）",
+    `- Saved with fixed timing（HARD・動かさない。同じ種類が複数回あることもある）: ${
+      brief.accommodations.fixedTiming.length > 0 ? brief.accommodations.fixedTiming.join(" / ") : "（なし）"
+    }`,
+    `- Saved type, timing 未設定（時期の提案可・SOFT）: ${
+      brief.accommodations.unscheduled.length > 0 ? brief.accommodations.unscheduled.join(" / ") : "（なし）"
+    }`,
+    `- Karte preference（相談で述べた希望・SOFT・未保存）: ${
+      brief.accommodations.kartePreference ?? "（なし）"
+    }`,
+    "",
     "## SAVED_SCHOOLS（status 付き）",
     ...savedSchoolLines,
     "",
@@ -490,8 +553,13 @@ export function buildPlanTimelineUserMessage(data: BlueprintData, karte: Karte):
     "- FLEXIBLE_PREFERENCES は可能な範囲で組み込む（SOFT・必須ではない）。",
     "- 都市: stay 未設定の都市は、School / Work / 期間 / 他の滞在との整合を見て『いつ頃その都市に滞在するか』を提案してよい（各 period の locations と reason で示す）。",
     "  ただし Saved stays with fixed timing の都市・時期は動かさない。提案はあくまで提案で、ユーザーの stay records には書き戻さない（採用はユーザーが行う）。",
+    "- 滞在方法: ACCOMMODATION の Saved with fixed timing は動かさない。SOFT なもの・Karte preference は時期を提案してよい（各 period の accommodations に入れる）。preset 以外の滞在方法を作らない。種類しか分からないときは期間を固定しない。",
     "- 都市名は DESTINATIONS に挙がっている都市（primary / interested / saved stay）と、相談で述べられた都市のみ。新しい都市を発明しない。",
     "- 都市の『ベストシーズン』『天候』『イベント』など、根拠のない季節情報を断定しない。",
+    "- 滞在方法: ACCOMMODATION の『Saved with fixed timing』は HARD（動かさない）。type だけ / Karte preference / 未保存の場合は SOFT。",
+    "  『到着後1〜2ヶ月はホームステイを検討』のように時期を提案してよいが、Karte が種類しか言っていないなら期間を勝手に固定しない（fake duration 禁止・§34）。",
+    "  提案した滞在方法は各 period の accommodations に入れる。ユーザーの保存データへ書き戻さない（採用はユーザー）。",
+    "- accommodations に入れてよいのは preset（ホームステイ / シェアハウス / 学生寮 / ホステル・ホテル）と、ユーザー保存済み / 相談で述べられた滞在方法のみ。『豪華コンドミニアム』等を勝手に作らない（§42）。",
     "- 保存されていない学校・都市・目的・施設の固有名詞は追加しない。",
     "- 項目をただ均等に並べるのではなく、順序・準備期間・慣れる時間・優先順位を考える。",
     "- 決まっていないことは openQuestions に入れ、勝手に埋めない。",
@@ -567,6 +635,24 @@ export function buildAllowedCityKeys(data: BlueprintData, karte: Karte): Set<str
 }
 
 /**
+ * AI が返した period.accommodations の allowlist（§40-§42）。
+ * preset ラベル ＋ ユーザー保存済み ＋ Karte stated の滞在方法（正規化キー）。
+ */
+export function buildAllowedAccommodationKeys(data: BlueprintData, karte: Karte): Set<string> {
+  const keys = new Set<string>();
+  const add = (v: string | null | undefined) => {
+    if (v && v.trim().length > 0) keys.add(cityKey(v));
+  };
+  ACCOMMODATION_PRESETS.forEach((p) => add(p.label));
+  data.accommodations.forEach((a) => add(accommodationLabel(a)));
+  const summary = new Map(getKarteSummaryItems(karte).map((it) => [`${it.block}.${it.key}`, it]));
+  const conflictKeys = new Set(karte.handoff.conflicts.map((c) => `${c.block}.${c.key}`));
+  const acc = summary.get("schoolPrefs.accommodation");
+  if (acc && acc.certainty === "stated" && !conflictKeys.has("schoolPrefs.accommodation")) add(acc.value);
+  return keys;
+}
+
+/**
  * tool_use.input（AI raw）を PlanTimeline に合成する。
  *   - 各 period に server 生成の id を付ける（AI に UUID を作らせない）
  *   - period.locations は allowedCityKeys と照合し、一致しない都市は drop（AI の都市発明を弾く・§51 / §52）
@@ -578,19 +664,26 @@ export function composePlanTimelineFromDraft(
   generatedAtIso: string,
   makeId: () => string,
   allowedCityKeys?: Set<string>,
+  allowedAccommodationKeys?: Set<string>,
 ): PlanTimeline | null {
   if (typeof raw !== "object" || raw === null) return null;
   const r = raw as Record<string, unknown>;
+
+  const filterList = (v: unknown, allow: Set<string> | undefined, max: number): string[] =>
+    (Array.isArray(v) ? v : [])
+      .filter((c): c is string => typeof c === "string" && c.trim().length > 0)
+      .filter((c) => !allow || allow.has(cityKey(c)))
+      .slice(0, max);
 
   const periodsWithId = Array.isArray(r.periods)
     ? r.periods.map((p) => {
         if (!p || typeof p !== "object") return p;
         const period: Record<string, unknown> = { ...(p as Record<string, unknown>), id: makeId() };
         if (Array.isArray(period.locations)) {
-          period.locations = (period.locations as unknown[])
-            .filter((c): c is string => typeof c === "string" && c.trim().length > 0)
-            .filter((c) => !allowedCityKeys || allowedCityKeys.has(cityKey(c)))
-            .slice(0, 3);
+          period.locations = filterList(period.locations, allowedCityKeys, 3);
+        }
+        if (Array.isArray(period.accommodations)) {
+          period.accommodations = filterList(period.accommodations, allowedAccommodationKeys, 2);
         }
         return period;
       })

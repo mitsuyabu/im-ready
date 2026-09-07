@@ -108,6 +108,46 @@ export type BlueprintDestinations = {
 };
 
 /**
+ * 滞在方法（Accommodation）1 レコード。「その期間どう住むか」。Destination（どこにいるか）とは別。
+ * Destination stay と同様、startMonth 0（＝到着時）を許可。同じ type を複数回可（戻る等）。
+ */
+export type BlueprintAccommodation = {
+  id: string;
+  /** preset key（"homestay" | "sharehouse" | "student_residence" | "hostel_hotel" | "other"）。 */
+  type: string;
+  /** type="other" のときの自由入力ラベル。 */
+  label?: string;
+  startMonth?: number;
+  durationMonths?: number;
+  /** 都市の紐付け（任意・§9）。今回は必須にしない。 */
+  city?: string;
+  note?: string;
+  createdAt: string;
+};
+
+export const ACCOMMODATION_PRESET_KEYS = [
+  "homestay",
+  "sharehouse",
+  "student_residence",
+  "hostel_hotel",
+] as const;
+
+/** UI の preset（日本語ラベル）。AI 内部 key は英語。"other" は自由入力。 */
+export const ACCOMMODATION_PRESETS: { key: string; label: string }[] = [
+  { key: "homestay", label: "ホームステイ" },
+  { key: "sharehouse", label: "シェアハウス" },
+  { key: "student_residence", label: "学生寮" },
+  { key: "hostel_hotel", label: "ホステル / ホテル" },
+  { key: "other", label: "その他" },
+];
+
+/** accommodation record の表示ラベル（type→日本語、other は自由入力）。 */
+export function accommodationLabel(a: Pick<BlueprintAccommodation, "type" | "label">): string {
+  if (a.type === "other") return a.label && a.label.trim().length > 0 ? a.label : "その他";
+  return ACCOMMODATION_PRESETS.find((p) => p.key === a.type)?.label ?? a.type;
+}
+
+/**
  * My Plan 全体の設定（ユーザーが My Plan で直接管理する。Karte は書き換えない）。
  * 将来 departure timing 等を足せる。未設定のキーは持たない（fake を書き込まない）。
  */
@@ -120,6 +160,7 @@ export type BlueprintData = {
   planSettings: BlueprintPlanSettings;
   goals: BlueprintItem[];
   destinations: BlueprintDestinations;
+  accommodations: BlueprintAccommodation[];
   schools: BlueprintSchool[];
   workInterests: BlueprintItem[];
   thingsToDo: BlueprintItem[];
@@ -136,9 +177,13 @@ export type PlanTimelinePeriod = {
   reason: string;
   /**
    * そのフェーズで滞在・訪問する都市（AI 提案。後方互換のため optional）。
-   * server 側で「ユーザー保存済み / 相談で述べた都市」の allowlist と照合し、一致しないものは drop（§51 / §52）。
+   * server 側で「ユーザー保存済み / 相談で述べた都市」の allowlist と照合し、一致しないものは drop。
    */
   locations?: string[];
+  /**
+   * そのフェーズの滞在方法（AI 提案。optional）。preset / user-saved / Karte 由来のみ許可、一致しないものは drop。
+   */
+  accommodations?: string[];
 };
 
 export type PlanTimeline = {
@@ -192,6 +237,7 @@ export function createEmptyBlueprintData(): BlueprintData {
     planSettings: {},
     goals: [],
     destinations: { primary: null, interested: [], stays: [] },
+    accommodations: [],
     schools: [],
     workInterests: [],
     thingsToDo: [],
@@ -359,6 +405,61 @@ function sanitizeStayArray(value: unknown): BlueprintStay[] {
   );
 }
 
+/** 自由テキスト（Karte 由来等）から滞在方法 preset key を推測。判定できなければ "other"。 */
+export function guessAccommodationType(raw: string): string {
+  return normalizeAccommodationType(raw).type;
+}
+
+/** 滞在方法 type の正規化。英語 key / 日本語ラベルどちらでも canonical key へ。未知は "other"。 */
+function normalizeAccommodationType(raw: string): { type: string; label?: string } {
+  const t = raw.trim();
+  const k = t.toLowerCase().replace(/\s+/g, "");
+  if ((ACCOMMODATION_PRESET_KEYS as readonly string[]).includes(k)) return { type: k };
+  if (k === "other" || t === "その他") return { type: "other" };
+  if (/ホームステイ|homestay/i.test(t)) return { type: "homestay" };
+  if (/シェアハウス|share ?house|flatshare/i.test(t)) return { type: "sharehouse" };
+  if (/学生寮|学校寮|student ?residence|dorm/i.test(t)) return { type: "student_residence" };
+  if (/ホステル|ホテル|hostel|hotel/i.test(t)) return { type: "hostel_hotel" };
+  // 未知の値はユーザー入力として保持（"その他" ＋ 元の文字列を label に）。fake は作らない。
+  return { type: "other", label: t };
+}
+
+/** 滞在方法 1 件。startMonth 0（到着時）を許可。type 必須（空なら record ごと除外）。 */
+export function sanitizeBlueprintAccommodation(value: unknown): BlueprintAccommodation | null {
+  if (!isRecord(value)) return null;
+  const id = rawNonEmptyString(value.id);
+  const createdAt = rawNonEmptyString(value.createdAt);
+  const rawType = trimmedNonEmpty(value.type);
+  if (!id || !createdAt || !rawType) return null;
+
+  const { type, label: derivedLabel } = normalizeAccommodationType(rawType);
+  const acc: BlueprintAccommodation = { id, type, createdAt };
+
+  const explicitLabel = trimmedNonEmpty(value.label);
+  const label = derivedLabel ?? (type === "other" ? explicitLabel : null);
+  if (label) acc.label = clampString(label, BLUEPRINT_LABEL_MAX);
+
+  const startMonth = sanitizeMonthValue(value.startMonth, BLUEPRINT_START_MONTH_MAX, 0);
+  if (startMonth !== undefined) acc.startMonth = startMonth;
+  const durationMonths = sanitizeMonthValue(value.durationMonths, BLUEPRINT_DURATION_MONTHS_MAX);
+  if (durationMonths !== undefined) acc.durationMonths = durationMonths;
+
+  const city = trimmedNonEmpty(value.city);
+  if (city) acc.city = clampString(city, BLUEPRINT_LABEL_MAX);
+  const note = trimmedNonEmpty(value.note);
+  if (note) acc.note = clampString(note, BLUEPRINT_NOTE_MAX);
+  return acc;
+}
+
+function sanitizeAccommodationArray(value: unknown): BlueprintAccommodation[] {
+  if (!Array.isArray(value)) return [];
+  return dedupeById(
+    value
+      .map(sanitizeBlueprintAccommodation)
+      .filter((a): a is BlueprintAccommodation => a !== null),
+  );
+}
+
 function sanitizeBlueprintDestinations(value: unknown): BlueprintDestinations {
   if (!isRecord(value)) return { primary: null, interested: [], stays: [] };
   return {
@@ -448,6 +549,7 @@ export function sanitizeBlueprintData(value: unknown): BlueprintData {
     planSettings: sanitizeBlueprintPlanSettings(value.planSettings),
     goals: sanitizeBlueprintItemArray(value.goals),
     destinations: sanitizeBlueprintDestinations(value.destinations),
+    accommodations: sanitizeAccommodationArray(value.accommodations),
     schools: sanitizeBlueprintSchoolArray(value.schools),
     workInterests: sanitizeBlueprintItemArray(value.workInterests),
     thingsToDo: sanitizeBlueprintItemArray(value.thingsToDo),
@@ -485,16 +587,21 @@ function sanitizePlanTimelinePeriod(value: unknown): PlanTimelinePeriod | null {
     reason: clampString(value.reason.trim(), TIMELINE_PERIOD_REASON_MAX),
   };
 
-  // locations は optional。壊れていても period ごと無効化はせず、その field だけ落とす（後方互換）。
-  if (Array.isArray(value.locations)) {
-    const locations: string[] = [];
-    for (const raw of value.locations) {
+  // locations / accommodations は optional。壊れていても period ごと無効化はせず field だけ落とす。
+  const parseStrArray = (v: unknown): string[] => {
+    if (!Array.isArray(v)) return [];
+    const out: string[] = [];
+    for (const raw of v) {
       if (typeof raw !== "string") continue;
       const t = raw.trim();
-      if (t.length > 0 && locations.length < 6) locations.push(clampString(t, BLUEPRINT_LABEL_MAX));
+      if (t.length > 0 && out.length < 6) out.push(clampString(t, BLUEPRINT_LABEL_MAX));
     }
-    if (locations.length > 0) period.locations = locations;
-  }
+    return out;
+  };
+  const locations = parseStrArray(value.locations);
+  if (locations.length > 0) period.locations = locations;
+  const accommodations = parseStrArray(value.accommodations);
+  if (accommodations.length > 0) period.accommodations = accommodations;
 
   return period;
 }

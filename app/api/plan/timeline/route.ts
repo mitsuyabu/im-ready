@@ -7,6 +7,7 @@ import { loadPlanKarte } from "@/lib/planChat";
 import { loadPlanBlueprint } from "@/lib/planBlueprint";
 import {
   blueprintHasTimelineMaterial,
+  buildAllowedAccommodationKeys,
   buildAllowedCityKeys,
   buildPlanTimelineSystemPrompt,
   buildPlanTimelineUserMessage,
@@ -101,6 +102,7 @@ export async function POST(req: NextRequest) {
           new Date().toISOString(),
           randomUUID,
           buildAllowedCityKeys(blueprint.data, karte),
+          buildAllowedAccommodationKeys(blueprint.data, karte),
         )
       : null;
   } catch (err) {
