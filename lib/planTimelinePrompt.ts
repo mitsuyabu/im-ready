@@ -152,11 +152,11 @@ export function buildPlanTimelineSystemPrompt(): string {
     "- Things to Do・行ってみたい都市は願望であり、すべて実行必須ではない。無理に全部詰め込まない。",
     "",
     "【都市 / 滞在地】",
-    "- Primary は STRONG PREFERENCE。到着地・軸になる都市として扱ってよいが、絶対ではない。",
-    "- User-fixed timing の都市（『到着〜○ヶ月目』等）は HARD。時期をずらさない。",
-    "- Interested / Unscheduled の都市は SOFT。School・Work・期間との整合を見て『○〜○ヶ月目に○○へ滞在してはどうか』と提案してよい。",
-    "  提案した都市・時期は各 period の locations に入れ、reason で「なぜこの時期か」を短く述べる。ユーザー保存値へ確定として書き戻さない。",
-    "- locations に入れてよいのは DESTINATIONS の都市（primary / interested / user-saved）と相談で述べられた都市のみ。新しい都市を作らない。",
+    "- Primary / 最初の滞在都市は STRONG PREFERENCE。到着地・軸になる都市として扱ってよいが、絶対ではない。",
+    "- Saved stays with fixed timing（『○○を到着〜○ヶ月目』等）は HARD。時期をずらさない。同じ都市が複数回（例: 後で戻る）あってもそれぞれ尊重する。",
+    "- Interested / stay 未設定の都市は SOFT。School・Work・期間・他の滞在との整合を見て『○〜○ヶ月目に○○へ滞在してはどうか』と提案してよい。",
+    "  提案した都市は各 period の locations に入れ、reason で「なぜこの時期か」を短く述べる。ユーザーの stay records へ勝手に書き戻さない（提案のみ・採用はユーザーが行う）。",
+    "- locations に入れてよいのは DESTINATIONS の都市（primary / interested / saved stay）と相談で述べられた都市のみ。新しい都市を作らない。",
     "- 都市の季節・天候・イベント・ベストシーズンなど、根拠のない事実を断定しない（外部情報を持っていない）。",
     "",
     "【Milestone / ビザ】",
@@ -252,32 +252,35 @@ export function buildPlanningBrief(data: BlueprintData, karte: Karte): PlanningB
     }
   });
 
-  /* ---- destinations（§47 / §48）---- */
+  /* ---- destinations（stays を参照）---- */
   // Destination だけ startMonth 0（到着時）を許容。start=0 duration=3 → end 2 → "到着〜2ヶ月目"。
   const destRange = (s: number, d: number): string => {
     const end = s + d - 1;
     if (s === 0) return end <= 0 ? "到着時" : `到着〜${end}ヶ月目`;
     return monthRange(s, d);
   };
-  const destCities: { item: (typeof data.destinations.interested)[number]; isPrimary: boolean }[] = [];
-  if (data.destinations.primary) destCities.push({ item: data.destinations.primary, isPrimary: true });
-  data.destinations.interested.forEach((c) => destCities.push({ item: c, isPrimary: false }));
   const destFixedTiming: string[] = [];
-  const destUnscheduled: string[] = [];
-  for (const { item } of destCities) {
-    if (typeof item.startMonth === "number" && typeof item.durationMonths === "number") {
-      const range = destRange(item.startMonth, item.durationMonths);
-      destFixedTiming.push(`${item.label}: ${range}`);
-      // ユーザーが設定した滞在時期は HARD。
-      fixedDecisions.push(`都市「${item.label}」の滞在時期（ユーザー設定・固定）: ${range}`);
-    } else if (typeof item.startMonth === "number") {
-      const from = item.startMonth === 0 ? "到着から" : `${item.startMonth}ヶ月目から`;
-      destFixedTiming.push(`${item.label}: ${from}（期間は未定）`);
-      fixedDecisions.push(`都市「${item.label}」に入る時期（ユーザー設定・固定）: ${from}`);
-    } else {
-      destUnscheduled.push(item.label);
+  const stayCities = new Set<string>();
+  for (const stay of data.destinations.stays) {
+    stayCities.add(stay.city.trim().toLowerCase());
+    if (typeof stay.startMonth === "number" && typeof stay.durationMonths === "number") {
+      const range = destRange(stay.startMonth, stay.durationMonths);
+      destFixedTiming.push(`${stay.city}: ${range}`);
+      fixedDecisions.push(`滞在（ユーザー設定・固定）: ${stay.city} を ${range}`);
+    } else if (typeof stay.startMonth === "number") {
+      const from = stay.startMonth === 0 ? "到着から" : `${stay.startMonth}ヶ月目から`;
+      destFixedTiming.push(`${stay.city}: ${from}（期間は未定）`);
+      fixedDecisions.push(`滞在（ユーザー設定・固定）: ${stay.city} を ${from}`);
     }
   }
+  // 行ってみたい都市（wishlist）で、対応する stay が無いものは「時期の提案可（SOFT）」。
+  const destUnscheduled: string[] = [];
+  if (data.destinations.primary && !stayCities.has(data.destinations.primary.label.trim().toLowerCase())) {
+    destUnscheduled.push(data.destinations.primary.label);
+  }
+  data.destinations.interested.forEach((c) => {
+    if (!stayCities.has(c.label.trim().toLowerCase())) destUnscheduled.push(c.label);
+  });
 
   /* ---- goals ---- */
   const goals: string[] = [];
@@ -465,14 +468,14 @@ export function buildPlanTimelineUserMessage(data: BlueprintData, karte: Karte):
     section("PLANNING_CONSIDERATIONS（時間軸を考えるときの観点）", brief.planningConsiderations, "（なし）"),
     "",
     "## DESTINATIONS（行き先の都市）",
-    `- Primary（第一候補・STRONG PREFERENCE）: ${brief.destinations.primary ?? "（未設定）"}`,
+    `- Primary / 最初の滞在都市（STRONG PREFERENCE）: ${brief.destinations.primary ?? "（未設定）"}`,
     `- Interested（行ってみたい・SOFT）: ${
       brief.destinations.interested.length > 0 ? brief.destinations.interested.join(" / ") : "（なし）"
     }`,
-    `- User-fixed timing（HARD・動かさない）: ${
+    `- Saved stays with fixed timing（HARD・動かさない。同じ都市が複数回あることもある）: ${
       brief.destinations.fixedTiming.length > 0 ? brief.destinations.fixedTiming.join(" / ") : "（なし）"
     }`,
-    `- Unscheduled（時期の提案可・SOFT）: ${
+    `- Cities without a scheduled stay（時期の提案可・SOFT）: ${
       brief.destinations.unscheduled.length > 0 ? brief.destinations.unscheduled.join(" / ") : "（なし）"
     }`,
     "",
@@ -485,9 +488,9 @@ export function buildPlanTimelineUserMessage(data: BlueprintData, karte: Karte):
     "- ユーザーが設定した期間（「○ヶ月目」「○〜○ヶ月目」「到着〜○ヶ月目」）は固定。月をずらす・打ち消す・別期間へ移すことはしない。",
     "- 『留学全体の期間（ユーザー設定・固定）』がある場合はその月数を厳守し、durationLabel も一致させる。",
     "- FLEXIBLE_PREFERENCES は可能な範囲で組み込む（SOFT・必須ではない）。",
-    "- 都市: Unscheduled の都市は、School / Work / 期間との整合を見て『いつ頃その都市に滞在するか』を提案してよい（各 period の locations と reason で示す）。",
-    "  ただし User-fixed timing の都市は動かさない。提案はあくまで提案であり、ユーザー保存値へ確定として扱わない。",
-    "- 都市名は DESTINATIONS に挙がっている都市（primary / interested / user-saved）と、相談で述べられた都市のみ。新しい都市を発明しない。",
+    "- 都市: stay 未設定の都市は、School / Work / 期間 / 他の滞在との整合を見て『いつ頃その都市に滞在するか』を提案してよい（各 period の locations と reason で示す）。",
+    "  ただし Saved stays with fixed timing の都市・時期は動かさない。提案はあくまで提案で、ユーザーの stay records には書き戻さない（採用はユーザーが行う）。",
+    "- 都市名は DESTINATIONS に挙がっている都市（primary / interested / saved stay）と、相談で述べられた都市のみ。新しい都市を発明しない。",
     "- 都市の『ベストシーズン』『天候』『イベント』など、根拠のない季節情報を断定しない。",
     "- 保存されていない学校・都市・目的・施設の固有名詞は追加しない。",
     "- 項目をただ均等に並べるのではなく、順序・準備期間・慣れる時間・優先順位を考える。",
@@ -505,6 +508,7 @@ export function blueprintHasTimelineMaterial(data: BlueprintData): boolean {
     data.goals.length > 0 ||
     data.destinations.primary !== null ||
     data.destinations.interested.length > 0 ||
+    data.destinations.stays.length > 0 ||
     data.schools.length > 0 ||
     data.workInterests.length > 0 ||
     data.thingsToDo.length > 0 ||
@@ -552,6 +556,7 @@ export function buildAllowedCityKeys(data: BlueprintData, karte: Karte): Set<str
   };
   if (data.destinations.primary) add(data.destinations.primary.label);
   data.destinations.interested.forEach((c) => add(c.label));
+  data.destinations.stays.forEach((s) => add(s.city));
   data.schools.forEach((s) => add(s.city));
   // Karte stated の希望都市（相談で述べられた都市）。
   const summary = new Map(getKarteSummaryItems(karte).map((it) => [`${it.block}.${it.key}`, it]));

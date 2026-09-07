@@ -255,6 +255,45 @@ function PhaseCard({
 }
 
 /**
+ * month-scale モードの compact summary card（§2）。
+ * 横幅は約2ヶ月分（184px 固定）、情報は range pill / タイトル / badge / 補助文1行 のみ。
+ * serif number・icon は出さない（流れの可読性を優先）。
+ */
+function TimelineBarCard({
+  rangeLabel,
+  title,
+  note,
+  status,
+  color,
+}: {
+  rangeLabel: string;
+  title: string;
+  note: string | null;
+  status: MyPlanTimelinePhase["status"];
+  color: string;
+}) {
+  const badge = PHASE_STATUS_BADGE[status];
+  return (
+    <div className="relative w-full overflow-hidden rounded-[12px] border border-[#e8e2d8] bg-white p-2.5 shadow-[0_1px_2px_rgba(30,28,24,0.04)]">
+      <span aria-hidden className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: color }} />
+      <div className="flex items-center gap-1.5">
+        <span
+          className="inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+          style={{ backgroundColor: color + "22", color: "#4a4640" }}
+        >
+          {rangeLabel}
+        </span>
+        <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-medium ${badge.cls}`}>
+          {badge.label}
+        </span>
+      </div>
+      <p className="mt-1 text-[13px] font-semibold leading-snug text-[#2f2c26]">{title}</p>
+      {note && <p className="mt-0.5 line-clamp-1 text-[10px] text-[#8a8578]">{note}</p>}
+    </div>
+  );
+}
+
+/**
  * YOUR PLAN TIMELINE — Plan 全体期間を軸にした「実時間スケール」の横タイムライン。
  * activity は実際の startMonth / durationMonths の位置へ配置する（Month 1 が左端・§1-§7）。
  * 全体期間が不明なときだけ従来の「順序だけ」の summary モードにフォールバック（§25）。
@@ -399,17 +438,17 @@ function MonthScaleTimeline({
           ))}
         </div>
 
-        {/* 1 activity = 1 lane（重ならない・月位置は bar が保持・§11 / §12） */}
-        <div className="mt-2 space-y-3">
+        {/* 1 activity = 1 lane（重ならない・月位置は bar が保持）。card は compact summary（§2） */}
+        <div className="mt-2 space-y-2.5">
           {timedPhases.map((p, i) => {
             const pal = PHASE_PALETTE[i % PHASE_PALETTE.length];
             const left = barLeftPercent(p.startMonth, totalMonths);
             const width = barWidthPercent(p.startMonth, p.durationMonths, totalMonths);
             return (
               <div key={p.key} className="relative">
-                <div className="relative h-2.5">
+                <div className="relative h-2">
                   <span
-                    className="absolute h-2.5 rounded-full"
+                    className="absolute h-2 rounded-full"
                     style={{
                       left: `${left}%`,
                       width: `${Math.max(width, 1.5)}%`,
@@ -418,19 +457,15 @@ function MonthScaleTimeline({
                   />
                 </div>
                 <div
-                  className="mt-1.5"
-                  style={{ marginLeft: `min(${left}%, calc(100% - 248px))`, width: 248 }}
+                  className="mt-1"
+                  style={{ marginLeft: `min(${left}%, calc(100% - 184px))`, width: 184 }}
                 >
-                  <PhaseCard
-                    phase={{
-                      key: p.key,
-                      rangeLabel: p.rangeLabel,
-                      title: p.title,
-                      note: p.note,
-                      status: p.status,
-                    }}
-                    palette={pal}
-                    index={i}
+                  <TimelineBarCard
+                    rangeLabel={p.rangeLabel}
+                    title={p.title}
+                    note={p.note}
+                    status={p.status}
+                    color={pal.node}
                   />
                 </div>
               </div>
@@ -455,10 +490,11 @@ function MonthScaleTimeline({
                 </div>
                 <div
                   className="mt-1"
-                  style={{ marginLeft: `min(${left}%, calc(100% - 220px))`, maxWidth: 220 }}
+                  style={{ marginLeft: `min(${left}%, calc(100% - 184px))`, maxWidth: 184 }}
                 >
-                  <p className="text-[13px] font-semibold text-[#2f2c26]">{p.title}</p>
-                  <p className="mt-0.5 text-[11px] text-[#8a8578]">{p.label}・期間未定</p>
+                  <p className="text-[12px] font-semibold text-[#2f2c26]">{p.title}</p>
+                  {p.note && <p className="text-[10px] text-[#8a8578]">{p.note}</p>}
+                  <p className="mt-0.5 text-[10px] text-[#8a8578]">{p.label}・期間未定</p>
                 </div>
               </div>
             );
@@ -756,6 +792,7 @@ function renderSectionBody(id: MyPlanSectionId, view: MyPlanView, planId: string
           planId={planId}
           initialPrimary={view.destination.savedPrimary}
           initialInterested={view.destination.savedInterested}
+          initialStays={view.destination.savedStays}
           candidates={view.destination.candidates}
           hints={view.destination.hints}
           editingEnabled={editingEnabled}

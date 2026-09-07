@@ -24,6 +24,7 @@ import {
   type BlueprintSchool,
   type BlueprintSchoolSource,
   type BlueprintSchoolStatus,
+  type BlueprintStay,
   type PlanTimeline,
 } from "@/lib/planBlueprint";
 
@@ -155,11 +156,22 @@ export function patchSchoolsSection(
   return callPatch("schools", planId, schools.map(schoolToJson), expectedUpdatedAt);
 }
 
-/** destinations（{ primary, interested }）を丸ごと差し替える。 */
+/** BlueprintStay を DB JSON 形へ（未設定キーは持たせない）。 */
+export function stayToJson(s: BlueprintStay): Record<string, unknown> {
+  const json: Record<string, unknown> = { id: s.id, city: s.city, createdAt: s.createdAt };
+  if (typeof s.startMonth === "number") json.startMonth = s.startMonth;
+  if (typeof s.durationMonths === "number") json.durationMonths = s.durationMonths;
+  if (s.isArrival === true) json.isArrival = true;
+  if (s.note) json.note = s.note;
+  return json;
+}
+
+/** destinations（{ primary, interested, stays }）を丸ごと差し替える。 */
 export function patchDestinationsSection(
   planId: string,
   primary: BlueprintItem | null,
   interested: BlueprintItem[],
+  stays: BlueprintStay[],
   expectedUpdatedAt: string | null,
 ): Promise<PatchResult> {
   return callPatch(
@@ -168,6 +180,7 @@ export function patchDestinationsSection(
     {
       primary: primary ? itemToJson(primary) : null,
       interested: interested.map(itemToJson),
+      stays: stays.map(stayToJson),
     },
     expectedUpdatedAt,
   );
@@ -401,8 +414,35 @@ export function applySchoolTiming(
 
 /**
  * Destination 1 件（primary or interested）の timing を更新した新しい値を返す。
- * Destination だけ startMonth 0（到着時）を許可（§4）。都市ごとに保持し、コピーしない（§23）。
+ * Destination だけ startMonth 0（到着時）を許可。都市ごとに保持し、コピーしない。
  */
 export function withDestinationTiming(item: BlueprintItem, patch: BlueprintTimingPatch): BlueprintItem {
   return withTiming(item, patch, 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* Destination stays（滞在スケジュール）                                             */
+/* ------------------------------------------------------------------ */
+
+export function makeBlueprintStay(city: string): BlueprintStay {
+  return {
+    id: crypto.randomUUID(),
+    city: city.trim().slice(0, BLUEPRINT_LABEL_MAX),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+/** stays 配列の 1 件だけ timing を更新（startMonth 0 許可）。他 stay は不変。 */
+export function applyStayTiming(
+  stays: BlueprintStay[],
+  id: string,
+  patch: BlueprintTimingPatch,
+): BlueprintStay[] {
+  return stays.map((s) => (s.id === id ? withTiming(s, patch, 0) : s));
+}
+
+/** stays 配列の 1 件だけ都市を差し替える。 */
+export function applyStayCity(stays: BlueprintStay[], id: string, city: string): BlueprintStay[] {
+  const c = city.trim().slice(0, BLUEPRINT_LABEL_MAX);
+  return stays.map((s) => (s.id === id ? { ...s, city: c } : s));
 }

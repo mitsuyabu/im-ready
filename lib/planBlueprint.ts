@@ -83,9 +83,28 @@ export type BlueprintSchool = {
   savedAt: string;
 } & BlueprintTiming;
 
+/**
+ * 実際の滞在スケジュールの 1 レコード（同じ都市を複数回・戻るケースも別 record で表現）。
+ * Destination だけ startMonth 0（＝到着時）を許可。timing 未設定なら field 省略（fake を作らない）。
+ */
+export type BlueprintStay = {
+  id: string;
+  city: string;
+  startMonth?: number;
+  durationMonths?: number;
+  /** この stay が到着地点か（任意）。 */
+  isArrival?: boolean;
+  note?: string;
+  createdAt: string;
+};
+
 export type BlueprintDestinations = {
+  /** 最初の滞在都市（従来どおり）。 */
   primary: BlueprintItem | null;
+  /** 行ってみたい都市の一覧（wishlist・従来どおり）。 */
   interested: BlueprintItem[];
+  /** 実際の滞在スケジュール。Timeline の都市バーはこれを参照する。 */
+  stays: BlueprintStay[];
 };
 
 /**
@@ -172,7 +191,7 @@ export function createEmptyBlueprintData(): BlueprintData {
   return {
     planSettings: {},
     goals: [],
-    destinations: { primary: null, interested: [] },
+    destinations: { primary: null, interested: [], stays: [] },
     schools: [],
     workInterests: [],
     thingsToDo: [],
@@ -314,11 +333,38 @@ function sanitizeDestinationArray(value: unknown): BlueprintItem[] {
   );
 }
 
+/** 滞在レコード 1 件。startMonth は 0（到着時）を許可。壊れた field は落とす（fake を作らない）。 */
+export function sanitizeBlueprintStay(value: unknown): BlueprintStay | null {
+  if (!isRecord(value)) return null;
+  const id = rawNonEmptyString(value.id);
+  const city = trimmedNonEmpty(value.city);
+  const createdAt = rawNonEmptyString(value.createdAt);
+  if (!id || !city || !createdAt) return null;
+
+  const stay: BlueprintStay = { id, city: clampString(city, BLUEPRINT_LABEL_MAX), createdAt };
+  const startMonth = sanitizeMonthValue(value.startMonth, BLUEPRINT_START_MONTH_MAX, 0);
+  if (startMonth !== undefined) stay.startMonth = startMonth;
+  const durationMonths = sanitizeMonthValue(value.durationMonths, BLUEPRINT_DURATION_MONTHS_MAX);
+  if (durationMonths !== undefined) stay.durationMonths = durationMonths;
+  if (value.isArrival === true) stay.isArrival = true;
+  const note = trimmedNonEmpty(value.note);
+  if (note) stay.note = clampString(note, BLUEPRINT_NOTE_MAX);
+  return stay;
+}
+
+function sanitizeStayArray(value: unknown): BlueprintStay[] {
+  if (!Array.isArray(value)) return [];
+  return dedupeById(
+    value.map(sanitizeBlueprintStay).filter((s): s is BlueprintStay => s !== null),
+  );
+}
+
 function sanitizeBlueprintDestinations(value: unknown): BlueprintDestinations {
-  if (!isRecord(value)) return { primary: null, interested: [] };
+  if (!isRecord(value)) return { primary: null, interested: [], stays: [] };
   return {
     primary: sanitizeDestinationItem(value.primary),
     interested: sanitizeDestinationArray(value.interested),
+    stays: sanitizeStayArray(value.stays),
   };
 }
 

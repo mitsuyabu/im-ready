@@ -23,6 +23,7 @@ import type {
   BlueprintItem,
   BlueprintSchool,
   BlueprintSchoolStatus,
+  BlueprintStay,
   LoadedPlanBlueprint,
   PlanTimeline,
 } from "@/lib/planBlueprint";
@@ -117,6 +118,8 @@ export type MyPlanTimedPhase = {
 export type MyPlanPointPhase = {
   key: string;
   title: string;
+  /** タイトルの下に小さく出す補足（School なら学校名）。 */
+  note: string | null;
   status: MyPlanTimelinePhaseStatus;
   startMonth: number;
   /** 例: "4ヶ月目〜"。 */
@@ -188,6 +191,7 @@ export type MyPlanView = {
   destination: {
     savedPrimary: BlueprintItem | null;
     savedInterested: BlueprintItem[];
+    savedStays: BlueprintStay[];
     candidates: MyPlanCandidate[];
     hints: MyPlanCandidate[];
   };
@@ -266,7 +270,10 @@ function destRangeLabel(startMonth: number, durationMonths: number | null): stri
  */
 type ActivityCandidate = {
   key: string;
+  /** Timeline カードのタイトル。School は行動カテゴリ「語学学校」（校名ではない・§1）。 */
   title: string;
+  /** タイトルの下に小さく出す補足（School の校名など・§1）。 */
+  subtitle: string | null;
   section: "school" | "work";
   startMonth: number | undefined;
   durationMonths: number | undefined;
@@ -285,7 +292,8 @@ function collectYearlyActivities(
     if (s.status !== "selected" && s.status !== "preferred") return;
     cands.push({
       key: `sch-${s.id || i}`,
-      title: firstLine(s.name, 24),
+      title: "語学学校",
+      subtitle: firstLine(s.name, 28),
       section: "school",
       startMonth: typeof s.startMonth === "number" ? s.startMonth : undefined,
       durationMonths: typeof s.durationMonths === "number" ? s.durationMonths : undefined,
@@ -295,6 +303,7 @@ function collectYearlyActivities(
     cands.push({
       key: `wrk-${w.id || i}`,
       title: firstLine(w.label, 24),
+      subtitle: null,
       section: "work",
       startMonth: typeof w.startMonth === "number" ? w.startMonth : undefined,
       durationMonths: typeof w.durationMonths === "number" ? w.durationMonths : undefined,
@@ -311,7 +320,7 @@ function collectYearlyActivities(
       timed.push({
         key: c.key,
         title: c.title,
-        note: null,
+        note: c.subtitle,
         status: "saved",
         startMonth: c.startMonth as number,
         durationMonths: c.durationMonths as number,
@@ -322,6 +331,7 @@ function collectYearlyActivities(
       point.push({
         key: c.key,
         title: c.title,
+        note: c.subtitle,
         status: "saved",
         startMonth: c.startMonth as number,
         label: `${c.startMonth}ヶ月目〜`,
@@ -330,7 +340,7 @@ function collectYearlyActivities(
     } else {
       unscheduled.push({
         key: c.key,
-        title: c.title,
+        title: c.subtitle ? `${c.title}（${c.subtitle}）` : c.title,
         status: "saved",
         section: c.section,
         durationNote: hasDur ? `約${c.durationMonths}ヶ月` : null,
@@ -343,55 +353,75 @@ function collectYearlyActivities(
 }
 
 /**
- * Destination（primary ＋ interested）を DESTINATIONS lane 用に整理する（§25-§29 / §55-§57）。
- *   - startMonth あり（0 含む）→ dest phase（軸に配置。durationMonths が無ければ point 扱いで durationMonths=null）
- *   - startMonth なし → unscheduled（section "destination"）
- * primary は「到着アンカー」用に city / hasTiming を返す（§30 / §56 / §57）。都市ごとに保持。
+ * Destination（stays ＋ interests）を DESTINATIONS lane 用に整理する。
+ *   - stays: startMonth あり（0 含む）→ dest phase（軸に配置。durationMonths 無しは point）
+ *            startMonth なし → 時期未定（section "destination"）
+ *   - interested（wishlist）で対応する stay が無い都市 → 時期未定に残す（§5）
+ * 同じ都市が複数 stay あっても別バーで表示（key = stay id）。
+ * 到着アンカー: startMonth 0 か isArrival の stay があればその都市、無ければ primary の都市。
  */
 function collectDestinationPhases(dest: BlueprintDestinations): {
   phases: MyPlanDestPhase[];
   unscheduled: MyPlanUnscheduledPhase[];
   arrival: { city: string; hasTiming: boolean } | null;
 } {
-  const rows: { item: BlueprintItem; isPrimary: boolean }[] = [];
-  if (dest.primary) rows.push({ item: dest.primary, isPrimary: true });
-  dest.interested.forEach((c) => rows.push({ item: c, isPrimary: false }));
-
   const phases: MyPlanDestPhase[] = [];
   const unscheduled: MyPlanUnscheduledPhase[] = [];
-  for (const { item, isPrimary } of rows) {
-    const hasStart = typeof item.startMonth === "number";
-    const hasDur = typeof item.durationMonths === "number";
+  const placedCities = new Set<string>();
+
+  for (const s of dest.stays) {
+    const hasStart = typeof s.startMonth === "number";
+    const hasDur = typeof s.durationMonths === "number";
+    placedCities.add(norm(s.city));
     if (hasStart) {
-      const start = item.startMonth as number;
-      const dur = hasDur ? (item.durationMonths as number) : null;
+      const start = s.startMonth as number;
+      const dur = hasDur ? (s.durationMonths as number) : null;
       phases.push({
-        key: `dst-${item.id}`,
-        city: firstLine(item.label, 24),
+        key: `stay-${s.id}`,
+        city: firstLine(s.city, 24),
         startMonth: start,
         durationMonths: dur,
         rangeLabel: destRangeLabel(start, dur),
-        isPrimary,
+        isPrimary: s.isArrival === true || start === 0,
       });
-    } else if (!isPrimary) {
-      // primary で timing 無しは「到着アンカー」で表現するため 時期未定 には出さない（§56）。
-      // interested の timing 未設定は消さず 時期未定 へ（§55）。
+    } else {
       unscheduled.push({
-        key: `dst-${item.id}`,
-        title: firstLine(item.label, 24),
+        key: `stay-${s.id}`,
+        title: firstLine(s.city, 24),
         status: "saved",
         section: "destination",
-        durationNote: hasDur ? `約${item.durationMonths}ヶ月` : null,
+        durationNote: hasDur ? `約${s.durationMonths}ヶ月` : null,
       });
     }
   }
   phases.sort((a, b) => a.startMonth - b.startMonth || (b.durationMonths ?? 0) - (a.durationMonths ?? 0));
 
-  const arrival = dest.primary
-    ? { city: firstLine(dest.primary.label, 24), hasTiming: typeof dest.primary.startMonth === "number" }
-    : null;
+  // 行ってみたい都市（wishlist）で対応する stay が無いものは「時期未定」に残す（§5）。
+  const primaryNorm = dest.primary ? norm(dest.primary.label) : null;
+  for (const c of dest.interested) {
+    if (placedCities.has(norm(c.label))) continue;
+    if (primaryNorm === norm(c.label)) continue;
+    unscheduled.push({
+      key: `int-${c.id}`,
+      title: firstLine(c.label, 24),
+      status: "saved",
+      section: "destination",
+      durationNote: null,
+    });
+  }
 
-  return { phases: phases.slice(0, 8), unscheduled: unscheduled.slice(0, 8), arrival };
+  // 到着アンカー: 到着 stay（startMonth 0 or isArrival）の都市 → 無ければ primary。
+  const arrivalStay =
+    dest.stays.find((s) => s.isArrival === true) ??
+    dest.stays.find((s) => s.startMonth === 0) ??
+    null;
+  const arrival = arrivalStay
+    ? { city: firstLine(arrivalStay.city, 24), hasTiming: typeof arrivalStay.startMonth === "number" }
+    : dest.primary
+      ? { city: firstLine(dest.primary.label, 24), hasTiming: false }
+      : null;
+
+  return { phases: phases.slice(0, 10), unscheduled: unscheduled.slice(0, 10), arrival };
 }
 
 /** dest phase を（軸が作れないとき）unscheduled として扱う。range だけ note に残す（§55）。 */
@@ -844,6 +874,7 @@ export function buildMyPlanView(
     data.goals.length > 0 ||
     data.destinations.primary !== null ||
     data.destinations.interested.length > 0 ||
+    data.destinations.stays.length > 0 ||
     data.schools.length > 0 ||
     data.workInterests.length > 0 ||
     data.thingsToDo.length > 0 ||
@@ -878,6 +909,7 @@ export function buildMyPlanView(
     destination: {
       savedPrimary: data.destinations.primary,
       savedInterested: data.destinations.interested,
+      savedStays: data.destinations.stays,
       candidates: destinationCandidates,
       hints: destinationHints,
     },
