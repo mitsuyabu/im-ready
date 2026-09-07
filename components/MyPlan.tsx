@@ -325,22 +325,19 @@ const YEARLY_CAPTION: Record<MyPlanMonthlyTimeline["source"], string> = {
 
 /* ---- 0ヶ月目（到着）から始まる実時間軸の位置計算（§33 / §34） ----
  * 軸は boundary 0..N（N+1 点）。0 = 到着、N = 期間終了。
- * duration bar は月区間として配置。School/Work（start>=1）の bar 幾何は従来と不変（§35 / §36）:
- *   left = (start-1)/N,  width = duration/N
- * Destination の start=0（到着時）だけ: left = 0, width = (duration-1)/N（到着＋その後の月数）。 */
+ * duration bar は月区間として配置:
+ *   left  = (max(0, start-1))/N       … start=0 も start=1 も左端（到着）
+ *   width = duration/N                … start が 0 でも durationMonths をそのまま月数として使う
+ * School/Work（start>=1）は現在 Grid（grid-column）で配置するため width 計算はここを通らない。 */
 function boundaryPercent(boundary: number, totalMonths: number): number {
   return (Math.max(0, Math.min(boundary, totalMonths)) / totalMonths) * 100;
 }
 function barLeftPercent(startMonth: number, totalMonths: number): number {
   return boundaryPercent(Math.max(0, startMonth - 1), totalMonths);
 }
-function barWidthPercent(
-  startMonth: number,
-  durationMonths: number,
-  totalMonths: number,
-): number {
-  const months = startMonth === 0 ? durationMonths - 1 : durationMonths;
-  return (Math.max(months, 0.5) / totalMonths) * 100;
+/** duration bar の幅（%）。startMonth が 0（到着時）でも durationMonths を減算しない（§1 / §2）。 */
+function barWidthPercent(durationMonths: number, totalMonths: number): number {
+  return (Math.max(durationMonths, 0.5) / totalMonths) * 100;
 }
 
 /** month label の間引き（§28）。tick は全 boundary 分持つ。 */
@@ -393,35 +390,40 @@ function MonthScaleTimeline({
                 <span className="text-[10px] text-[#8a949c]">最初の滞在都市</span>
               </div>
             )}
-            <div className="mt-1.5 space-y-1.5">
+            {/* 各 stay: [都市名] [range] を1段目、bar を2段目（重ねない・§12 / §13）。 */}
+            <div className="mt-1.5 space-y-2.5">
               {destinationPhases.map((d, i) => {
                 const pal = PHASE_PALETTE[i % PHASE_PALETTE.length];
                 const left = barLeftPercent(d.startMonth, totalMonths);
                 return (
-                  <div key={d.key} className="relative h-4">
-                    {d.durationMonths != null ? (
-                      <span
-                        className="absolute top-1 h-2 rounded-full opacity-90"
-                        style={{
-                          left: `${left}%`,
-                          width: `${barWidthPercent(d.startMonth, d.durationMonths, totalMonths)}%`,
-                          backgroundColor: pal.node,
-                        }}
-                      />
-                    ) : (
-                      <span
-                        aria-hidden
-                        className="absolute top-0.5 h-2.5 w-2.5 -translate-x-1/2 rounded-full ring-2 ring-[#fcfbf8]"
-                        style={{ left: `${left}%`, backgroundColor: pal.node }}
-                      />
-                    )}
-                    <span
-                      className="absolute top-0 whitespace-nowrap text-[11px] font-medium text-[#3f3a34]"
-                      style={{ left: `min(${left}%, calc(100% - 140px))`, paddingLeft: 4 }}
+                  <div key={d.key}>
+                    <p
+                      className="whitespace-nowrap text-[13px] font-medium text-[#45413a] sm:text-[14px]"
+                      style={{ marginLeft: `min(${left}%, calc(100% - 160px))` }}
                     >
                       {d.city}
-                      <span className="ml-1 text-[10px] text-[#8a8578]">{d.rangeLabel}</span>
-                    </span>
+                      <span className="ml-1.5 text-[11px] font-normal text-[#8a8578] sm:text-[12px]">
+                        {d.rangeLabel}
+                      </span>
+                    </p>
+                    <div className="relative mt-1 h-2">
+                      {d.durationMonths != null ? (
+                        <span
+                          className="absolute top-0 h-2 rounded-full opacity-90"
+                          style={{
+                            left: `${left}%`,
+                            width: `${barWidthPercent(d.durationMonths, totalMonths)}%`,
+                            backgroundColor: pal.node,
+                          }}
+                        />
+                      ) : (
+                        <span
+                          aria-hidden
+                          className="absolute top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full ring-2 ring-[#fcfbf8]"
+                          style={{ left: `${left}%`, backgroundColor: pal.node }}
+                        />
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -435,34 +437,39 @@ function MonthScaleTimeline({
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7c6f8a]">
               ACCOMMODATION
             </p>
-            <div className="mt-1.5 space-y-1.5">
+            {/* 各 record: [滞在方法] [range] を1段目、bar を2段目（重ねない・§14）。 */}
+            <div className="mt-1.5 space-y-2.5">
               {accommodationPhases.map((a) => {
                 const left = barLeftPercent(a.startMonth, totalMonths);
                 return (
-                  <div key={a.key} className="relative h-4">
-                    {a.durationMonths != null ? (
-                      <span
-                        className="absolute top-1 h-1.5 rounded-full"
-                        style={{
-                          left: `${left}%`,
-                          width: `${barWidthPercent(a.startMonth, a.durationMonths, totalMonths)}%`,
-                          backgroundColor: ACCOMMODATION_BAR_COLOR,
-                        }}
-                      />
-                    ) : (
-                      <span
-                        aria-hidden
-                        className="absolute top-0.5 h-2.5 w-2.5 -translate-x-1/2 rounded-full ring-2 ring-[#fcfbf8]"
-                        style={{ left: `${left}%`, backgroundColor: ACCOMMODATION_BAR_COLOR }}
-                      />
-                    )}
-                    <span
-                      className="absolute top-0 whitespace-nowrap text-[11px] font-medium text-[#3f3a34]"
-                      style={{ left: `min(${left}%, calc(100% - 160px))`, paddingLeft: 4 }}
+                  <div key={a.key}>
+                    <p
+                      className="whitespace-nowrap text-[13px] font-medium text-[#45413a] sm:text-[14px]"
+                      style={{ marginLeft: `min(${left}%, calc(100% - 180px))` }}
                     >
                       {a.label}
-                      <span className="ml-1 text-[10px] text-[#8a8578]">{a.rangeLabel}</span>
-                    </span>
+                      <span className="ml-1.5 text-[11px] font-normal text-[#8a8578] sm:text-[12px]">
+                        {a.rangeLabel}
+                      </span>
+                    </p>
+                    <div className="relative mt-1 h-2">
+                      {a.durationMonths != null ? (
+                        <span
+                          className="absolute top-0 h-2 rounded-full"
+                          style={{
+                            left: `${left}%`,
+                            width: `${barWidthPercent(a.durationMonths, totalMonths)}%`,
+                            backgroundColor: ACCOMMODATION_BAR_COLOR,
+                          }}
+                        />
+                      ) : (
+                        <span
+                          aria-hidden
+                          className="absolute top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full ring-2 ring-[#fcfbf8]"
+                          style={{ left: `${left}%`, backgroundColor: ACCOMMODATION_BAR_COLOR }}
+                        />
+                      )}
+                    </div>
                   </div>
                 );
               })}
