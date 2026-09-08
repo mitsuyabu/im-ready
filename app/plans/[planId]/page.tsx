@@ -10,7 +10,7 @@ import PlanTravelHero from "@/components/PlanTravelHero";
 import PlanJourneyRibbon from "@/components/PlanJourneyRibbon";
 import PlanWorksheetProgress from "@/components/PlanWorksheetProgress";
 import BrandLogo from "@/components/BrandLogo";
-import { toCityChipText, toDeparturePlanInfoText, toThemeText } from "@/lib/planHeroImage";
+import { toCityChipText, toDeparturePlanInfoText } from "@/lib/planHeroImage";
 
 export const metadata: Metadata = {
   title: "プラン",
@@ -52,15 +52,6 @@ function ClockIcon({ className }: { className?: string }) {
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <circle cx="12" cy="12" r="8" />
       <path d="M12 8v4l2.5 2.5" />
-    </svg>
-  );
-}
-
-function TagIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M4 13V5a1 1 0 0 1 1-1h8l7 7-9 9-7-7Z" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
     </svg>
   );
 }
@@ -235,11 +226,11 @@ export default async function PlanPage({ params }: PlanPageProps) {
             </section>
           </div>
 
-          {/* 右カラム（狭め）: このPlanについて → Documents */}
+          {/* 右カラム（狭め）: About This Plan → Documents */}
           <div className="flex flex-col gap-4">
-            {/* このPlanについて（pinned note 風・下辺が破れ） */}
+            {/* About This Plan（pinned note 風・下辺が破れ） */}
             <section
-              className={`${CARD} bg-[#fdfbf4] p-5 sm:p-6 lg:min-h-[270px]`}
+              className={`${CARD} bg-[#fdfbf4] p-5 sm:p-6 lg:min-h-[220px]`}
               style={{ clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 4px), 86% 100%, 62% calc(100% - 5px), 38% 100%, 14% calc(100% - 5px), 0 100%)" }}
             >
               <span aria-hidden className="absolute left-[58%] top-0 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#8a9a86] shadow-[0_1px_2px_rgba(0,0,0,0.25)] ring-2 ring-[#fdfbf4]" />
@@ -247,7 +238,7 @@ export default async function PlanPage({ params }: PlanPageProps) {
                 <path d="M12 4v16M4 12h16M6.5 6.5l11 11M17.5 6.5l-11 11" />
               </svg>
 
-              <h2 className="text-[22px] font-bold leading-tight text-[#1f2d43] sm:text-2xl">このPlanについて</h2>
+              <h2 className="text-[22px] font-bold leading-tight text-[#1f2d43] sm:text-2xl">About This Plan</h2>
               <svg aria-hidden viewBox="0 0 130 8" className="mt-1.5 h-2 w-28 text-[#8ba086]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M2 5c20-6 40 5 60 1s45-6 68-2" />
               </svg>
@@ -271,17 +262,6 @@ export default async function PlanPage({ params }: PlanPageProps) {
                     {summary.departureTiming ? toDeparturePlanInfoText(summary.departureTiming) : "これから整理"}
                   </dd>
                 </div>
-                {summary.stage && (
-                  <div className="flex items-center justify-between gap-3 py-4">
-                    <dt className="inline-flex shrink-0 items-center gap-2 text-base font-medium text-[#625c54]">
-                      <TagIcon className="h-5 w-5 text-[#2f2d2a]" />
-                      いまのテーマ
-                    </dt>
-                    <dd className="min-w-0 text-right text-base font-semibold text-[#1f2d43] sm:text-lg">
-                      {toThemeText(summary.stage)}
-                    </dd>
-                  </div>
-                )}
               </dl>
 
               <Link
