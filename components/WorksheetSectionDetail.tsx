@@ -5,6 +5,8 @@ import Link from "next/link";
 import { QuestionCard, useWorksheetAnswers } from "@/components/Worksheet";
 import { CATEGORIES } from "@/lib/worksheetQuestions";
 import { WORKSHEET_SECTION_META } from "@/lib/worksheetSectionMeta";
+import type { Karte } from "@/lib/karte";
+import { buildWorksheetKarteCandidates } from "@/lib/worksheetKarteCandidates";
 
 /**
  * 「I'm ready!」のテーマ詳細画面（presentation のみ）。
@@ -77,12 +79,40 @@ function deriveWrittenChips(texts: string[]): string[] {
   return out;
 }
 
+/* ---------- AI相談からの回答候補カード（§9 / §16） ----------
+ * My Plan の「Karteからの候補」と近い思想だが別 UI。warm ivory / dusty-blue の控えめな見た目で、
+ * 「AIが回答した」ではなく「AI相談で話した内容が、この設問に使える」ことを伝える。light-only。 */
+function CandidateCard({
+  text,
+  onAdopt,
+}: {
+  text: string;
+  onAdopt: () => void;
+}) {
+  return (
+    <div className="mt-3 rounded-[14px] border border-dashed border-[#c7d3dd] bg-[#f3f6f8] p-3.5">
+      <p className="text-[11px] font-semibold tracking-wide text-[#5a7186]">AI相談からの候補</p>
+      <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-[#3f3a34]">{text}</p>
+      <button
+        type="button"
+        onClick={onAdopt}
+        className="mt-2.5 inline-flex min-h-[36px] w-full items-center justify-center gap-1.5 rounded-full bg-[#3f5a72] px-4 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[#334a5e] sm:w-auto"
+      >
+        この内容を使う
+      </button>
+    </div>
+  );
+}
+
 export default function WorksheetSectionDetail({
   planId,
   sectionId,
+  karte,
 }: {
   planId: string;
   sectionId: string;
+  /** その Plan の Karte（server 取得・normalizeKarte 済み）。AI相談からの回答候補の生成にだけ使う。 */
+  karte: Karte | null;
 }) {
   const category = CATEGORIES.find((c) => c.id === sectionId);
   const categoryIndex = CATEGORIES.findIndex((c) => c.id === sectionId);
@@ -126,6 +156,18 @@ export default function WorksheetSectionDetail({
       .filter((q) => q.kind === "freeText")
       .map((q) => (answers[q.id] ?? "").trim())
       .filter((t) => t.length > 0),
+  );
+
+  // AI相談からの回答候補（deterministic・現在の回答 state で毎回再計算 → 採用や手入力で即消える）。
+  const candidateByQuestionId = new Map(
+    buildWorksheetKarteCandidates(karte, {
+      answers,
+      ratings,
+      rankings,
+      compromises,
+      singleSelections,
+      multiSelections,
+    }).map((c) => [c.questionId, c]),
   );
 
   async function handleGenerateAxisSummary() {
@@ -262,6 +304,16 @@ export default function WorksheetSectionDetail({
                       onToggleMulti={(optionId) => handleToggleMulti(q.id, optionId)}
                     />
                   </div>
+                  {(() => {
+                    const candidate = candidateByQuestionId.get(q.id);
+                    if (!candidate) return null;
+                    return (
+                      <CandidateCard
+                        text={candidate.displayText}
+                        onAdopt={() => handleChange(q.id, candidate.value)}
+                      />
+                    );
+                  })()}
                 </div>
               </article>
             );

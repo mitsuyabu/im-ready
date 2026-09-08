@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loadPlanKarte } from "@/lib/planChat";
 import { CATEGORIES } from "@/lib/worksheetQuestions";
 import { WORKSHEET_SECTION_META } from "@/lib/worksheetSectionMeta";
 import WorksheetSectionDetail from "@/components/WorksheetSectionDetail";
@@ -52,6 +53,9 @@ export default async function PlanWorksheetSectionPage({ params }: PlanWorksheet
     notFound();
   }
 
+  // AI相談からの「回答候補」表示用。Worksheet 回答へは自動反映しない（採用はユーザー操作のみ）。
+  const karte = await loadPlanKarte(supabase, planId);
+
   return (
     <div className="min-h-dvh bg-[#fcfbf8]">
       {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ロゴだけの単独headerは二重表示を避けて隠す */}
@@ -68,7 +72,7 @@ export default async function PlanWorksheetSectionPage({ params }: PlanWorksheet
         </Link>
 
         <div className="mt-6">
-          <WorksheetSectionDetail planId={planId} sectionId={sectionId} />
+          <WorksheetSectionDetail planId={planId} sectionId={sectionId} karte={karte} />
         </div>
       </div>
     </div>

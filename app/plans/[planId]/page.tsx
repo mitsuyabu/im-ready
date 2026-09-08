@@ -223,7 +223,7 @@ export default async function PlanPage({ params }: PlanPageProps) {
                 <p className="mt-1 text-sm leading-relaxed text-[#6b6357]">気持ちや条件を、自分のペースで整理する。</p>
                 {/* 既存 PlanWorksheetProgress はロジック不変。表示される時だけ薄い pill に見せる wrapper。 */}
                 <div className="[&>p]:m-0 [&>p]:mt-2 [&>p]:inline-block [&>p]:rounded-full [&>p]:bg-[#eef1ec] [&>p]:px-2.5 [&>p]:py-0.5 [&>p]:text-[11px] [&>p]:text-[#5b5750]">
-                  <PlanWorksheetProgress planId={typedPlan.id} />
+                  <PlanWorksheetProgress planId={typedPlan.id} karte={karte} />
                 </div>
               </div>
               <Link
