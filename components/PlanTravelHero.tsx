@@ -83,18 +83,6 @@ function CalendarIcon({ className }: { className?: string }) {
   );
 }
 
-function MyPlanLabel({ className = "" }: { className?: string }) {
-  return (
-    <span
-      aria-hidden
-      className={`z-10 -rotate-2 bg-[#f4e7c4] px-2 py-0.5 text-[9px] font-semibold tracking-[0.18em] text-[#4a3f22] shadow-[0_1px_2px_rgba(0,0,0,0.2)] ${className}`}
-      style={{ clipPath: "polygon(0 26%, 6% 0, 92% 8%, 100% 76%, 94% 100%, 4% 90%)" }}
-    >
-      MY PLAN
-    </span>
-  );
-}
-
 /**
  * タイトル下の説明エリア（旧・独立 City Guide カードをここへ統合）。
  * 上段: 対応都市があれば都市の魅力（固定文）、無ければ SUBTITLE（§10 / §12 / §17）。
@@ -189,11 +177,8 @@ function CityImageHero({
           style={{ backgroundImage: GRAIN }}
         />
 
-        {/* 左上の小さな MY PLAN ラベル（画像より目立たせない） */}
-        <MyPlanLabel className="absolute left-4 top-4 sm:left-[5%]" />
-
-        {/* 本文（左・明るい余白の上） */}
-        <div className="relative z-10 flex min-h-[248px] max-w-[88%] flex-col justify-center px-5 py-12 sm:min-h-[280px] sm:max-w-[62%] sm:py-14 sm:pl-[8%]">
+        {/* 本文（左・明るい余白の上）。eyebrow は無し（title から始める）。 */}
+        <div className="relative z-10 flex min-h-[248px] max-w-[88%] flex-col justify-center px-5 py-11 sm:min-h-[280px] sm:max-w-[62%] sm:py-12 sm:pl-[8%]">
           <EditablePlanTitle
             planId={planId}
             initialTitle={title}
@@ -336,10 +321,8 @@ function CollageHero({
         />
 
         {/* 左上のテープ風ラベル */}
-        <MyPlanLabel className="absolute left-4 top-4 sm:left-[5%]" />
-
-        {/* 本文（生成り紙の上） */}
-        <div className="relative z-10 flex min-h-[248px] flex-col justify-center px-5 py-12 sm:min-h-[280px] sm:py-14 sm:pl-[8%] sm:pr-[28%]">
+        {/* 本文（生成り紙の上）。eyebrow は無し（title から始める）。 */}
+        <div className="relative z-10 flex min-h-[248px] flex-col justify-center px-5 py-11 sm:min-h-[280px] sm:py-12 sm:pl-[8%] sm:pr-[28%]">
           <EditablePlanTitle
             planId={planId}
             initialTitle={title}
