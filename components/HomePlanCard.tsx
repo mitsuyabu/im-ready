@@ -3,7 +3,8 @@ import { buildDestinationLine, buildStatusPillText } from "@/components/PlanCard
 
 /**
  * HOME（/mypage）専用のPlanカード。共有された参考HOMEデザインに寄せた editorial 版:
- * 縦長・大きな serif number・カード中〜下寄りの title・下部に status/更新日・左下に丸い arrow。
+ * コンパクト・serif number・カード中〜下寄りの title・下部に status/更新日・左下に丸い arrow。
+ * デスクトップは 4 列一覧を前提にサイズ・内部余白を詰めている（Mindtrip の Featured guides 相当の密度）。
  * カラーは index による decorative variation（ivory / dark / blue）で、**意味（status/active）は
  * 一切持たせない**。
  *
@@ -148,27 +149,27 @@ export default function HomePlanCard({ plan }: { plan: HomePlanCardData }) {
   return (
     <Link
       href={`/plans/${plan.id}`}
-      className={`group relative flex min-h-[225px] flex-col overflow-hidden rounded-[22px] p-6 transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent sm:min-h-[285px] sm:p-7 lg:min-h-[345px] ${t.surface}`}
+      className={`group relative flex min-h-[215px] flex-col overflow-hidden rounded-[20px] p-5 transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent sm:min-h-[235px] sm:p-6 lg:min-h-[255px] ${t.surface}`}
     >
       <Decoration variant={variant} />
 
       <span
         aria-hidden
-        className={`relative font-serif text-5xl leading-none sm:text-6xl lg:text-7xl ${t.number}`}
+        className={`relative font-serif text-4xl leading-none sm:text-5xl lg:text-6xl ${t.number}`}
       >
         {number}
       </span>
 
-      <div className="relative mt-auto pt-8">
-        <h2 className={`line-clamp-3 font-serif text-xl font-normal leading-snug sm:text-2xl ${t.ink}`}>
+      <div className="relative mt-auto pt-6">
+        <h2 className={`line-clamp-2 font-serif text-xl font-normal leading-snug ${t.ink}`}>
           {plan.title}
         </h2>
-        <p className={`mt-2 line-clamp-2 text-sm leading-relaxed ${t.secondary}`}>
+        <p className={`mt-1.5 line-clamp-2 text-[13px] leading-relaxed ${t.secondary}`}>
           {destination.showPin && <span aria-hidden>📍 </span>}
           {destination.text}
         </p>
 
-        <div className={`mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-4 text-xs ${t.divider}`}>
+        <div className={`mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-3 text-xs ${t.divider}`}>
           {statusText && (
             <span className={`rounded-full px-2 py-0.5 font-medium ${t.pill}`}>{statusText}</span>
           )}
@@ -177,7 +178,7 @@ export default function HomePlanCard({ plan }: { plan: HomePlanCardData }) {
 
         <span
           aria-hidden
-          className={`mt-4 flex h-9 w-9 items-center justify-center rounded-full border text-base transition-transform duration-150 group-hover:translate-x-0.5 ${t.arrow}`}
+          className={`mt-3 flex h-8 w-8 items-center justify-center rounded-full border text-sm transition-transform duration-150 group-hover:translate-x-0.5 ${t.arrow}`}
         >
           →
         </span>

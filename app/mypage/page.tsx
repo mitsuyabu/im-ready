@@ -20,7 +20,7 @@ type PlanRow = { id: string; title: string; created_at: string; updated_at: stri
  *
  * HOME UI/UX：共有された参考デザインに寄せた「Editorial Study Abroad Workspace」。
  * warm ivory の地に大きな角丸 surface を1枚置き、その中に
- *   serif の大見出し ＋ 新規作成 → 細い divider → Plan 件数 → 縦長 editorial カード3列
+ *   serif の大見出し ＋ 新規作成 → 細い divider → Plan 件数 → コンパクトな editorial カード4列
  *   → 最近の動き（Plan 単位の最終更新のみ）
  * を余白広めで並べる。
  *
@@ -72,10 +72,9 @@ export default async function MyPagePage() {
     .sort((a, b) => (a.lastUpdatedIso < b.lastUpdatedIso ? 1 : -1))
     .slice(0, 4);
 
-  const gridClass =
-    planList.length === 1
-      ? "mt-6 grid max-w-sm grid-cols-1 gap-5"
-      : "mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3";
+  // Plan 件数によらず同じ 4 列 grid を使う。1〜3 件でもカードは「4 列のうち N 枠」を占めるだけで
+  // 巨大化しない（Mindtrip の Featured guides のような一覧密度）。
+  const gridClass = "mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4";
 
   return (
     <div className="min-h-dvh bg-[#f6f2ea]">
@@ -84,7 +83,7 @@ export default async function MyPagePage() {
         <BrandLogo href="/mypage" />
       </header>
 
-      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:py-12">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:max-w-7xl lg:py-12">
         {/* 参考デザインの「一枚の大きな紙」。tablet では角丸を弱め、mobile は素の面。 */}
         <div className="rounded-none bg-transparent p-0 sm:rounded-[22px] sm:border sm:border-black/[0.06] sm:bg-[#fffdf8] sm:p-9 lg:rounded-[32px] lg:p-14 lg:shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
