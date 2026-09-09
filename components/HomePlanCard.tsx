@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { buildDestinationLine, buildStatusPillText } from "@/components/PlanCard";
-import { getPlanHeroImage } from "@/lib/planHeroImage";
+import { getPlanCoverImage } from "@/lib/planCover";
 
 /**
  * HOME（/mypage）専用のPlanカード。共有された参考HOMEデザインに寄せた editorial 版:
@@ -17,10 +17,11 @@ import { getPlanHeroImage } from "@/lib/planHeroImage";
  *（概念が無い）・overflow menu（機能が無い）は扱わない。fake データは作らない。
  *
  * card 全体が 1 つの Link。内部に別の Link / button は置かない（arrow は装飾＝aria-hidden）。
- * destination の都市に対応する既存 hero 画像（getPlanHeroImage）があれば、それを **カード全面の
- * 背景**（absolute inset-0 の next/image）として敷き、variant ごとの半透明 overlay を重ねて
- * 文字の可読性を確保する。対応画像が無い / 都市未定なら従来の decorative カード（Decoration SVG
- * ＋ variant surface）へ fallback。hooks を持たない純粋表示コンポーネント。
+ * destination の都市に対応する既存カバー画像（lib/planCover.ts の getPlanCoverImage →
+ * public/plan-covers/<city>.png）があれば、それを **カード全面の背景**（absolute inset-0 の
+ * next/image）として敷き、variant ごとの半透明 overlay を重ねて文字の可読性を確保する。
+ * 対応画像が無い / 都市未定なら従来の decorative カード（Decoration SVG ＋ variant surface）へ
+ * fallback。hooks を持たない純粋表示コンポーネント。
  */
 
 export type HomePlanCardVariant = "ivory" | "dark" | "blue";
@@ -165,20 +166,20 @@ export default function HomePlanCard({ plan }: { plan: HomePlanCardData }) {
   const number = String(plan.index).padStart(2, "0");
   const variant = homePlanCardVariant(plan.index - 1);
   const t = THEMES[variant];
-  // 表示中の destination と同じ値（plan.city）で既存 helper が都市画像を決定的に選ぶ。
-  // 対応画像が無い都市・都市未定なら null → 従来の decorative カードへ fallback。
-  const heroImage = getPlanHeroImage(plan.city);
+  // 表示中の destination と同じ値（plan.city）で既存 helper（lib/planCover.ts）がカバー画像を
+  // 決定的に選ぶ。対応画像が無い都市・都市未定なら null → 従来の decorative カードへ fallback。
+  const coverImage = getPlanCoverImage(plan.city).imageSrc;
 
   return (
     <Link
       href={`/plans/${plan.id}`}
       className={`group relative flex h-full min-h-[215px] flex-col overflow-hidden rounded-[20px] p-5 transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent sm:min-h-[235px] sm:p-6 lg:min-h-[255px] ${t.surface}`}
     >
-      {heroImage ? (
+      {coverImage ? (
         <>
           {/* 都市風景をカード全面の背景に敷く（上部バンドではない・§3/§4/§29）。 */}
           <Image
-            src={heroImage}
+            src={coverImage}
             alt=""
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
@@ -194,7 +195,7 @@ export default function HomePlanCard({ plan }: { plan: HomePlanCardData }) {
       <span
         aria-hidden
         className={`relative z-10 font-serif text-4xl leading-none sm:text-5xl lg:text-6xl ${
-          heroImage ? t.numberOnImage : t.number
+          coverImage ? t.numberOnImage : t.number
         }`}
       >
         {number}
