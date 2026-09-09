@@ -4,24 +4,14 @@ import { buildDestinationLine, buildStatusPillText } from "@/components/PlanCard
 import { getPlanCoverImage } from "@/lib/planCover";
 
 /**
- * HOME（/mypage）専用のPlanカード。共有された参考HOMEデザインに寄せた editorial 版:
- * コンパクト・serif number・カード中〜下寄りの title・下部に status/更新日・左下に丸い arrow。
- * デスクトップは 4 列一覧を前提にサイズ・内部余白を詰めている（Mindtrip の Featured guides 相当の密度）。
- * カラーは index による decorative variation（ivory / dark / blue）で、**意味（status/active）は
- * 一切持たせない**。
- *
- * 表示するのは実データから安全に取れるものだけ:
- *   title / 行き先・時期（buildDestinationLine）/ status（decision.stage が stated のときだけ「検討中」）/
- *   最終更新テキスト。
- * Worksheet 進捗（localStorage のみ）・country/type/duration（カラムが無い）・active/進行中
- *（概念が無い）・overflow menu（機能が無い）は扱わない。fake データは作らない。
- *
- * card 全体が 1 つの Link。内部に別の Link / button は置かない（arrow は装飾＝aria-hidden）。
+ * HOME（/mypage）専用のPlanカード。「これから行くかもしれない都市を眺めるカード」を狙う:
  * destination の都市に対応する既存カバー画像（lib/planCover.ts の getPlanCoverImage →
- * public/plan-covers/<city>.png）があれば、それを **カード全面の背景**（absolute inset-0 の
- * next/image）として敷き、variant ごとの半透明 overlay を重ねて文字の可読性を確保する。
+ * public/plan-covers/<city>.png）を **カード全面の背景**（absolute inset-0 の next/image）に敷き、
+ * 上 ~60% は写真をほぼそのまま見せ、下 ~40% にだけ暗めの gradient を掛けて Plan 情報
+ *（title / 行き先・時期 / status / 更新日 / arrow）をまとめる。overlay は全カード共通で、
+ * 写真を variant 色で強く覆わない（variant は fallback カードの装飾トーンとしてのみ使う）。
  * 対応画像が無い / 都市未定なら従来の decorative カード（Decoration SVG ＋ variant surface）へ
- * fallback。hooks を持たない純粋表示コンポーネント。
+ * fallback。card 全体が 1 つの Link。hooks を持たない純粋表示コンポーネント。fake データは作らない。
  */
 
 export type HomePlanCardVariant = "ivory" | "dark" | "blue";
@@ -49,58 +39,40 @@ type Theme = {
   ink: string;
   secondary: string;
   number: string;
-  /** 背景写真の上に置く decorative number の色（faint すぎると写真に埋もれるため少し強める・§11）。 */
-  numberOnImage: string;
   pill: string;
   arrow: string;
-  divider: string;
-  /** 背景写真あり時: 全面の均一 overlay（真っ黒にせず variant トーンで。写真は透けて見える・§6/§8/§9）。 */
-  imgWash: string;
-  /** 背景写真あり時: 下部を少しだけ濃くする vertical gradient（title / metadata の可読性・§10）。 */
-  imgFade: string;
 };
 
+/** 画像なし fallback カードでのみ使う variant トーン（画像ありカードは共通 white chrome）。 */
 const THEMES: Record<HomePlanCardVariant, Theme> = {
   ivory: {
     surface: "bg-[#f5f0e7] border border-[#e7decd]",
     ink: "text-[#2c2a25]",
     secondary: "text-[#655f54]",
-    number: "text-[#2c2a25]/[0.12]",
-    numberOnImage: "text-[#2c2a25]/25",
+    number: "text-[#2c2a25]/[0.14]",
     pill: "bg-[#e7dcc6] text-[#4a4436]",
     arrow: "border-[#cfc4ae] text-[#2c2a25]",
-    divider: "border-[#e7decd]",
-    imgWash: "bg-[#f8f3ea]/68",
-    imgFade: "bg-gradient-to-t from-[#f5efe3]/85 via-[#f8f3ea]/25 to-transparent",
   },
   dark: {
     surface:
       "bg-[#1f2b38] border border-white/10 shadow-[0_14px_36px_-16px_rgba(31,43,56,0.55)]",
     ink: "text-white",
     secondary: "text-white/70",
-    number: "text-white/[0.14]",
-    numberOnImage: "text-white/25",
+    number: "text-white/[0.16]",
     pill: "bg-white/12 text-white/90",
     arrow: "border-white/30 text-white",
-    divider: "border-white/12",
-    imgWash: "bg-[#1c2733]/70",
-    imgFade: "bg-gradient-to-t from-[#161f29]/90 via-[#1c2733]/35 to-transparent",
   },
   blue: {
     surface: "bg-[#e9eef3] border border-[#d7dfe7]",
     ink: "text-[#25303a]",
     secondary: "text-[#5b6873]",
-    number: "text-[#25303a]/[0.12]",
-    numberOnImage: "text-[#25303a]/25",
+    number: "text-[#25303a]/[0.14]",
     pill: "bg-[#d8e2ea] text-[#3a4753]",
     arrow: "border-[#c2ccd6] text-[#25303a]",
-    divider: "border-[#d7dfe7]",
-    imgWash: "bg-[#e8eef3]/66",
-    imgFade: "bg-gradient-to-t from-[#dde6ee]/85 via-[#e8eef3]/25 to-transparent",
   },
 };
 
-/** variant ごとの editorial な抽象装飾（contour / arcs / soft circle）。画像 asset は使わない。 */
+/** variant ごとの editorial な抽象装飾（contour / arcs / soft circle）。画像なし fallback でのみ表示。 */
 function Decoration({ variant }: { variant: HomePlanCardVariant }) {
   if (variant === "dark") {
     return (
@@ -169,60 +141,85 @@ export default function HomePlanCard({ plan }: { plan: HomePlanCardData }) {
   // 表示中の destination と同じ値（plan.city）で既存 helper（lib/planCover.ts）がカバー画像を
   // 決定的に選ぶ。対応画像が無い都市・都市未定なら null → 従来の decorative カードへ fallback。
   const coverImage = getPlanCoverImage(plan.city).imageSrc;
+  const onImage = coverImage != null;
+
+  // 画像ありカードは下部 gradient の上に載るため chrome は共通 white。fallback は variant トーン。
+  const inkCls = onImage
+    ? "text-white [text-shadow:0_1px_10px_rgba(0,0,0,0.38)]"
+    : t.ink;
+  const secondaryCls = onImage
+    ? "text-white/85 [text-shadow:0_1px_8px_rgba(0,0,0,0.32)]"
+    : t.secondary;
+  const numberCls = onImage ? "text-white/30" : t.number;
+  const pillCls = onImage
+    ? "bg-white/15 text-white ring-1 ring-inset ring-white/25 backdrop-blur-[2px]"
+    : t.pill;
+  const dateCls = onImage ? "text-white/72" : t.secondary;
+  const arrowCls = onImage ? "border-white/45 text-white" : t.arrow;
 
   return (
     <Link
       href={`/plans/${plan.id}`}
-      className={`group relative flex h-full min-h-[215px] flex-col overflow-hidden rounded-[20px] p-5 transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent sm:min-h-[235px] sm:p-6 lg:min-h-[255px] ${t.surface}`}
+      className={`group relative flex h-full min-h-[248px] flex-col overflow-hidden rounded-[20px] p-5 transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent sm:min-h-[268px] sm:p-6 lg:min-h-[292px] ${t.surface}`}
     >
-      {coverImage ? (
+      {onImage ? (
         <>
-          {/* 都市風景をカード全面の背景に敷く（上部バンドではない・§3/§4/§29）。 */}
+          {/* 都市風景をカード全面の背景に。上 ~60% は写真をほぼそのまま見せる（§3/§4/§5/§17）。 */}
           <Image
             src={coverImage}
             alt=""
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-            className="pointer-events-none select-none object-cover object-center"
+            className="pointer-events-none select-none object-cover object-center brightness-[1.03] saturate-[1.05]"
           />
-          <div aria-hidden className={`pointer-events-none absolute inset-0 ${t.imgWash}`} />
-          <div aria-hidden className={`pointer-events-none absolute inset-0 ${t.imgFade}`} />
+          {/* 明るい空などの白飛びを軽く抑えるだけの薄いフラット wash（写真は隠さない・§18/§22）。 */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 bg-black/[0.05]" />
+          {/* 下部だけ暗くして Plan 情報の可読性を確保（全カード共通・variant 色で覆わない・§5/§16）。 */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-[82%] bg-gradient-to-t from-black/80 via-black/24 to-transparent"
+          />
         </>
       ) : (
         <Decoration variant={variant} />
       )}
 
+      {/* decorative number: 写真の主役を隠さないよう左上に小さく控えめに（§6/§7）。 */}
       <span
         aria-hidden
-        className={`relative z-10 font-serif text-4xl leading-none sm:text-5xl lg:text-6xl ${
-          coverImage ? t.numberOnImage : t.number
-        }`}
+        className={`absolute left-4 top-3.5 z-10 font-serif leading-none sm:left-5 sm:top-4 ${
+          onImage ? "text-2xl sm:text-[26px]" : "text-4xl sm:text-5xl lg:text-6xl"
+        } ${numberCls}`}
       >
         {number}
       </span>
 
-      <div className="relative z-10 mt-auto pt-6">
-        <h2 className={`line-clamp-2 font-serif text-xl font-normal leading-snug ${t.ink}`}>
+      {/* Plan 情報はカード下部 ~35% に集約（§8/§9/§21）。 */}
+      <div className="relative z-10 mt-auto">
+        <h2 className={`line-clamp-2 font-serif text-xl font-normal leading-snug ${inkCls}`}>
           {plan.title}
         </h2>
-        <p className={`mt-1.5 line-clamp-2 text-[13px] leading-relaxed ${t.secondary}`}>
+        <p className={`mt-1 line-clamp-2 text-[13px] leading-relaxed ${secondaryCls}`}>
           {destination.showPin && <span aria-hidden>📍 </span>}
           {destination.text}
         </p>
 
-        <div className={`mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-3 text-xs ${t.divider}`}>
+        <div className="mt-2.5 flex items-center gap-2 text-[11px]">
           {statusText && (
-            <span className={`rounded-full px-2 py-0.5 font-medium ${t.pill}`}>{statusText}</span>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 font-medium ${pillCls}`}>
+              {statusText}
+            </span>
           )}
-          {plan.lastUpdatedText && <span className={t.secondary}>更新 {plan.lastUpdatedText}</span>}
+          {plan.lastUpdatedText && (
+            <span className={`min-w-0 truncate ${dateCls}`}>更新 {plan.lastUpdatedText}</span>
+          )}
+          <span
+            aria-hidden
+            className={`ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm transition-transform duration-150 group-hover:translate-x-0.5 ${arrowCls}`}
+          >
+            →
+          </span>
         </div>
-
-        <span
-          aria-hidden
-          className={`mt-3 flex h-8 w-8 items-center justify-center rounded-full border text-sm transition-transform duration-150 group-hover:translate-x-0.5 ${t.arrow}`}
-        >
-          →
-        </span>
       </div>
     </Link>
   );
