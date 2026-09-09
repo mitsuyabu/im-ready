@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { getPlanHeroImage, toCityChipText, toDepartureHeroText } from "@/lib/planHeroImage";
+import EditablePlanTitle from "@/components/EditablePlanTitle";
 
 /**
  * Plan 選択後トップのヒーロー（presentation のみ）。
@@ -43,6 +44,8 @@ const SUBTITLE = "このPlanの条件や考えを整理していこう。";
 const FALLBACK_CHIP = "行き先・時期はこれから整理";
 
 type HeroProps = {
+  /** タイトルその場編集（plans.title の owner-scoped update）に使う。 */
+  planId: string;
   title: string;
   /** 表示用の都市テキスト（stated の schoolPrefs.preferredCity。自由記述・説明文込みのことがある）。 */
   city: string | null;
@@ -123,6 +126,7 @@ export default function PlanTravelHero(props: HeroProps) {
 /* ------------------------------------------------------------------ */
 
 function CityImageHero({
+  planId,
   title,
   city,
   departureTiming,
@@ -160,9 +164,11 @@ function CityImageHero({
 
         {/* 本文（左・明るい余白の上） */}
         <div className="relative z-10 flex min-h-[248px] max-w-[86%] flex-col justify-center px-5 py-12 sm:min-h-[280px] sm:max-w-[52%] sm:py-14 sm:pl-[8%]">
-          <h1 className="text-[1.9rem] font-bold leading-[1.08] tracking-tight text-[#182233] drop-shadow-[0_1px_2px_rgba(255,250,240,0.7)] sm:text-4xl lg:text-[3.2rem]">
-            {title}
-          </h1>
+          <EditablePlanTitle
+            planId={planId}
+            initialTitle={title}
+            headingClassName="text-[1.9rem] font-bold leading-[1.08] tracking-tight text-[#182233] drop-shadow-[0_1px_2px_rgba(255,250,240,0.7)] sm:text-4xl lg:text-[3.2rem]"
+          />
           <p className="mt-4 max-w-md text-sm leading-relaxed text-[#3f3a33] sm:text-[15px]">{SUBTITLE}</p>
           <Chips city={city} departureTiming={departureTiming} />
         </div>
@@ -175,7 +181,7 @@ function CityImageHero({
 /* それ以外: 既存コラージュ Hero（fallback・削除しない）               */
 /* ------------------------------------------------------------------ */
 
-function CollageHero({ title, city, departureTiming }: HeroProps) {
+function CollageHero({ planId, title, city, departureTiming }: HeroProps) {
   return (
     <div className="relative overflow-hidden rounded-[24px] bg-[#223650]">
       {/* ちぎれ縁を荒らす SVG フィルタ定義 */}
@@ -297,9 +303,11 @@ function CollageHero({ title, city, departureTiming }: HeroProps) {
 
         {/* 本文（生成り紙の上） */}
         <div className="relative z-10 flex min-h-[248px] flex-col justify-center px-5 py-12 sm:min-h-[280px] sm:py-14 sm:pl-[8%] sm:pr-[38%]">
-          <h1 className="text-[1.9rem] font-bold leading-[1.08] tracking-tight text-[#182233] sm:text-4xl lg:text-[3.2rem]">
-            {title}
-          </h1>
+          <EditablePlanTitle
+            planId={planId}
+            initialTitle={title}
+            headingClassName="text-[1.9rem] font-bold leading-[1.08] tracking-tight text-[#182233] sm:text-4xl lg:text-[3.2rem]"
+          />
           <p className="mt-4 max-w-md text-sm leading-relaxed text-[#4a4740] sm:text-[15px]">{SUBTITLE}</p>
           <Chips city={city} departureTiming={departureTiming} />
         </div>

@@ -273,7 +273,7 @@ function RatingBody({
       <div className="mt-3 space-y-4">
         {items.map((item) => (
           <div key={item.id}>
-            <p className="text-sm text-worksheet-primary">{item.label}</p>
+            <p className="text-[15px] text-worksheet-primary">{item.label}</p>
             <div className="mt-2 grid grid-cols-5 gap-1.5">
               {([1, 2, 3, 4, 5] as const).map((n) => {
                 const selected = values[item.id] === n;
@@ -437,8 +437,8 @@ function SingleSelectBody({
             aria-pressed={isSelected}
             className={
               isSelected
-                ? "rounded-xl bg-worksheet-accent px-4 py-2.5 text-left text-sm font-medium text-worksheet-accent-contrast transition-colors duration-150"
-                : "rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-4 py-2.5 text-left text-sm text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-border/50"
+                ? "rounded-xl bg-worksheet-accent px-4 py-2.5 text-left text-[15px] font-medium text-worksheet-accent-contrast transition-colors duration-150"
+                : "rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-4 py-2.5 text-left text-[15px] text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-border/50"
             }
           >
             {option.label}
@@ -471,8 +471,8 @@ function MultiSelectBody({
             aria-pressed={isSelected}
             className={
               isSelected
-                ? "rounded-xl bg-worksheet-accent px-4 py-2.5 text-left text-sm font-medium text-worksheet-accent-contrast transition-colors duration-150"
-                : "rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-4 py-2.5 text-left text-sm text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-border/50"
+                ? "rounded-xl bg-worksheet-accent px-4 py-2.5 text-left text-[15px] font-medium text-worksheet-accent-contrast transition-colors duration-150"
+                : "rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-4 py-2.5 text-left text-[15px] text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-border/50"
             }
           >
             {option.label}
@@ -566,7 +566,7 @@ export function QuestionCard({
               {question.examples.map((example) => (
                 <span
                   key={example}
-                  className="rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-3 py-1.5 text-xs leading-relaxed text-worksheet-secondary"
+                  className="rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-3 py-1.5 text-[13px] leading-relaxed text-worksheet-secondary"
                 >
                   {example}
                 </span>
@@ -579,7 +579,7 @@ export function QuestionCard({
             onChange={(e) => onTextChange(e.target.value)}
             rows={4}
             placeholder="あなたの言葉で、自由に書いてみてください"
-            className="mt-4 w-full resize-y rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-3 py-2 text-sm leading-relaxed text-worksheet-primary transition-shadow focus:border-worksheet-sage-hover focus:outline-none focus:ring-2 focus:ring-worksheet-sage-hover/50"
+            className="mt-4 w-full resize-y rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-3 py-2 text-base leading-relaxed text-worksheet-primary transition-shadow focus:border-worksheet-sage-hover focus:outline-none focus:ring-2 focus:ring-worksheet-sage-hover/50"
           />
         </>
       )}
@@ -646,7 +646,7 @@ export function QuestionCard({
         <h3 className="mt-2 text-lg font-semibold leading-snug text-worksheet-primary sm:text-xl">
           {question.heading}
         </h3>
-        <p className="mt-2 text-sm leading-relaxed text-worksheet-secondary">{question.supplement}</p>
+        <p className="mt-2 text-[17px] leading-[1.75] text-worksheet-secondary">{question.supplement}</p>
         <div className="mt-4">{answerBody}</div>
       </div>
     );
@@ -672,7 +672,7 @@ export function QuestionCard({
         >
           {index + 1}
         </span>
-        <span className="flex-1 text-sm font-medium text-worksheet-primary">
+        <span className="flex-1 text-[15px] font-medium text-worksheet-primary">
           {question.heading}
         </span>
         {!isOpen && hasAnswer && (
@@ -687,7 +687,7 @@ export function QuestionCard({
 
       {isOpen && (
         <div className="px-5 pb-5">
-          <p className="text-sm leading-relaxed text-worksheet-secondary">
+          <p className="text-[17px] leading-[1.75] text-worksheet-secondary">
             {question.supplement}
           </p>
           {answerBody}
@@ -962,7 +962,7 @@ export default function Worksheet({ planId }: WorksheetProps = {}) {
       <h1 className="mt-4 text-[26px] font-medium leading-snug text-worksheet-primary">
         まずは、あなたの気持ちを整理してみましょう
       </h1>
-      <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
+      <p className="mt-3 text-[16px] leading-[1.7] text-worksheet-secondary">
         正直に、思いつく範囲で大丈夫です。うまく書けなくても、あとからAIと一緒に整理できます。
       </p>
       <p className="mt-2 text-xs text-worksheet-secondary">
@@ -1038,7 +1038,7 @@ export default function Worksheet({ planId }: WorksheetProps = {}) {
                 )}
 
                 {axisSummary && (
-                  <div className="mt-4 whitespace-pre-wrap rounded-[20px] border-[0.5px] border-worksheet-border bg-worksheet-surface-2 p-5 text-sm leading-relaxed text-worksheet-primary">
+                  <div className="mt-4 whitespace-pre-wrap rounded-[20px] border-[0.5px] border-worksheet-border bg-worksheet-surface-2 p-5 text-[16px] leading-[1.75] text-worksheet-primary">
                     {axisSummary}
                   </div>
                 )}
@@ -1052,7 +1052,7 @@ export default function Worksheet({ planId }: WorksheetProps = {}) {
         <button
           type="button"
           onClick={handleNext}
-          className="inline-flex items-center gap-2 rounded-full bg-worksheet-accent px-5 py-3 text-sm font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
+          className="inline-flex items-center gap-2 rounded-full bg-worksheet-accent px-5 py-3 text-[15px] font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
         >
           次へ進む
           <ArrowRightIcon className="h-4 w-4" />
@@ -1065,7 +1065,7 @@ export default function Worksheet({ planId }: WorksheetProps = {}) {
             type="button"
             onClick={handleGenerateMyNote}
             disabled={!canGenerateMyNote || myNoteLoading}
-            className="inline-flex items-center gap-2 rounded-full bg-worksheet-accent px-5 py-3 text-sm font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+            className="inline-flex items-center gap-2 rounded-full bg-worksheet-accent px-5 py-3 text-[15px] font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
           >
             {myNoteResult ? "もう一度作る" : "my noteを作る"}
           </button>
@@ -1085,7 +1085,7 @@ export default function Worksheet({ planId }: WorksheetProps = {}) {
         )}
 
         {myNoteResult && (
-          <div className="mt-4 whitespace-pre-wrap rounded-[20px] border-[0.5px] border-worksheet-border bg-worksheet-surface-2 p-5 text-sm leading-relaxed text-worksheet-primary">
+          <div className="mt-4 whitespace-pre-wrap rounded-[20px] border-[0.5px] border-worksheet-border bg-worksheet-surface-2 p-5 text-[16px] leading-[1.75] text-worksheet-primary">
             {myNoteResult}
           </div>
         )}
@@ -1097,7 +1097,7 @@ export default function Worksheet({ planId }: WorksheetProps = {}) {
             type="button"
             onClick={handleGenerateLetter}
             disabled={!canGenerateLetter || letterLoading}
-            className="inline-flex items-center gap-2 rounded-full bg-worksheet-accent px-5 py-3 text-sm font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+            className="inline-flex items-center gap-2 rounded-full bg-worksheet-accent px-5 py-3 text-[15px] font-medium text-worksheet-accent-contrast transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
           >
             {letterResult ? "もう一度作る" : "親に見せる資料を作る"}
           </button>
@@ -1117,7 +1117,7 @@ export default function Worksheet({ planId }: WorksheetProps = {}) {
         )}
 
         {letterResult && (
-          <div className="mt-4 whitespace-pre-wrap rounded-[20px] border-[0.5px] border-worksheet-border bg-worksheet-surface-2 p-5 text-sm leading-relaxed text-worksheet-primary">
+          <div className="mt-4 whitespace-pre-wrap rounded-[20px] border-[0.5px] border-worksheet-border bg-worksheet-surface-2 p-5 text-[16px] leading-[1.75] text-worksheet-primary">
             {letterResult}
           </div>
         )}

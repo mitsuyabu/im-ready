@@ -496,7 +496,7 @@ export default function SchoolComparisonBody({
   return (
     <div className="mt-8 space-y-8 sm:space-y-10">
       {preambleNotes.length > 0 && (
-        <div className="space-y-1 text-xs leading-relaxed text-[#8a8578]">
+        <div className="space-y-1.5 text-[14px] leading-relaxed text-[#8a8578]">
           {preambleNotes.map((line, i) => (
             <p key={i} className="whitespace-pre-wrap">
               {line}
@@ -707,7 +707,7 @@ export default function SchoolComparisonBody({
                 <div className="mt-5 space-y-4 md:hidden">
                   {view.facts.map((school, i) => (
                     <div key={i} className="rounded-2xl border border-[#f0ebe0] bg-[#fcfbf8] p-4">
-                      <p className="text-sm font-semibold text-[#172033]">{school.name}</p>
+                      <p className="text-[15px] font-semibold text-[#172033]">{school.name}</p>
                       <dl className="mt-3 space-y-2.5">
                         {school.items.map((item, j) => {
                           const isMoney = MONEY_LABEL_RE.test(item.label);
@@ -721,7 +721,7 @@ export default function SchoolComparisonBody({
                                     ? "text-[15px] font-semibold leading-relaxed text-[#172033]"
                                     : isSource
                                       ? "text-xs leading-relaxed text-[#a09a8c]"
-                                      : "text-sm leading-relaxed text-[#2f2c26]"
+                                      : "text-[15px] leading-relaxed text-[#2f2c26]"
                                 }
                               >
                                 <FactValue value={item.value} />
@@ -784,7 +784,7 @@ export default function SchoolComparisonBody({
                                 <VerdictChip verdict={fit.verdict} />
                               </div>
                               {fit.basis && (
-                                <p className="text-sm leading-6 text-[#5e5a53]">
+                                <p className="text-[15px] leading-6 text-[#5e5a53]">
                                   <span className="text-[#9b958a]">根拠　</span>
                                   {fit.basis}
                                 </p>
@@ -806,7 +806,7 @@ export default function SchoolComparisonBody({
                       候補として提示された理由・メモ
                     </h2>
                   </div>
-                  <div className="mt-4 space-y-3 text-[15px] leading-7 text-[#3f3c37] sm:text-base">
+                  <div className="mt-4 space-y-3 text-[16px] leading-7 text-[#3f3c37] sm:text-base">
                     {view.reasonMemoText.map((line, i) => (
                       <p key={i} className="whitespace-pre-wrap">
                         {line}
@@ -825,7 +825,7 @@ export default function SchoolComparisonBody({
               className="rounded-[24px] border border-[#ece7dd] bg-white p-4 shadow-[0_1px_3px_rgba(30,28,24,0.04)] sm:p-5 lg:p-6"
             >
               <CardHeading>{section.heading}</CardHeading>
-              <div className="mt-3 space-y-1.5 text-sm leading-relaxed text-[#6f6a64]">
+              <div className="mt-3 space-y-1.5 text-[15px] leading-relaxed text-[#6f6a64]">
                 {section.lines
                   .filter((line) => line.trim().length > 0)
                   .map((line, j) => (

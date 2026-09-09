@@ -95,3 +95,17 @@ input::placeholder,
 textarea::placeholder {
   color: #9b9488;
 }
+
+/*
+ * iOS Safari は input/textarea/select の実効 font-size が 16px 未満だと focus 時に自動ズームする。
+ * mobile（< sm ブレークポイント = 640px）だけ 16px を下限にする。utility class（text-sm 等）より
+ * 詳細度が低いと負けるため、この帯域では !important で floor をかける。
+ * desktop（>= 640px）はこの規則の対象外なので、既存の text-* / sm:text-* クラスがそのまま効く。
+ */
+@media (max-width: 639px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

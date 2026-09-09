@@ -665,7 +665,7 @@ export default function Chat({
         rows={1}
         disabled={isSending}
         aria-label="メッセージを入力"
-        className="max-h-40 min-h-[44px] flex-1 resize-none self-center bg-transparent py-2 text-[15px] leading-6 text-[#2b2a26] placeholder:text-[#a7a08f] focus:outline-none disabled:opacity-60 sm:text-base"
+        className="max-h-40 min-h-[44px] flex-1 resize-none self-center bg-transparent py-2 text-base leading-6 text-[#2b2a26] placeholder:text-[#a7a08f] focus:outline-none disabled:opacity-60"
       />
       <button
         type="submit"

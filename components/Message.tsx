@@ -54,7 +54,7 @@ export default function Message({
             <AiSparkIcon className="h-3.5 w-3.5 text-worksheet-primary" />
           )}
         </span>
-        <div className="min-w-0 flex-1 space-y-3 text-[15px] leading-7 text-worksheet-primary">
+        <div className="min-w-0 flex-1 space-y-3 text-[16px] leading-7 text-worksheet-primary">
           {splitParagraphs(text).map((para, i) => (
             <p key={i} className="whitespace-pre-wrap break-words">
               {para}
@@ -68,7 +68,7 @@ export default function Message({
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm leading-relaxed ${
+        className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-[15px] leading-relaxed ${
           isUser
             ? "bg-blue-600 text-white"
             : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"

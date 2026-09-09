@@ -4,9 +4,13 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadLastChatMessageAt, loadPlanKarte } from "@/lib/planChat";
+import { loadPlanBlueprint } from "@/lib/planBlueprint";
 import { formatLastUpdated, loadPlanLastActivityMap } from "@/lib/planActivity";
 import { summarizeKarteForCard } from "@/lib/planCardSummary";
+import { getCityGuideDescription } from "@/lib/cityGuide";
+import { buildPlanSummaryLine } from "@/lib/planSummaryLine";
 import PlanTravelHero from "@/components/PlanTravelHero";
+import PlanGuideCard from "@/components/PlanGuideCard";
 import PlanJourneyRibbon from "@/components/PlanJourneyRibbon";
 import PlanWorksheetProgress from "@/components/PlanWorksheetProgress";
 import BrandLogo from "@/components/BrandLogo";
@@ -119,8 +123,9 @@ export default async function PlanPage({ params }: PlanPageProps) {
 
   const typedPlan = plan as PlanRow;
 
-  const [karte, lastChatMessageAt, activityMap] = await Promise.all([
+  const [karte, blueprint, lastChatMessageAt, activityMap] = await Promise.all([
     loadPlanKarte(supabase, planId),
+    loadPlanBlueprint(supabase, planId),
     loadLastChatMessageAt(supabase, planId),
     loadPlanLastActivityMap(supabase, [planId]),
   ]);
@@ -145,6 +150,10 @@ export default async function PlanPage({ params }: PlanPageProps) {
       ? preferredCity.value
       : null;
 
+  // Hero 直下カード: 都市の固定説明（対応 6 都市のみ）＋ plan_blueprint 実データからの 1 行サマリー。
+  const cityGuideDescription = getCityGuideDescription(destinationCity);
+  const planSummaryLine = blueprint.available ? buildPlanSummaryLine(blueprint.data) : null;
+
   return (
     <div className="min-h-dvh bg-[#fbf8f1]">
       {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、mobileのみこのheader（サイズは変更しない） */}
@@ -155,19 +164,26 @@ export default async function PlanPage({ params }: PlanPageProps) {
       <div className="mx-auto max-w-7xl px-4 pb-12 pt-5 sm:px-6 sm:pb-16 sm:pt-6">
         <Link
           href="/mypage"
-          className="text-xs font-medium text-[#2b2a27] underline decoration-[#2b2a27]/30 underline-offset-2 transition-colors hover:decoration-[#2b2a27]"
+          className="text-[13px] font-medium text-[#2b2a27] underline decoration-[#2b2a27]/30 underline-offset-2 transition-colors hover:decoration-[#2b2a27]"
         >
           ← マイページに戻る
         </Link>
 
         <div className="mt-3">
           <PlanTravelHero
+            planId={typedPlan.id}
             title={typedPlan.title}
             city={summary.city}
             destinationCity={destinationCity}
             departureTiming={summary.departureTiming}
           />
         </div>
+
+        {(cityGuideDescription || planSummaryLine) && (
+          <div className="mt-4">
+            <PlanGuideCard description={cityGuideDescription} summary={planSummaryLine} />
+          </div>
+        )}
 
         <div className="mt-4">
           <PlanJourneyRibbon currentIndex={journeyIndex} />
@@ -187,7 +203,7 @@ export default async function PlanPage({ params }: PlanPageProps) {
               />
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-bold text-[#2b3a55]">AI相談</h2>
-                <p className="mt-1 text-sm leading-relaxed text-[#6b6357]">このPlanについて、続きを話そう。</p>
+                <p className="mt-1 text-[15px] leading-relaxed text-[#6b6357]">このPlanについて、続きを話そう。</p>
                 {lastChatMessageAt && (
                   <p className="mt-1.5 text-xs text-[#8b857a]">最終相談 {formatLastUpdated(lastChatMessageAt)}</p>
                 )}
@@ -211,7 +227,7 @@ export default async function PlanPage({ params }: PlanPageProps) {
               />
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-bold text-[#2b3a55]">Worksheet</h2>
-                <p className="mt-1 text-sm leading-relaxed text-[#6b6357]">気持ちや条件を、自分のペースで整理する。</p>
+                <p className="mt-1 text-[15px] leading-relaxed text-[#6b6357]">気持ちや条件を、自分のペースで整理する。</p>
                 {/* 既存 PlanWorksheetProgress はロジック不変。表示される時だけ薄い pill に見せる wrapper。 */}
                 <div className="[&>p]:m-0 [&>p]:mt-2 [&>p]:inline-block [&>p]:rounded-full [&>p]:bg-[#eef1ec] [&>p]:px-2.5 [&>p]:py-0.5 [&>p]:text-[11px] [&>p]:text-[#5b5750]">
                   <PlanWorksheetProgress planId={typedPlan.id} karte={karte} />
@@ -284,7 +300,7 @@ export default async function PlanPage({ params }: PlanPageProps) {
                 />
                 <div className="min-w-0 flex-1">
                   <h2 className="text-lg font-bold text-[#2b3a55]">My Karte</h2>
-                  <p className="mt-1 text-sm leading-relaxed text-[#6b6357]">考えたことを、資料に残す。</p>
+                  <p className="mt-1 text-[15px] leading-relaxed text-[#6b6357]">考えたことを、資料に残す。</p>
                   <Link
                     href={`/plans/${typedPlan.id}/documents`}
                     className="mt-3 inline-block rounded-full border border-[#2b3a55]/30 bg-white px-5 py-2 text-sm font-medium text-[#2b3a55] transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"

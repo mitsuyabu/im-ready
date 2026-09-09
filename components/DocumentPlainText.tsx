@@ -10,7 +10,7 @@
  */
 export default function DocumentPlainText({ body }: { body: string }) {
   return (
-    <div className="mt-6 whitespace-pre-wrap rounded-2xl border border-worksheet-border bg-worksheet-surface-2 p-5 text-sm leading-relaxed text-worksheet-primary sm:p-6">
+    <div className="mt-6 whitespace-pre-wrap rounded-2xl border border-worksheet-border bg-worksheet-surface-2 p-5 text-[17px] leading-[1.75] text-worksheet-primary sm:p-6">
       {body}
     </div>
   );

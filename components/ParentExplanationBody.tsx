@@ -131,7 +131,7 @@ export default function ParentExplanationBody({
   return (
     <div className="mt-8 space-y-8 sm:space-y-10">
       {preambleLines.length > 0 && (
-        <div className="max-w-3xl space-y-2 text-[15px] leading-8 text-[#45413b]">
+        <div className="max-w-3xl space-y-4 text-[16px] leading-8 text-[#45413b]">
           {preambleLines.map((line, i) => (
             <p key={i} className="whitespace-pre-wrap">
               {line}
@@ -254,13 +254,13 @@ export default function ParentExplanationBody({
                         {section.items.map((it, j) => (
                           <div key={j} className="grid grid-cols-[minmax(6rem,auto)_1fr] gap-x-3 gap-y-0.5">
                             <dt className="text-xs leading-relaxed text-[#817b71]">{it.label}</dt>
-                            <dd className="text-sm leading-relaxed text-[#45413b]">{it.value}</dd>
+                            <dd className="text-[15px] leading-relaxed text-[#45413b]">{it.value}</dd>
                           </div>
                         ))}
                       </dl>
                     )}
                     {section.freeText.length > 0 && (
-                      <div className="space-y-3 text-base leading-7 text-[#45413b]">
+                      <div className="space-y-5 text-[17px] leading-[1.75] text-[#45413b]">
                         {section.freeText.map((t, j) => (
                           <p key={j} className="whitespace-pre-wrap">
                             {t}

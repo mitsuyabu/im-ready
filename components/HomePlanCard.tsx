@@ -260,7 +260,7 @@ export default function HomePlanCard({ plan }: { plan: HomePlanCardData }) {
           {noneText && <p className={`truncate ${secondaryCls}`}>{noneText}</p>}
         </div>
 
-        <div className="mt-2 flex items-center gap-2 text-[11px]">
+        <div className="mt-2 flex items-center gap-2 text-[12px]">
           {statusText && (
             <span className={`shrink-0 rounded-full px-2 py-0.5 font-medium ${pillCls}`}>
               {statusText}

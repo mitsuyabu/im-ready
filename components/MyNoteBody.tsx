@@ -63,7 +63,7 @@ export default function MyNoteBody({ body }: { body: string }) {
   const firstBodyLength = firstParas.join("\n").length;
   const isFirstSectionLong = firstBodyLength >= 200;
   const firstBodyClass = isFirstSectionLong
-    ? "mt-3 space-y-4 text-base font-normal leading-8 text-[#232227] sm:text-lg"
+    ? "mt-3 space-y-5 text-[17px] font-normal leading-8 text-[#232227] sm:text-lg"
     : "mt-3 space-y-4 text-lg font-medium leading-relaxed text-[#232227] sm:text-xl lg:text-2xl";
 
   return (
@@ -99,7 +99,7 @@ export default function MyNoteBody({ body }: { body: string }) {
       {/* 本文 */}
       <div className="min-w-0 space-y-6">
         {preambleLines.length > 0 && (
-          <div className="space-y-2 text-[15px] leading-8 text-[#625f59]">
+          <div className="space-y-4 text-[16px] leading-8 text-[#625f59]">
             {preambleLines.map((line, i) => (
               <p key={i} className="whitespace-pre-wrap">
                 {line}
@@ -170,10 +170,10 @@ export default function MyNoteBody({ body }: { body: string }) {
                   <h3 className="mt-2 text-lg font-semibold text-[#172033]">{section.heading}</h3>
 
                   {paragraphs.length > 0 && (
-                    <div className="mt-3 space-y-4 text-base leading-8 text-[#3f3a34]">
+                    <div className="mt-3 space-y-5 text-[17px] leading-8 text-[#3f3a34]">
                       {isImportant ? (
                         <>
-                          <blockquote className="flex gap-2.5 rounded-xl bg-[#eef2e8] px-4 py-3.5 text-[15px] leading-7 text-[#3c4a33]">
+                          <blockquote className="flex gap-2.5 rounded-xl bg-[#eef2e8] px-4 py-3.5 text-[16px] leading-7 text-[#3c4a33]">
                             <QuoteIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#7d9a63]" />
                             <span className="whitespace-pre-wrap">{paragraphs[0]}</span>
                           </blockquote>

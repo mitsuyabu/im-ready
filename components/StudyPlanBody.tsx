@@ -97,7 +97,7 @@ export default function StudyPlanBody({ body }: { body: string }) {
   return (
     <div className="mt-8 space-y-6">
       {preambleLines.length > 0 && (
-        <div className="space-y-2 text-sm leading-7 text-[#625f59]">
+        <div className="space-y-4 text-[17px] leading-[1.75] text-[#625f59]">
           {preambleLines.map((line, i) => (
             <p key={i} className="whitespace-pre-wrap">
               {line}
@@ -193,7 +193,7 @@ export default function StudyPlanBody({ body }: { body: string }) {
                         className="grid grid-cols-[minmax(5.5rem,auto)_1fr] gap-x-3 gap-y-0.5"
                       >
                         <dt className="text-xs leading-relaxed text-[#8a8578]">{item.label}</dt>
-                        <dd className="text-sm leading-relaxed text-[#2f2c26]">{item.value}</dd>
+                        <dd className="text-[15px] leading-relaxed text-[#2f2c26]">{item.value}</dd>
                       </div>
                     ))}
                   </dl>
@@ -203,7 +203,7 @@ export default function StudyPlanBody({ body }: { body: string }) {
                   (asChecklist ? (
                     <ul className="mt-3 space-y-2">
                       {section.freeText.map((text, j) => (
-                        <li key={j} className="flex gap-2.5 text-sm leading-relaxed text-[#3f3a34]">
+                        <li key={j} className="flex gap-2.5 text-[16px] leading-[1.7] text-[#3f3a34]">
                           <span
                             aria-hidden
                             className="mt-0.5 h-4 w-4 shrink-0 rounded-[4px] border border-[#c8836b]"
@@ -213,7 +213,7 @@ export default function StudyPlanBody({ body }: { body: string }) {
                       ))}
                     </ul>
                   ) : (
-                    <div className="mt-3 space-y-2 text-sm leading-7 text-[#3f3a34]">
+                    <div className="mt-3 space-y-4 text-[17px] leading-[1.75] text-[#3f3a34]">
                       {section.freeText.map((text, j) => (
                         <p key={j} className="whitespace-pre-wrap">
                           {text}

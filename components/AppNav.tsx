@@ -133,6 +133,36 @@ function ArrowLeftIcon({ className }: IconProps) {
     </svg>
   );
 }
+/** 予算シミュレーション（準備中）。 */
+function WalletIcon({ className }: IconProps) {
+  return (
+    <svg {...iconBaseProps(className)}>
+      <path d="M4 7.5A1.5 1.5 0 0 1 5.5 6H18v12H5.5A1.5 1.5 0 0 1 4 16.5Z" />
+      <path d="M18 9.5h2.5a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H18Z" />
+      <path d="M16.5 12h.01" />
+    </svg>
+  );
+}
+/** 準備タイムライン（準備中）。 */
+function RouteIcon({ className }: IconProps) {
+  return (
+    <svg {...iconBaseProps(className)}>
+      <circle cx="6" cy="18.5" r="2.5" />
+      <circle cx="18" cy="5.5" r="2.5" />
+      <path d="M8.5 18.5H14a3.5 3.5 0 0 0 0-7H10a3.5 3.5 0 0 1 0-7h5.5" />
+    </svg>
+  );
+}
+/** Q&A（準備中）。 */
+function HelpIcon({ className }: IconProps) {
+  return (
+    <svg {...iconBaseProps(className)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.6 9.5a2.4 2.4 0 0 1 4.7.7c0 1.6-2.3 2-2.3 3.4" />
+      <path d="M12 17h.01" />
+    </svg>
+  );
+}
 
 type IconComponent = (props: IconProps) => React.JSX.Element;
 
@@ -303,14 +333,15 @@ export default function AppNav({
 /* ------------------------------------------------------------------ */
 
 /**
- * グローバル / Plan 内で共通の nav row。selected は「淡い sage・border なし・rounded-full」で
- * 軽く（CTA より目立たせない・§3/§21）。両 state とも font-semibold で統一。
+ * グローバル / Plan 内で共通の nav row。
+ * active（現在ページ）でも **背景色は出さない** — 濃いめの文字色・icon 色・font-weight だけで示す。
+ * 背景は hover のときだけ、ごく薄い sage（§1 / §43）。
  */
 function sidebarItemClass(active: boolean) {
-  return `flex min-h-[44px] items-center gap-3 rounded-full px-3 py-2 text-sm font-semibold transition-colors duration-150 ${
+  return `flex min-h-[44px] items-center gap-3 rounded-full px-3 py-2 text-sm transition-colors duration-150 hover:bg-[#eef1ec] ${
     active
-      ? "bg-[#eaefe9] text-[#172033]"
-      : "text-[#73757d] hover:bg-[#eef1ec] hover:text-[#172033]"
+      ? "font-semibold text-[#172033]"
+      : "font-medium text-[#73757d] hover:text-[#172033]"
   }`;
 }
 
@@ -356,9 +387,31 @@ function SidebarButton({
   );
 }
 
+/** 未実装の将来機能（予算シミュレーション / 準備タイムライン / Q&A）。route は作らず、クリック不可の表示だけ（§2-§3 / §44）。 */
+function SidebarComingSoon({ label, icon: Icon }: { label: string; icon: IconComponent }) {
+  return (
+    <div
+      aria-disabled="true"
+      className="flex min-h-[44px] cursor-not-allowed items-center gap-3 rounded-full px-3 py-2 text-sm font-medium text-[#b6b3ab]"
+    >
+      <Icon className="h-[22px] w-[22px] shrink-0" />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span className="shrink-0 rounded-full bg-[#f0efe9] px-1.5 py-0.5 text-[10px] font-medium text-[#9a978e]">
+        準備中
+      </span>
+    </div>
+  );
+}
+
+const COMING_SOON_ITEMS: { label: string; icon: IconComponent }[] = [
+  { label: "予算シミュレーション", icon: WalletIcon },
+  { label: "準備タイムライン", icon: RouteIcon },
+  { label: "Q&A", icon: HelpIcon },
+];
+
 /**
  * nav row とは別階層の主要 CTA。Mindtrip の "New chat" 的な横長 pill（border / shadow / card 感を
- * 出さない・warm gray・中央寄せ・hover でごく僅かに濃く）。§7-§11。
+ * 出さない・warm gray・中央寄せ・hover でごく僅かに濃く）。§5 / §7-§11。
  */
 function StartCta({ onClick }: { onClick: () => void }) {
   return (
@@ -416,23 +469,25 @@ function Sidebar({
             ))}
           </>
         ) : (
-          <SidebarLink
-            href="/mypage"
-            label="Home"
-            icon={HomeIcon}
-            active={pathname === "/mypage"}
-            onClick={onClosePanel}
-          />
+          <>
+            <SidebarLink
+              href="/mypage"
+              label="Home"
+              icon={HomeIcon}
+              active={pathname === "/mypage"}
+              onClick={onClosePanel}
+            />
+            {/* 将来機能。route 未実装なので「準備中」のクリック不可行として見た目だけ（§2-§3 / §44-§45）。 */}
+            {COMING_SOON_ITEMS.map((item) => (
+              <SidebarComingSoon key={item.label} label={item.label} icon={item.icon} />
+            ))}
+          </>
         )}
       </nav>
 
-      {!inPlan && (
-        <div className="mt-8">
-          <StartCta onClick={() => onSelectPanel("start")} />
-        </div>
-      )}
-
-      <div className="mt-auto">
+      {/* 上の nav 群と Start CTA / Menu の間に大きな余白（§4 / §46）。 */}
+      <div className="mt-auto flex flex-col gap-5 pt-8">
+        {!inPlan && <StartCta onClick={() => onSelectPanel("start")} />}
         <SidebarButton
           label="Menu"
           icon={UserIcon}

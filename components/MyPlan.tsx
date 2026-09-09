@@ -774,7 +774,7 @@ function MyPlanCard({
       >
         {enName}
       </h2>
-      <p className="relative mt-1 text-sm text-[#7e786d] sm:text-[15px]">{subtitle}</p>
+      <p className="relative mt-1 text-[15px] leading-relaxed text-[#7e786d] sm:text-base">{subtitle}</p>
       <div className="relative">{children}</div>
     </section>
   );
@@ -801,7 +801,7 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
     <>
       {hasSaved ? (
         <>
-          <p className="mt-4 text-sm font-medium text-[#6b665d]">このプランで考えている学校</p>
+          <p className="mt-4 text-[15px] font-medium text-[#6b665d]">このプランで考えている学校</p>
           <p className="mt-0.5 text-[13px] leading-6 text-[#7d776c]">
             School Comparison で比べて保存した学校です。
           </p>
@@ -996,7 +996,7 @@ export default function MyPlan({
         </Link>
         <h1 className="mt-8 text-[28px] font-bold text-[#151515] sm:text-3xl">My Plan</h1>
         <p className="mt-6 text-base font-medium text-[#3f3a34]">まだMy Planは空です。</p>
-        <p className="mt-3 text-sm leading-relaxed text-[#6f6a64]">
+        <p className="mt-3 text-[15px] leading-[1.75] text-[#6f6a64]">
           ChatやWorksheetで考えを整理すると、
           <br className="hidden sm:block" />
           ここにPlanの候補が見えてきます。
@@ -1035,16 +1035,16 @@ export default function MyPlan({
           <h1 className="text-[28px] font-bold leading-[1.18] tracking-tight text-[#151515] sm:text-[42px]">
             My Plan
           </h1>
-          <p className="mt-1 text-sm text-[#6f6a64]">留学・ワーホリの実行プラン</p>
-          <p className="mt-0.5 text-xs text-[#8a8578]">{planTitle}</p>
+          <p className="mt-1 text-[15px] text-[#6f6a64]">留学・ワーホリの実行プラン</p>
+          <p className="mt-0.5 text-[13px] text-[#8a8578]">{planTitle}</p>
         </div>
         {lastUpdated && (
-          <p className="shrink-0 text-xs text-[#8a8578] sm:mt-3">最終更新 {lastUpdated}</p>
+          <p className="shrink-0 text-[13px] text-[#8a8578] sm:mt-3">最終更新 {lastUpdated}</p>
         )}
       </div>
 
       {!view.blueprintAvailable && (
-        <p className="mt-5 rounded-xl border border-[#e4d8c4] bg-[#faf4e8] px-4 py-3 text-xs leading-relaxed text-[#7a6a4e]">
+        <p className="mt-5 rounded-xl border border-[#e4d8c4] bg-[#faf4e8] px-4 py-3 text-[13px] leading-relaxed text-[#7a6a4e]">
           保存したMy Planの情報を読み込めませんでした。編集は一時的にできませんが、下の「Karteからの候補」は表示できます。
         </p>
       )}
@@ -1065,7 +1065,7 @@ export default function MyPlan({
             {hero.headline}
           </p>
           {hero.school && (
-            <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-[#4a5560]">
+            <p className="mt-2 inline-flex items-center gap-1.5 text-[15px] text-[#4a5560]">
               <SchoolIcon className="h-4 w-4" />
               {hero.school}
             </p>

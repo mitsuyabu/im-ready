@@ -79,7 +79,7 @@ export default async function AccountPage() {
         <h1 className="mt-1 text-[27px] font-bold tracking-tight text-[#172033] sm:text-[34px]">
           プロフィール
         </h1>
-        <p className="mt-2 text-sm text-[#625f59]">あなたの基本情報とアカウント設定</p>
+        <p className="mt-2 text-[15px] text-[#625f59]">あなたの基本情報とアカウント設定</p>
 
         <AccountProfileForm
           userId={user.id}

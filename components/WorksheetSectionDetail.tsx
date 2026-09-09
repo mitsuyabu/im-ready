@@ -216,7 +216,7 @@ export default function WorksheetSectionDetail({
             {category.title}
           </h1>
         </div>
-        <span className="shrink-0 whitespace-nowrap rounded-full bg-[#eef2e8] px-3 py-1 text-xs font-medium text-[#4b5b3e] sm:mt-2">
+        <span className="shrink-0 whitespace-nowrap rounded-full bg-[#eef2e8] px-3 py-1 text-[13px] font-medium text-[#4b5b3e] sm:mt-2">
           {answeredCount} / {total} 回答済み
         </span>
       </div>
@@ -268,7 +268,7 @@ export default function WorksheetSectionDetail({
                     >
                       {num}
                     </span>
-                    <h2 className="text-base font-bold leading-snug text-white sm:text-lg">
+                    <h2 className="text-[18px] font-bold leading-snug text-white sm:text-xl">
                       {q.heading}
                     </h2>
                   </div>
@@ -276,7 +276,7 @@ export default function WorksheetSectionDetail({
 
                 {/* 本文: supplement + 既存の回答UI（記入例トグル・textarea・kind別body） */}
                 <div className="px-5 py-5 sm:px-7 sm:py-6">
-                  <p className="whitespace-pre-line text-sm leading-relaxed text-[#6f6a64]">
+                  <p className="whitespace-pre-line text-[17px] leading-[1.75] text-[#6f6a64]">
                     {q.supplement}
                   </p>
                   <div className="mt-4">
@@ -343,7 +343,7 @@ export default function WorksheetSectionDetail({
               {axisError && <p className="mt-3 text-xs text-red-600">{axisError}</p>}
 
               {axisSummary && (
-                <div className="mt-4 whitespace-pre-wrap rounded-[16px] border border-[#e5dfd6] bg-[#fcfbf8] p-5 text-sm leading-relaxed text-[#3f3a34]">
+                <div className="mt-4 whitespace-pre-wrap rounded-[16px] border border-[#e5dfd6] bg-[#fcfbf8] p-5 text-[16px] leading-[1.75] text-[#3f3a34]">
                   {axisSummary}
                 </div>
               )}
