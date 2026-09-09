@@ -2,6 +2,43 @@ import Image from "next/image";
 import Link from "next/link";
 import { buildDestinationLine, buildStatusPillText } from "@/components/PlanCard";
 import { getPlanCoverImage } from "@/lib/planCover";
+import { toCityChipText, toDeparturePlanInfoText } from "@/lib/planHeroImage";
+
+/* 行き先 / 時期 行の line icon（AppNav と同系の hand-rolled SVG。小さめ・stroke 1.8）。 */
+function MapPinIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 21s7-5.6 7-11a7 7 0 0 0-14 0c0 5.4 7 11 7 11Z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </svg>
+  );
+}
+function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="4" y="5" width="16" height="16" rx="2" />
+      <path d="M4 9h16M8 3v4M16 3v4" />
+    </svg>
+  );
+}
 
 /**
  * HOME（/mypage）専用のPlanカード。「これから行くかもしれない都市を眺めるカード」を狙う:
@@ -133,7 +170,6 @@ function Decoration({ variant }: { variant: HomePlanCardVariant }) {
 }
 
 export default function HomePlanCard({ plan }: { plan: HomePlanCardData }) {
-  const destination = buildDestinationLine(plan.city, plan.departureTiming);
   const statusText = buildStatusPillText(plan.stage);
   const number = String(plan.index).padStart(2, "0");
   const variant = homePlanCardVariant(plan.index - 1);
@@ -143,18 +179,26 @@ export default function HomePlanCard({ plan }: { plan: HomePlanCardData }) {
   const coverImage = getPlanCoverImage(plan.city).imageSrc;
   const onImage = coverImage != null;
 
+  // 行き先（都市名だけ）と時期を別行で。いずれも既存 helper を再利用（新しい算出はしない）。
+  const cityText = plan.city ? toCityChipText(plan.city) : null;
+  const timingText = plan.departureTiming ? toDeparturePlanInfoText(plan.departureTiming) : null;
+  const noneText =
+    !cityText && !timingText
+      ? buildDestinationLine(plan.city, plan.departureTiming).text
+      : null;
+
   // 画像ありカードは下部 gradient の上に載るため chrome は共通 white。fallback は variant トーン。
   const inkCls = onImage
     ? "text-white [text-shadow:0_1px_10px_rgba(0,0,0,0.38)]"
     : t.ink;
   const secondaryCls = onImage
-    ? "text-white/85 [text-shadow:0_1px_8px_rgba(0,0,0,0.32)]"
+    ? "text-white/90 [text-shadow:0_1px_8px_rgba(0,0,0,0.32)]"
     : t.secondary;
-  const numberCls = onImage ? "text-white/30" : t.number;
+  const numberCls = onImage ? "text-white/55" : t.number;
   const pillCls = onImage
     ? "bg-white/15 text-white ring-1 ring-inset ring-white/25 backdrop-blur-[2px]"
     : t.pill;
-  const dateCls = onImage ? "text-white/72" : t.secondary;
+  const dateCls = onImage ? "text-white/80" : t.secondary;
   const arrowCls = onImage ? "border-white/45 text-white" : t.arrow;
 
   return (
@@ -184,34 +228,48 @@ export default function HomePlanCard({ plan }: { plan: HomePlanCardData }) {
         <Decoration variant={variant} />
       )}
 
-      {/* decorative number: 写真の主役を隠さないよう左上に小さく控えめに（§6/§7）。 */}
+      {/* decorative number: 写真の主役を隠さないよう左上に。少し大きめ・やや濃いめ（§1/§6/§7）。 */}
       <span
         aria-hidden
-        className={`absolute left-4 top-3.5 z-10 font-serif leading-none sm:left-5 sm:top-4 ${
-          onImage ? "text-2xl sm:text-[26px]" : "text-4xl sm:text-5xl lg:text-6xl"
+        className={`absolute left-4 top-3 z-10 font-serif leading-none sm:left-5 sm:top-3.5 ${
+          onImage ? "text-[30px] sm:text-[34px]" : "text-4xl sm:text-5xl lg:text-6xl"
         } ${numberCls}`}
       >
         {number}
       </span>
 
-      {/* Plan 情報はカード下部 ~35% に集約（§8/§9/§21）。 */}
+      {/* Plan 情報はカード下部に集約（§8/§14/§21）: title → 📍行き先 → 📅時期 → metadata。 */}
       <div className="relative z-10 mt-auto">
-        <h2 className={`line-clamp-2 font-serif text-xl font-normal leading-snug ${inkCls}`}>
+        <h2 className={`line-clamp-2 font-serif text-xl font-semibold leading-snug ${inkCls}`}>
           {plan.title}
         </h2>
-        <p className={`mt-1 line-clamp-2 text-[13px] leading-relaxed ${secondaryCls}`}>
-          {destination.showPin && <span aria-hidden>📍 </span>}
-          {destination.text}
-        </p>
 
-        <div className="mt-2.5 flex items-center gap-2 text-[11px]">
+        <div className="mt-1 space-y-0.5 text-[13px] font-medium leading-snug">
+          {cityText && (
+            <p className={`flex items-center gap-1 ${secondaryCls}`}>
+              <MapPinIcon className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{cityText}</span>
+            </p>
+          )}
+          {timingText && (
+            <p className={`flex items-center gap-1 ${secondaryCls}`}>
+              <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{timingText}</span>
+            </p>
+          )}
+          {noneText && <p className={`truncate ${secondaryCls}`}>{noneText}</p>}
+        </div>
+
+        <div className="mt-2 flex items-center gap-2 text-[11px]">
           {statusText && (
             <span className={`shrink-0 rounded-full px-2 py-0.5 font-medium ${pillCls}`}>
               {statusText}
             </span>
           )}
           {plan.lastUpdatedText && (
-            <span className={`min-w-0 truncate ${dateCls}`}>更新 {plan.lastUpdatedText}</span>
+            <span className={`min-w-0 truncate font-medium ${dateCls}`}>
+              更新 {plan.lastUpdatedText}
+            </span>
           )}
           <span
             aria-hidden

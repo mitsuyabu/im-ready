@@ -20,7 +20,7 @@ type PlanRow = { id: string; title: string; created_at: string; updated_at: stri
  *
  * HOME UI/UX：共有された参考デザインに寄せた「Editorial Study Abroad Workspace」。
  * warm ivory の地に大きな角丸 surface を1枚置き、その中に
- *   serif の大見出し ＋ 新規作成 → 細い divider → Plan 件数 → コンパクトな editorial カード4列
+ *   serif の大見出し ＋ 新規作成 → 細い divider → コンパクトな editorial カード4列
  *   → 最近の動き（Plan 単位の最終更新のみ）
  * を余白広めで並べる。
  *
@@ -91,7 +91,7 @@ export default async function MyPagePage() {
               <h1 className="font-serif text-[2rem] font-normal leading-[1.12] tracking-tight text-worksheet-primary sm:text-[2.75rem] lg:text-[3.25rem]">
                 あなたの留学Plan
               </h1>
-              <p className="mt-3 max-w-md text-sm leading-relaxed text-[#7a7469]">
+              <p className="mt-3 max-w-md text-base font-medium leading-relaxed text-[#6f6a61]">
                 気になることから、少しずつ自分の計画にしていこう。
               </p>
             </div>
@@ -116,12 +116,6 @@ export default async function MyPagePage() {
             <>
               <div className="mt-8 border-t border-black/[0.08] sm:mt-10" />
 
-              <div className="mt-5 flex items-center justify-between text-sm">
-                <span className="font-medium text-worksheet-primary">{planList.length}つのPlan</span>
-                {/* 右側は将来「いま進めているPlan N件」等を置く余白。active を正確に判定できないため今は空。 */}
-                <span aria-hidden />
-              </div>
-
               <div className={gridClass}>
                 {enriched.map(({ plan, index, lastUpdatedIso, summary }) => (
                   <HomePlanCard
@@ -141,7 +135,7 @@ export default async function MyPagePage() {
 
               {enriched.length >= 2 && (
                 <section className="mt-14 sm:mt-16">
-                  <h2 className="text-sm font-medium text-[#7a7469]">最近の動き</h2>
+                  <h2 className="text-base font-semibold text-[#4f4a43]">最近の動き</h2>
                   <ul className="mt-4 divide-y divide-black/[0.06] overflow-hidden rounded-[18px] border border-black/[0.07] bg-worksheet-surface">
                     {recent.map(({ plan, lastUpdatedIso }) => (
                       <li key={plan.id}>
