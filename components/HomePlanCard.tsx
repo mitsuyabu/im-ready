@@ -17,7 +17,10 @@ import { getPlanHeroImage } from "@/lib/planHeroImage";
  *（概念が無い）・overflow menu（機能が無い）は扱わない。fake データは作らない。
  *
  * card 全体が 1 つの Link。内部に別の Link / button は置かない（arrow は装飾＝aria-hidden）。
- * 写真は使わない。装飾は CSS/SVG のみ。hooks を持たない純粋表示コンポーネント。
+ * destination の都市に対応する既存 hero 画像（getPlanHeroImage）があれば、それを **カード全面の
+ * 背景**（absolute inset-0 の next/image）として敷き、variant ごとの半透明 overlay を重ねて
+ * 文字の可読性を確保する。対応画像が無い / 都市未定なら従来の decorative カード（Decoration SVG
+ * ＋ variant surface）へ fallback。hooks を持たない純粋表示コンポーネント。
  */
 
 export type HomePlanCardVariant = "ivory" | "dark" | "blue";
@@ -45,9 +48,15 @@ type Theme = {
   ink: string;
   secondary: string;
   number: string;
+  /** 背景写真の上に置く decorative number の色（faint すぎると写真に埋もれるため少し強める・§11）。 */
+  numberOnImage: string;
   pill: string;
   arrow: string;
   divider: string;
+  /** 背景写真あり時: 全面の均一 overlay（真っ黒にせず variant トーンで。写真は透けて見える・§6/§8/§9）。 */
+  imgWash: string;
+  /** 背景写真あり時: 下部を少しだけ濃くする vertical gradient（title / metadata の可読性・§10）。 */
+  imgFade: string;
 };
 
 const THEMES: Record<HomePlanCardVariant, Theme> = {
@@ -56,9 +65,12 @@ const THEMES: Record<HomePlanCardVariant, Theme> = {
     ink: "text-[#2c2a25]",
     secondary: "text-[#655f54]",
     number: "text-[#2c2a25]/[0.12]",
+    numberOnImage: "text-[#2c2a25]/25",
     pill: "bg-[#e7dcc6] text-[#4a4436]",
     arrow: "border-[#cfc4ae] text-[#2c2a25]",
     divider: "border-[#e7decd]",
+    imgWash: "bg-[#f8f3ea]/68",
+    imgFade: "bg-gradient-to-t from-[#f5efe3]/85 via-[#f8f3ea]/25 to-transparent",
   },
   dark: {
     surface:
@@ -66,18 +78,24 @@ const THEMES: Record<HomePlanCardVariant, Theme> = {
     ink: "text-white",
     secondary: "text-white/70",
     number: "text-white/[0.14]",
+    numberOnImage: "text-white/25",
     pill: "bg-white/12 text-white/90",
     arrow: "border-white/30 text-white",
     divider: "border-white/12",
+    imgWash: "bg-[#1c2733]/70",
+    imgFade: "bg-gradient-to-t from-[#161f29]/90 via-[#1c2733]/35 to-transparent",
   },
   blue: {
     surface: "bg-[#e9eef3] border border-[#d7dfe7]",
     ink: "text-[#25303a]",
     secondary: "text-[#5b6873]",
     number: "text-[#25303a]/[0.12]",
+    numberOnImage: "text-[#25303a]/25",
     pill: "bg-[#d8e2ea] text-[#3a4753]",
     arrow: "border-[#c2ccd6] text-[#25303a]",
     divider: "border-[#d7dfe7]",
+    imgWash: "bg-[#e8eef3]/66",
+    imgFade: "bg-gradient-to-t from-[#dde6ee]/85 via-[#e8eef3]/25 to-transparent",
   },
 };
 
@@ -154,62 +172,56 @@ export default function HomePlanCard({ plan }: { plan: HomePlanCardData }) {
   return (
     <Link
       href={`/plans/${plan.id}`}
-      className={`group relative flex h-full flex-col overflow-hidden rounded-[20px] transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent ${
-        heroImage
-          ? "min-h-[300px] sm:min-h-[326px] lg:min-h-[344px]"
-          : "min-h-[215px] sm:min-h-[235px] lg:min-h-[255px]"
-      } ${t.surface}`}
+      className={`group relative flex h-full min-h-[215px] flex-col overflow-hidden rounded-[20px] p-5 transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent sm:min-h-[235px] sm:p-6 lg:min-h-[255px] ${t.surface}`}
     >
-      {heroImage && (
-        <div className="relative h-[104px] w-full shrink-0 sm:h-[116px]">
+      {heroImage ? (
+        <>
+          {/* 都市風景をカード全面の背景に敷く（上部バンドではない・§3/§4/§29）。 */}
           <Image
             src={heroImage}
             alt=""
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-            className="object-cover"
+            className="pointer-events-none select-none object-cover object-center"
           />
-          {/* 写真と本文の境目をなじませる薄いフェードのみ。写真はほぼそのまま見せる（§8）。 */}
-          <div
-            aria-hidden
-            className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/15 to-transparent"
-          />
-        </div>
+          <div aria-hidden className={`pointer-events-none absolute inset-0 ${t.imgWash}`} />
+          <div aria-hidden className={`pointer-events-none absolute inset-0 ${t.imgFade}`} />
+        </>
+      ) : (
+        <Decoration variant={variant} />
       )}
 
-      <div className="relative flex flex-1 flex-col p-5 sm:p-6">
-        {!heroImage && <Decoration variant={variant} />}
+      <span
+        aria-hidden
+        className={`relative z-10 font-serif text-4xl leading-none sm:text-5xl lg:text-6xl ${
+          heroImage ? t.numberOnImage : t.number
+        }`}
+      >
+        {number}
+      </span>
+
+      <div className="relative z-10 mt-auto pt-6">
+        <h2 className={`line-clamp-2 font-serif text-xl font-normal leading-snug ${t.ink}`}>
+          {plan.title}
+        </h2>
+        <p className={`mt-1.5 line-clamp-2 text-[13px] leading-relaxed ${t.secondary}`}>
+          {destination.showPin && <span aria-hidden>📍 </span>}
+          {destination.text}
+        </p>
+
+        <div className={`mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-3 text-xs ${t.divider}`}>
+          {statusText && (
+            <span className={`rounded-full px-2 py-0.5 font-medium ${t.pill}`}>{statusText}</span>
+          )}
+          {plan.lastUpdatedText && <span className={t.secondary}>更新 {plan.lastUpdatedText}</span>}
+        </div>
 
         <span
           aria-hidden
-          className={`relative font-serif text-4xl leading-none sm:text-5xl lg:text-6xl ${t.number}`}
+          className={`mt-3 flex h-8 w-8 items-center justify-center rounded-full border text-sm transition-transform duration-150 group-hover:translate-x-0.5 ${t.arrow}`}
         >
-          {number}
+          →
         </span>
-
-        <div className="relative mt-auto pt-6">
-          <h2 className={`line-clamp-2 font-serif text-xl font-normal leading-snug ${t.ink}`}>
-            {plan.title}
-          </h2>
-          <p className={`mt-1.5 line-clamp-2 text-[13px] leading-relaxed ${t.secondary}`}>
-            {destination.showPin && <span aria-hidden>📍 </span>}
-            {destination.text}
-          </p>
-
-          <div className={`mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-3 text-xs ${t.divider}`}>
-            {statusText && (
-              <span className={`rounded-full px-2 py-0.5 font-medium ${t.pill}`}>{statusText}</span>
-            )}
-            {plan.lastUpdatedText && <span className={t.secondary}>更新 {plan.lastUpdatedText}</span>}
-          </div>
-
-          <span
-            aria-hidden
-            className={`mt-3 flex h-8 w-8 items-center justify-center rounded-full border text-sm transition-transform duration-150 group-hover:translate-x-0.5 ${t.arrow}`}
-          >
-            →
-          </span>
-        </div>
       </div>
     </Link>
   );
