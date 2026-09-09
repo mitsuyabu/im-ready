@@ -43,10 +43,17 @@ const CHIP_CLASS =
 const SUBTITLE = "このPlanの条件や考えを整理していこう。";
 const FALLBACK_CHIP = "行き先・時期はこれから整理";
 
+/** タイトル用の responsive font-size（ellipsis せず 14 文字を 1 行に収める・§5 / §6）。 */
+const TITLE_SIZE = "text-[clamp(1.25rem,3.6vw,3rem)]";
+
 type HeroProps = {
   /** タイトルその場編集（plans.title の owner-scoped update）に使う。 */
   planId: string;
   title: string;
+  /** 対応 6 都市のときだけ固定の都市説明（lib/cityGuide.ts）。無ければ null → SUBTITLE。 */
+  cityGuideDescription?: string | null;
+  /** plan_blueprint 実データからの 1 行サマリー（lib/planSummaryLine.ts）。無ければ null。 */
+  planSummary?: string | null;
   /** 表示用の都市テキスト（stated の schoolPrefs.preferredCity。自由記述・説明文込みのことがある）。 */
   city: string | null;
   /**
@@ -85,6 +92,27 @@ function MyPlanLabel({ className = "" }: { className?: string }) {
     >
       MY PLAN
     </span>
+  );
+}
+
+/**
+ * タイトル下の説明エリア（旧・独立 City Guide カードをここへ統合）。
+ * 上段: 対応都市があれば都市の魅力（固定文）、無ければ SUBTITLE（§10 / §12 / §17）。
+ * 下段: plan_blueprint 由来の 1 行サマリー（あれば・§13 / §18 / §19）。
+ */
+function HeroCopy({
+  cityGuideDescription,
+  planSummary,
+}: Pick<HeroProps, "cityGuideDescription" | "planSummary">) {
+  return (
+    <div className="mt-3 max-w-md sm:max-w-lg">
+      <p className="text-[15px] leading-[1.7] text-[#3f3a33] sm:text-[16px]">
+        {cityGuideDescription || SUBTITLE}
+      </p>
+      {planSummary && (
+        <p className="mt-2 text-[14px] font-medium text-[#6f6a5f] sm:text-[15px]">{planSummary}</p>
+      )}
+    </div>
   );
 }
 
@@ -130,6 +158,8 @@ function CityImageHero({
   title,
   city,
   departureTiming,
+  cityGuideDescription,
+  planSummary,
   src,
 }: HeroProps & { src: string }) {
   return (
@@ -163,13 +193,13 @@ function CityImageHero({
         <MyPlanLabel className="absolute left-4 top-4 sm:left-[5%]" />
 
         {/* 本文（左・明るい余白の上） */}
-        <div className="relative z-10 flex min-h-[248px] max-w-[86%] flex-col justify-center px-5 py-12 sm:min-h-[280px] sm:max-w-[52%] sm:py-14 sm:pl-[8%]">
+        <div className="relative z-10 flex min-h-[248px] max-w-[88%] flex-col justify-center px-5 py-12 sm:min-h-[280px] sm:max-w-[62%] sm:py-14 sm:pl-[8%]">
           <EditablePlanTitle
             planId={planId}
             initialTitle={title}
-            headingClassName="text-[1.9rem] font-bold leading-[1.08] tracking-tight text-[#182233] drop-shadow-[0_1px_2px_rgba(255,250,240,0.7)] sm:text-4xl lg:text-[3.2rem]"
+            headingClassName={`${TITLE_SIZE} font-bold leading-[1.15] tracking-tight text-[#182233] drop-shadow-[0_1px_2px_rgba(255,250,240,0.7)]`}
           />
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-[#3f3a33] sm:text-[15px]">{SUBTITLE}</p>
+          <HeroCopy cityGuideDescription={cityGuideDescription} planSummary={planSummary} />
           <Chips city={city} departureTiming={departureTiming} />
         </div>
       </div>
@@ -181,7 +211,14 @@ function CityImageHero({
 /* それ以外: 既存コラージュ Hero（fallback・削除しない）               */
 /* ------------------------------------------------------------------ */
 
-function CollageHero({ planId, title, city, departureTiming }: HeroProps) {
+function CollageHero({
+  planId,
+  title,
+  city,
+  departureTiming,
+  cityGuideDescription,
+  planSummary,
+}: HeroProps) {
   return (
     <div className="relative overflow-hidden rounded-[24px] bg-[#223650]">
       {/* ちぎれ縁を荒らす SVG フィルタ定義 */}
@@ -302,13 +339,13 @@ function CollageHero({ planId, title, city, departureTiming }: HeroProps) {
         <MyPlanLabel className="absolute left-4 top-4 sm:left-[5%]" />
 
         {/* 本文（生成り紙の上） */}
-        <div className="relative z-10 flex min-h-[248px] flex-col justify-center px-5 py-12 sm:min-h-[280px] sm:py-14 sm:pl-[8%] sm:pr-[38%]">
+        <div className="relative z-10 flex min-h-[248px] flex-col justify-center px-5 py-12 sm:min-h-[280px] sm:py-14 sm:pl-[8%] sm:pr-[28%]">
           <EditablePlanTitle
             planId={planId}
             initialTitle={title}
-            headingClassName="text-[1.9rem] font-bold leading-[1.08] tracking-tight text-[#182233] sm:text-4xl lg:text-[3.2rem]"
+            headingClassName={`${TITLE_SIZE} font-bold leading-[1.15] tracking-tight text-[#182233]`}
           />
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-[#4a4740] sm:text-[15px]">{SUBTITLE}</p>
+          <HeroCopy cityGuideDescription={cityGuideDescription} planSummary={planSummary} />
           <Chips city={city} departureTiming={departureTiming} />
         </div>
       </div>

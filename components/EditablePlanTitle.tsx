@@ -31,7 +31,8 @@ function PencilIcon({ className }: { className?: string }) {
 /**
  * Plan Home Hero 内の Plan タイトル（＝ plans.title）を、その場で編集する。
  *
- * - 表示は既存 Hero の <h1> スタイルをそのまま（headingClassName で受け取り）＋ 1 行（truncate）
+ * - 表示は Hero の <h1> スタイル（headingClassName）＋ font-size を responsive に絞って 1 行に収める。
+ *   14 文字以内は必ず全文表示（ellipsis / line-clamp は使わない）。既存の 14 文字超だけ折り返し許可
  * - 編集は 14 文字以内 / trim / 空不可 / Enter 保存・Escape キャンセル・blur はキャンセル（勝手に保存しない）
  * - 保存は既存 owner-scoped パターン（クライアントから plans を update、RLS が本人のみ許可）。新規 API・schema なし
  * - 保存失敗時は元タイトルへ rollback ＋ エラー表示。既存で 14 文字超の title も表示時は短縮保存しない
@@ -143,9 +144,14 @@ export default function EditablePlanTitle({
     );
   }
 
+  // 14 文字以内は必ず 1 行全文（font-size を絞って収める・ellipsis / line-clamp は使わない）。
+  // 既存 DB に残る 14 文字超だけは例外的に折り返しを許可（DB は書き換えない・§3 / §4 / §7）。
+  const overMax = countChars(title) > MAX_LEN;
   return (
     <div className="group/title flex min-w-0 items-center gap-2">
-      <h1 className={`min-w-0 max-w-full truncate ${headingClassName}`}>{title}</h1>
+      <h1 className={`min-w-0 ${overMax ? "break-words" : "whitespace-nowrap"} ${headingClassName}`}>
+        {title}
+      </h1>
       <button
         type="button"
         onClick={open}

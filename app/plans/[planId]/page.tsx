@@ -10,7 +10,6 @@ import { summarizeKarteForCard } from "@/lib/planCardSummary";
 import { getCityGuideDescription } from "@/lib/cityGuide";
 import { buildPlanSummaryLine } from "@/lib/planSummaryLine";
 import PlanTravelHero from "@/components/PlanTravelHero";
-import PlanGuideCard from "@/components/PlanGuideCard";
 import PlanJourneyRibbon from "@/components/PlanJourneyRibbon";
 import PlanWorksheetProgress from "@/components/PlanWorksheetProgress";
 import BrandLogo from "@/components/BrandLogo";
@@ -176,14 +175,10 @@ export default async function PlanPage({ params }: PlanPageProps) {
             city={summary.city}
             destinationCity={destinationCity}
             departureTiming={summary.departureTiming}
+            cityGuideDescription={cityGuideDescription}
+            planSummary={planSummaryLine}
           />
         </div>
-
-        {(cityGuideDescription || planSummaryLine) && (
-          <div className="mt-4">
-            <PlanGuideCard description={cityGuideDescription} summary={planSummaryLine} />
-          </div>
-        )}
 
         <div className="mt-4">
           <PlanJourneyRibbon currentIndex={journeyIndex} />
