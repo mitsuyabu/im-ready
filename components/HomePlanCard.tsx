@@ -1,5 +1,7 @@
+import Image from "next/image";
 import Link from "next/link";
 import { buildDestinationLine, buildStatusPillText } from "@/components/PlanCard";
+import { getPlanHeroImage } from "@/lib/planHeroImage";
 
 /**
  * HOME（/mypage）専用のPlanカード。共有された参考HOMEデザインに寄せた editorial 版:
@@ -145,43 +147,69 @@ export default function HomePlanCard({ plan }: { plan: HomePlanCardData }) {
   const number = String(plan.index).padStart(2, "0");
   const variant = homePlanCardVariant(plan.index - 1);
   const t = THEMES[variant];
+  // 表示中の destination と同じ値（plan.city）で既存 helper が都市画像を決定的に選ぶ。
+  // 対応画像が無い都市・都市未定なら null → 従来の decorative カードへ fallback。
+  const heroImage = getPlanHeroImage(plan.city);
 
   return (
     <Link
       href={`/plans/${plan.id}`}
-      className={`group relative flex min-h-[215px] flex-col overflow-hidden rounded-[20px] p-5 transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent sm:min-h-[235px] sm:p-6 lg:min-h-[255px] ${t.surface}`}
+      className={`group relative flex h-full flex-col overflow-hidden rounded-[20px] transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent ${
+        heroImage
+          ? "min-h-[300px] sm:min-h-[326px] lg:min-h-[344px]"
+          : "min-h-[215px] sm:min-h-[235px] lg:min-h-[255px]"
+      } ${t.surface}`}
     >
-      <Decoration variant={variant} />
-
-      <span
-        aria-hidden
-        className={`relative font-serif text-4xl leading-none sm:text-5xl lg:text-6xl ${t.number}`}
-      >
-        {number}
-      </span>
-
-      <div className="relative mt-auto pt-6">
-        <h2 className={`line-clamp-2 font-serif text-xl font-normal leading-snug ${t.ink}`}>
-          {plan.title}
-        </h2>
-        <p className={`mt-1.5 line-clamp-2 text-[13px] leading-relaxed ${t.secondary}`}>
-          {destination.showPin && <span aria-hidden>📍 </span>}
-          {destination.text}
-        </p>
-
-        <div className={`mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-3 text-xs ${t.divider}`}>
-          {statusText && (
-            <span className={`rounded-full px-2 py-0.5 font-medium ${t.pill}`}>{statusText}</span>
-          )}
-          {plan.lastUpdatedText && <span className={t.secondary}>更新 {plan.lastUpdatedText}</span>}
+      {heroImage && (
+        <div className="relative h-[104px] w-full shrink-0 sm:h-[116px]">
+          <Image
+            src={heroImage}
+            alt=""
+            fill
+            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+            className="object-cover"
+          />
+          {/* 写真と本文の境目をなじませる薄いフェードのみ。写真はほぼそのまま見せる（§8）。 */}
+          <div
+            aria-hidden
+            className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/15 to-transparent"
+          />
         </div>
+      )}
+
+      <div className="relative flex flex-1 flex-col p-5 sm:p-6">
+        {!heroImage && <Decoration variant={variant} />}
 
         <span
           aria-hidden
-          className={`mt-3 flex h-8 w-8 items-center justify-center rounded-full border text-sm transition-transform duration-150 group-hover:translate-x-0.5 ${t.arrow}`}
+          className={`relative font-serif text-4xl leading-none sm:text-5xl lg:text-6xl ${t.number}`}
         >
-          →
+          {number}
         </span>
+
+        <div className="relative mt-auto pt-6">
+          <h2 className={`line-clamp-2 font-serif text-xl font-normal leading-snug ${t.ink}`}>
+            {plan.title}
+          </h2>
+          <p className={`mt-1.5 line-clamp-2 text-[13px] leading-relaxed ${t.secondary}`}>
+            {destination.showPin && <span aria-hidden>📍 </span>}
+            {destination.text}
+          </p>
+
+          <div className={`mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-3 text-xs ${t.divider}`}>
+            {statusText && (
+              <span className={`rounded-full px-2 py-0.5 font-medium ${t.pill}`}>{statusText}</span>
+            )}
+            {plan.lastUpdatedText && <span className={t.secondary}>更新 {plan.lastUpdatedText}</span>}
+          </div>
+
+          <span
+            aria-hidden
+            className={`mt-3 flex h-8 w-8 items-center justify-center rounded-full border text-sm transition-transform duration-150 group-hover:translate-x-0.5 ${t.arrow}`}
+          >
+            →
+          </span>
+        </div>
       </div>
     </Link>
   );
