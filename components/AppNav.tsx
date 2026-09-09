@@ -302,11 +302,15 @@ export default function AppNav({
 /* Sidebar (lg only)                                                   */
 /* ------------------------------------------------------------------ */
 
+/**
+ * グローバル / Plan 内で共通の nav row。selected は「淡い sage・border なし・rounded-full」で
+ * 軽く（CTA より目立たせない・§3/§21）。両 state とも font-semibold で統一。
+ */
 function sidebarItemClass(active: boolean) {
-  return `flex min-h-[48px] items-center gap-3.5 rounded-full px-3 py-2.5 text-sm transition-colors duration-150 ${
+  return `flex min-h-[44px] items-center gap-3 rounded-full px-3 py-2 text-sm font-semibold transition-colors duration-150 ${
     active
-      ? "bg-worksheet-sage font-bold text-[#172033]"
-      : "font-semibold text-[#73757d] hover:bg-worksheet-sage/40 hover:text-[#172033]"
+      ? "bg-[#eaefe9] text-[#172033]"
+      : "text-[#73757d] hover:bg-[#eef1ec] hover:text-[#172033]"
   }`;
 }
 
@@ -325,7 +329,7 @@ function SidebarLink({
 }) {
   return (
     <Link href={href} onClick={onClick} className={sidebarItemClass(active)}>
-      <Icon className="h-6 w-6 shrink-0" />
+      <Icon className="h-[22px] w-[22px] shrink-0" />
       {label}
     </Link>
   );
@@ -346,21 +350,24 @@ function SidebarButton({
 }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={active} className={`w-full ${sidebarItemClass(active)}`}>
-      {iconOverride ?? <Icon className="h-6 w-6 shrink-0" />}
+      {iconOverride ?? <Icon className="h-[22px] w-[22px] shrink-0" />}
       {label}
     </button>
   );
 }
 
-/** 通常の nav item とは別に見せる、目立つ総合入口 CTA（§4/§5/§33）。 */
+/**
+ * nav row とは別階層の主要 CTA。Mindtrip の "New chat" 的な横長 pill（border / shadow / card 感を
+ * 出さない・warm gray・中央寄せ・hover でごく僅かに濃く）。§7-§11。
+ */
 function StartCta({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-2xl border border-[#e3ddcf] bg-[#f3efe3] px-3.5 py-3 text-sm font-semibold text-[#172033] transition-colors duration-150 hover:bg-[#ede6d5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent"
+      className="flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full bg-[#f2f1ee] px-4 text-sm font-semibold text-[#172033] transition-colors duration-150 hover:bg-[#eceae5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent"
     >
-      <PlusIcon className="h-5 w-5 shrink-0" />
+      <PlusIcon className="h-[18px] w-[18px] shrink-0" />
       新しく始める
     </button>
   );
@@ -387,7 +394,7 @@ function Sidebar({
     <aside className="hidden shrink-0 lg:sticky lg:top-0 lg:flex lg:h-dvh lg:w-60 lg:flex-col lg:border-r lg:border-worksheet-border lg:bg-worksheet-surface lg:px-4 lg:py-6">
       <BrandLogo href="/mypage" className="mx-auto h-[42px] w-auto" />
 
-      <nav className="mt-8 flex flex-col gap-1">
+      <nav className="mt-11 flex flex-col gap-1.5">
         {inPlan && planId ? (
           <>
             <SidebarLink
@@ -420,7 +427,7 @@ function Sidebar({
       </nav>
 
       {!inPlan && (
-        <div className="mt-4">
+        <div className="mt-8">
           <StartCta onClick={() => onSelectPanel("start")} />
         </div>
       )}
@@ -430,7 +437,11 @@ function Sidebar({
           label="Menu"
           icon={UserIcon}
           iconOverride={
-            <MenuAvatar avatarUrl={avatarUrl} avatarClassName="h-7 w-7" iconClassName="h-6 w-6 shrink-0" />
+            <MenuAvatar
+              avatarUrl={avatarUrl}
+              avatarClassName="h-[26px] w-[26px]"
+              iconClassName="h-[22px] w-[22px] shrink-0"
+            />
           }
           active={false}
           onClick={() => onSelectPanel("menu")}
