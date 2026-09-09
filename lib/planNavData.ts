@@ -18,6 +18,8 @@ export type PlanNavPlan = {
   id: string;
   title: string;
   city: string | null;
+  /** Karte stated（timing.departureTiming）由来。無ければ null。「新しく始める」の Plan 選択で表示。 */
+  departureTiming: string | null;
   updatedAt: string;
 };
 
@@ -49,6 +51,7 @@ export const loadPlanNavData = cache(async (userId: string): Promise<PlanNavData
     id: p.id,
     title: p.title,
     city: cardSummaries[p.id]?.city ?? null,
+    departureTiming: cardSummaries[p.id]?.departureTiming ?? null,
     updatedAt: p.updated_at,
   }));
 

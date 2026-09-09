@@ -21,7 +21,7 @@ export default async function MyPlansLayout({ children }: { children: ReactNode 
   ]);
 
   return (
-    <AppNav navData={navData} viewer={viewer}>
+    <AppNav navData={navData} viewer={viewer} userId={user.id}>
       {children}
     </AppNav>
   );
