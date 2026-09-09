@@ -445,9 +445,10 @@ function Sidebar({
 
   return (
     <aside className="hidden shrink-0 lg:sticky lg:top-0 lg:flex lg:h-dvh lg:w-60 lg:flex-col lg:border-r lg:border-worksheet-border lg:bg-worksheet-surface lg:px-4 lg:py-6">
-      <BrandLogo href="/mypage" className="mx-auto h-[42px] w-auto" />
+      {/* ブランドヘッダーとして左上に控えめに。主張しすぎないコンパクトサイズ（abro / mindtrip 参考）。 */}
+      <BrandLogo href="/mypage" className="ml-1 h-[30px] w-auto" />
 
-      <nav className="mt-11 flex flex-col gap-1.5">
+      <nav className="mt-8 flex flex-col gap-1.5">
         {inPlan && planId ? (
           <>
             <SidebarLink
