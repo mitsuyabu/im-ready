@@ -21,6 +21,7 @@ import PlanChatInsightNote, {
   PlanChatDivider,
   LeafIcon,
   PLAN_CHAT_SUGGESTIONS,
+  hasPlanChatInsights,
 } from "./PlanChatInsightNote";
 import { fallbackGradientForPlan } from "./PlanCard";
 import { getPlanCoverImage } from "@/lib/planCover";
@@ -798,20 +799,25 @@ export default function Chat({
             </div>
           ) : (
             <>
-              {/* Desktop: 左に会話（720〜850px相当）＋右に付箋メモ。Tablet/Mobile: 付箋は会話の下へ。 */}
+              {/* Desktop: 左に会話（720〜850px相当）＋右に「いま分かっていること」。Tablet/Mobile: 会話の下へ。
+                  要点が 2 件未満なら aside ごと出さない（右カラム幅は変えず、会話は 820px 中央寄せのまま）。 */}
               <div className="mx-auto flex w-full max-w-6xl gap-6 px-4 py-6 sm:px-6 lg:gap-10 lg:py-10">
                 <div className="min-w-0 flex-1">
                   <div className="mx-auto max-w-[820px] space-y-6">{planMessageListContent}</div>
                 </div>
-                <aside className="hidden w-[264px] shrink-0 lg:block">
-                  <div className="sticky top-6">
-                    <PlanChatInsightNote karte={karte} />
-                  </div>
-                </aside>
+                {hasPlanChatInsights(karte) && (
+                  <aside className="hidden w-[264px] shrink-0 lg:block">
+                    <div className="sticky top-6">
+                      <PlanChatInsightNote karte={karte} />
+                    </div>
+                  </aside>
+                )}
               </div>
-              <div className="mx-auto w-full max-w-[820px] px-4 pb-2 sm:px-6 lg:hidden">
-                <PlanChatInsightNote karte={karte} variant="inline" />
-              </div>
+              {hasPlanChatInsights(karte) && (
+                <div className="mx-auto w-full max-w-[820px] px-4 pb-2 sm:px-6 lg:hidden">
+                  <PlanChatInsightNote karte={karte} variant="inline" />
+                </div>
+              )}
             </>
           )
         ) : (
