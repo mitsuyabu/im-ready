@@ -52,8 +52,6 @@ type HeroProps = {
   title: string;
   /** 対応 6 都市のときだけ固定の都市説明（lib/cityGuide.ts）。無ければ null → SUBTITLE。 */
   cityGuideDescription?: string | null;
-  /** plan_blueprint 実データからの 1 行サマリー（lib/planSummaryLine.ts）。無ければ null。 */
-  planSummary?: string | null;
   /** 表示用の都市テキスト（stated の schoolPrefs.preferredCity。自由記述・説明文込みのことがある）。 */
   city: string | null;
   /**
@@ -84,22 +82,16 @@ function CalendarIcon({ className }: { className?: string }) {
 }
 
 /**
- * タイトル下の説明エリア（旧・独立 City Guide カードをここへ統合）。
- * 上段: 対応都市があれば都市の魅力（固定文）、無ければ SUBTITLE（§10 / §12 / §17）。
- * 下段: plan_blueprint 由来の 1 行サマリー（あれば・§13 / §18 / §19）。
+ * タイトル下の説明エリア。対応都市があれば都市の魅力（固定文）、無ければ SUBTITLE（§10 / §12 / §17）。
  */
 function HeroCopy({
   cityGuideDescription,
-  planSummary,
-}: Pick<HeroProps, "cityGuideDescription" | "planSummary">) {
+}: Pick<HeroProps, "cityGuideDescription">) {
   return (
     <div className="mt-3 max-w-md sm:max-w-lg">
       <p className="text-[15px] leading-[1.7] text-[#3f3a33] sm:text-[16px]">
         {cityGuideDescription || SUBTITLE}
       </p>
-      {planSummary && (
-        <p className="mt-2 text-[14px] font-medium text-[#6f6a5f] sm:text-[15px]">{planSummary}</p>
-      )}
     </div>
   );
 }
@@ -147,7 +139,6 @@ function CityImageHero({
   city,
   departureTiming,
   cityGuideDescription,
-  planSummary,
   src,
 }: HeroProps & { src: string }) {
   return (
@@ -184,7 +175,7 @@ function CityImageHero({
             initialTitle={title}
             headingClassName={`${TITLE_SIZE} font-bold leading-[1.15] tracking-tight text-[#182233] drop-shadow-[0_1px_2px_rgba(255,250,240,0.7)]`}
           />
-          <HeroCopy cityGuideDescription={cityGuideDescription} planSummary={planSummary} />
+          <HeroCopy cityGuideDescription={cityGuideDescription} />
           <Chips city={city} departureTiming={departureTiming} />
         </div>
       </div>
@@ -202,7 +193,6 @@ function CollageHero({
   city,
   departureTiming,
   cityGuideDescription,
-  planSummary,
 }: HeroProps) {
   return (
     <div className="relative overflow-hidden rounded-[24px] bg-[#223650]">
@@ -328,7 +318,7 @@ function CollageHero({
             initialTitle={title}
             headingClassName={`${TITLE_SIZE} font-bold leading-[1.15] tracking-tight text-[#182233]`}
           />
-          <HeroCopy cityGuideDescription={cityGuideDescription} planSummary={planSummary} />
+          <HeroCopy cityGuideDescription={cityGuideDescription} />
           <Chips city={city} departureTiming={departureTiming} />
         </div>
       </div>

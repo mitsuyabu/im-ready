@@ -4,11 +4,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadLastChatMessageAt, loadPlanKarte } from "@/lib/planChat";
-import { loadPlanBlueprint } from "@/lib/planBlueprint";
 import { formatLastUpdated, loadPlanLastActivityMap } from "@/lib/planActivity";
 import { summarizeKarteForCard } from "@/lib/planCardSummary";
 import { getCityGuideDescription } from "@/lib/cityGuide";
-import { buildPlanSummaryLine } from "@/lib/planSummaryLine";
 import PlanTravelHero from "@/components/PlanTravelHero";
 import PlanJourneyRibbon from "@/components/PlanJourneyRibbon";
 import PlanWorksheetProgress from "@/components/PlanWorksheetProgress";
@@ -122,9 +120,8 @@ export default async function PlanPage({ params }: PlanPageProps) {
 
   const typedPlan = plan as PlanRow;
 
-  const [karte, blueprint, lastChatMessageAt, activityMap] = await Promise.all([
+  const [karte, lastChatMessageAt, activityMap] = await Promise.all([
     loadPlanKarte(supabase, planId),
-    loadPlanBlueprint(supabase, planId),
     loadLastChatMessageAt(supabase, planId),
     loadPlanLastActivityMap(supabase, [planId]),
   ]);
@@ -149,9 +146,8 @@ export default async function PlanPage({ params }: PlanPageProps) {
       ? preferredCity.value
       : null;
 
-  // Hero 直下カード: 都市の固定説明（対応 6 都市のみ）＋ plan_blueprint 実データからの 1 行サマリー。
+  // Hero の説明文: 対応 6 都市なら固定の都市説明（lib/cityGuide.ts）、無ければ Hero 側の既定コピー。
   const cityGuideDescription = getCityGuideDescription(destinationCity);
-  const planSummaryLine = blueprint.available ? buildPlanSummaryLine(blueprint.data) : null;
 
   return (
     <div className="min-h-dvh bg-[#fbf8f1]">
@@ -176,7 +172,6 @@ export default async function PlanPage({ params }: PlanPageProps) {
             destinationCity={destinationCity}
             departureTiming={summary.departureTiming}
             cityGuideDescription={cityGuideDescription}
-            planSummary={planSummaryLine}
           />
         </div>
 
