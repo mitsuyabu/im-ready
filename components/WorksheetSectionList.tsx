@@ -28,13 +28,12 @@ function PaperclipIcon({ className }: { className?: string }) {
 /**
  * 各テーマカードのビジュアル。共有された6枚のカード画像をそのまま使う
  * （背景色・枠・角丸・大きな連番・タイトル・サブコピー・右下の矢印・装飾線は画像側が持つ）。
- * 画像は public/worksheet-cards/*.webp（拡張子どおりの本物のWebP・再書き出しはしない）。
- * 6枚で実寸のアスペクト比が 1.50〜1.76 とばらつくため、カード側は全枚共通の
- * aspect-[1.58/1]（6枚の実寸比の平均）＋ object-cover で「同じ箱」に揃える（個別 height は持たせない）。
+ * 画像は public/worksheet-cards/*.webp（拡張子どおりの本物のWebP・再書き出し / resize はしない）。
+ * 6枚は number / title / subtitle / arrow / 装飾まで含む完成アートなので、共通 aspect への
+ * crop（object-cover）はしない。intrinsic size を next/image に渡し、幅だけ grid 列に合わせ
+ * （w-full）高さは元比率に任せる（h-auto）＝ 画像が一切切れない。
  * key は既存 CATEGORIES の category.id で、遷移先ルートも既存のまま。
  */
-/** 全6カード共通のアスペクト比（実寸比の平均。個別 height は使わない・§3）。 */
-const CARD_ASPECT = "aspect-[1.58/1]";
 const CARD_IMAGE: Record<string, { src: string; w: number; h: number }> = {
   motivation: { src: "/worksheet-cards/why.webp", w: 1536, h: 1024 },
   future: { src: "/worksheet-cards/my-future.webp", w: 1536, h: 1024 },
@@ -115,8 +114,8 @@ export default function WorksheetSectionList({ planId }: { planId: string }) {
         </Link>
       </div>
 
-      {/* テーマカード一覧: 共有画像を全6枚 共通の箱（同じ比率・角丸・下部ステータス位置）に揃える */}
-      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+      {/* テーマカード一覧: 横幅は grid 列で揃え、高さは各画像の元比率に任せる（crop しない） */}
+      <div className="mt-6 grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
         {CATEGORIES.map((category) => {
           const meta = WORKSHEET_SECTION_META[category.id];
           const img = CARD_IMAGE[category.id];
@@ -133,25 +132,24 @@ export default function WorksheetSectionList({ planId }: { planId: string }) {
             <Link
               key={category.id}
               href={`/plans/${planId}/worksheet/${category.id}`}
-              className="group block h-full rounded-[18px] transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b2a26]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f7f4ec]"
+              className="group block rounded-[18px] transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b2a26]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f7f4ec]"
             >
-              {/* 全6枚 共通の箱: 同じ幅（grid）・同じ aspect・同じ角丸。個別 height は持たない（§2/§3/§4）。 */}
-              <div className={`relative ${CARD_ASPECT} w-full overflow-hidden rounded-[18px]`}>
-                {img ? (
-                  <Image
-                    src={img.src}
-                    alt={`${meta.enName} — ${meta.tagline}`}
-                    fill
-                    className="object-cover object-center"
-                    sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 92vw"
-                  />
-                ) : (
-                  // 画像が無い場合のフォールバック（通常発生しない。CATEGORIES は6テーマ固定）
-                  <span className="flex h-full w-full items-center justify-center border border-[#e4ddcf] bg-white px-5 font-serif text-2xl text-[#2b2a26]">
-                    {meta.enName}
-                  </span>
-                )}
-              </div>
+              {img ? (
+                // 横幅は grid 列いっぱい、高さは元画像の比率どおり（crop しない・完成アートを全部見せる）
+                <Image
+                  src={img.src}
+                  alt={`${meta.enName} — ${meta.tagline}`}
+                  width={img.w}
+                  height={img.h}
+                  className="h-auto w-full"
+                  sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 92vw"
+                />
+              ) : (
+                // 画像が無い場合のフォールバック（通常発生しない。CATEGORIES は6テーマ固定）
+                <span className="block rounded-[18px] border border-[#e4ddcf] bg-white px-5 py-6 font-serif text-2xl text-[#2b2a26]">
+                  {meta.enName}
+                </span>
+              )}
 
               {state && (
                 <p className="mt-3 flex items-center gap-1.5 px-1 text-[11px] text-[#6f6b62]">
