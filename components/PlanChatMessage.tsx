@@ -1,5 +1,7 @@
 import { stripMarkdownBold } from "@/lib/markdown";
-import { AiSparkIcon } from "./Message";
+
+/** assistant（AI）側 avatar のブランド画像。source of truth は public/images/chat/ai-alert.png のみ。 */
+const AI_AVATAR_SRC = "/images/chat/ai-alert.png";
 
 /**
  * Plan Chat（/plans/[planId]/chat）専用のメッセージ表示（presentation のみ）。
@@ -83,12 +85,14 @@ export default function PlanChatMessage({
 
   return (
     <div className="flex items-start gap-3 sm:gap-4">
-      <span
+      {/* AI avatar: 「!」ブランド画像（白地）。丸枠・薄い border・ごく薄い shadow で bubble になじませる。 */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- user avatar と実装方式を揃えるため <img> */}
+      <img
+        src={AI_AVATAR_SRC}
+        alt=""
         aria-hidden
-        className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#dbe5d0] bg-white text-[#7c9068] shadow-[0_1px_2px_rgba(60,50,30,0.08)]"
-      >
-        <AiSparkIcon className="h-4 w-4" />
-      </span>
+        className="mt-1 h-9 w-9 shrink-0 rounded-full border border-[#e5e0d6] bg-white object-contain shadow-[0_1px_2px_rgba(60,50,30,0.08)]"
+      />
       <div className="relative min-w-0 flex-1 overflow-hidden rounded-[15px] border border-[#dde7d2] bg-[#f1f5ec] px-4 py-4 shadow-[0_1px_3px_rgba(40,50,30,0.06)] sm:px-6 sm:py-5">
         <div className="space-y-3 text-[16px] leading-7 text-[#2f342a] sm:text-base">
           {paragraphs.map((para, i) => (

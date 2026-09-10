@@ -708,12 +708,13 @@ export default function Chat({
       ))}
       {isSending && (
         <div className="flex items-start gap-3 sm:gap-4">
-          <span
+          {/* eslint-disable-next-line @next/next/no-img-element -- PlanChatMessage の AI avatar と方式を揃える */}
+          <img
+            src="/images/chat/ai-alert.png"
+            alt=""
             aria-hidden
-            className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#dbe5d0] bg-white text-[#7c9068]"
-          >
-            <AiSparkIcon className="h-4 w-4" />
-          </span>
+            className="mt-1 h-9 w-9 shrink-0 rounded-full border border-[#e5e0d6] bg-white object-contain shadow-[0_1px_2px_rgba(60,50,30,0.08)]"
+          />
           <div className="flex items-center gap-1.5 rounded-[15px] border border-[#dde7d2] bg-[#f1f5ec] px-5 py-4">
             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#9caf88] [animation-delay:-0.3s]" />
             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#9caf88] [animation-delay:-0.15s]" />
