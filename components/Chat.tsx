@@ -758,16 +758,16 @@ export default function Chat({
                 無ければ中立のグラデ（架空の都市画像は出さない）。 */}
             <div
               aria-hidden
-              className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-[10px] border border-[#e8e1d5] bg-linear-to-br ${fallbackGradientForPlan(
+              className={`relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-[10px] border border-[#e8e1d5] bg-linear-to-br ${fallbackGradientForPlan(
                 planId ?? "",
-              )} shadow-[0_1px_4px_rgba(0,0,0,0.08)] sm:h-[72px] sm:w-[72px]`}
+              )} shadow-[0_1px_4px_rgba(0,0,0,0.08)] sm:h-16 sm:w-16`}
             >
               {headerCover.imageSrc && (
                 <Image
                   src={headerCover.imageSrc}
                   alt=""
                   fill
-                  sizes="72px"
+                  sizes="64px"
                   className="object-cover object-center"
                 />
               )}
