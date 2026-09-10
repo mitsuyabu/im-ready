@@ -754,18 +754,23 @@ export default function Chat({
               <ChevronLeftIcon className="h-5 w-5" />
             </Link>
 
-            {/* ポラロイド風サムネイル。都市画像があれば再利用し、無ければ中立のグラデ（架空の都市画像は出さない）。 */}
-            <div aria-hidden className="relative shrink-0 -rotate-[2.5deg]">
-              <span className="absolute -top-1.5 left-1/2 z-10 h-3 w-9 -translate-x-1/2 -rotate-[4deg] rounded-[1px] bg-[#d8c7a6]/70" />
-              <div
-                className={`relative h-14 w-14 overflow-hidden rounded-[2px] border-[3px] border-white bg-linear-to-br ${fallbackGradientForPlan(
-                  planId ?? "",
-                )} shadow-[0_3px_8px_rgba(50,40,20,0.18)] sm:h-[68px] sm:w-[68px]`}
-              >
-                {headerCover.imageSrc && (
-                  <Image src={headerCover.imageSrc} alt="" fill sizes="68px" className="object-cover" />
-                )}
-              </div>
+            {/* 都市サムネイル（フラットな写真カード。傾き・テープ演出なし）。都市画像があれば再利用し、
+                無ければ中立のグラデ（架空の都市画像は出さない）。 */}
+            <div
+              aria-hidden
+              className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-[10px] border border-[#e8e1d5] bg-linear-to-br ${fallbackGradientForPlan(
+                planId ?? "",
+              )} shadow-[0_1px_4px_rgba(0,0,0,0.08)] sm:h-[72px] sm:w-[72px]`}
+            >
+              {headerCover.imageSrc && (
+                <Image
+                  src={headerCover.imageSrc}
+                  alt=""
+                  fill
+                  sizes="72px"
+                  className="object-cover object-center"
+                />
+              )}
             </div>
 
             <div className="min-w-0 flex-1">
