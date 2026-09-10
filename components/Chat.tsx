@@ -741,7 +741,7 @@ export default function Chat({
     >
       {isPlanChat && (
         <header className="sticky top-0 z-20 border-b border-[#e7dfce] bg-[#faf8f3]/95 backdrop-blur-sm">
-          <div className="flex items-center gap-3 px-3 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
+          <div className="flex items-center gap-3 px-3 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
             {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ここでは隠す（sticky・戻る導線は維持） */}
             <BrandLogo href="/mypage" className="h-8 w-auto shrink-0 sm:h-9 lg:hidden" />
             <span aria-hidden className="hidden h-6 w-px shrink-0 bg-[#e0d8c5] sm:block lg:hidden" />
@@ -758,16 +758,16 @@ export default function Chat({
                 無ければ中立のグラデ（架空の都市画像は出さない）。 */}
             <div
               aria-hidden
-              className={`relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-[10px] border border-[#e8e1d5] bg-linear-to-br ${fallbackGradientForPlan(
+              className={`relative h-11 w-11 shrink-0 overflow-hidden rounded-[10px] border border-[#e8e1d5] bg-linear-to-br ${fallbackGradientForPlan(
                 planId ?? "",
-              )} shadow-[0_1px_4px_rgba(0,0,0,0.08)] sm:h-16 sm:w-16`}
+              )} shadow-[0_1px_4px_rgba(0,0,0,0.08)] sm:h-[52px] sm:w-[52px]`}
             >
               {headerCover.imageSrc && (
                 <Image
                   src={headerCover.imageSrc}
                   alt=""
                   fill
-                  sizes="64px"
+                  sizes="52px"
                   className="object-cover object-center"
                 />
               )}
