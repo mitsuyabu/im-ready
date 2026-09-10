@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateMainChatSession, loadChatMessages, loadPlanKarte } from "@/lib/planChat";
+import { loadAppNavViewer } from "@/lib/appNavViewer";
 import Chat from "@/components/Chat";
 
 export const metadata: Metadata = {
@@ -42,9 +43,11 @@ export default async function PlanChatPage({ params }: PlanChatPageProps) {
   }
 
   const session = await getOrCreateMainChatSession(supabase, planId);
-  const [messages, karte] = await Promise.all([
+  const [messages, karte, viewer] = await Promise.all([
     loadChatMessages(supabase, session.id),
     loadPlanKarte(supabase, planId),
+    // AppNav と同じ helper（React cache() で同一リクエスト内は 1 回）。avatar 未設定なら null。
+    loadAppNavViewer(user.id),
   ]);
 
   return (
@@ -55,6 +58,7 @@ export default async function PlanChatPage({ params }: PlanChatPageProps) {
         initialMessages={messages}
         initialKarte={karte}
         planTitle={plan.title}
+        userAvatarUrl={viewer.avatarUrl}
       />
     </div>
   );

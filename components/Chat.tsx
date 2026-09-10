@@ -154,6 +154,12 @@ type ChatProps = {
   initialMessages?: DisplayMessage[];
   /** そのPlanの表示名（plans.title）。Plan Chatヘッダーのサブタイトルにのみ使う表示専用の値 */
   planTitle?: string;
+  /**
+   * ログイン中ユーザーのプロフィール画像 signed URL（AppNav と同じ loadAppNavViewer 由来）。
+   * Plan Chat の user メッセージ avatar に使う。未設定なら null で、既存の汎用アイコンへ fallback。
+   * /widget（匿名）では渡さない。
+   */
+  userAvatarUrl?: string | null;
 };
 
 export default function Chat({
@@ -162,6 +168,7 @@ export default function Chat({
   sessionId,
   initialMessages = [],
   planTitle,
+  userAvatarUrl = null,
 }: ChatProps) {
   const [messages, setMessages] = useState<DisplayMessage[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -694,7 +701,7 @@ export default function Chat({
               comparisonHref={planId ? `/plans/${planId}/documents/school-comparison` : undefined}
             />
           ) : (
-            <PlanChatMessage role={m.role} content={m.content} />
+            <PlanChatMessage role={m.role} content={m.content} userAvatarUrl={userAvatarUrl} />
           )}
           {i === firstAssistantIdx && i < messages.length - 1 && <PlanChatDivider />}
         </Fragment>

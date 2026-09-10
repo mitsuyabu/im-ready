@@ -17,7 +17,7 @@ function splitParagraphs(text: string): string[] {
   return parts.length > 0 ? parts : [text];
 }
 
-/** user avatar 用の最小限の人型（個人名は使わない・取得しない方針のため常にこの汎用アイコン）。 */
+/** user avatar 用の汎用人型（プロフィール画像が未設定のときの fallback）。 */
 function UserGlyphIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -39,9 +39,12 @@ function UserGlyphIcon({ className }: { className?: string }) {
 export default function PlanChatMessage({
   role,
   content,
+  userAvatarUrl = null,
 }: {
   role: "user" | "assistant";
   content: string;
+  /** ログイン中ユーザーのプロフィール画像 signed URL。null なら汎用アイコンへ fallback。 */
+  userAvatarUrl?: string | null;
 }) {
   const isUser = role === "user";
   const paragraphs = splitParagraphs(stripMarkdownBold(content));
@@ -49,12 +52,22 @@ export default function PlanChatMessage({
   if (isUser) {
     return (
       <div className="flex items-start gap-3 sm:gap-4">
-        <span
-          aria-hidden
-          className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e4dcc9] bg-white text-[#8a8578] shadow-[0_1px_2px_rgba(60,50,30,0.08)]"
-        >
-          <UserGlyphIcon className="h-5 w-5" />
-        </span>
+        {userAvatarUrl ? (
+          // 個人ごとの signed URL（private bucket）。AppNav の MenuAvatar と同じ <img> 方式。装飾なので alt=""。
+          // eslint-disable-next-line @next/next/no-img-element -- private avatars bucket の署名付き URL のため
+          <img
+            src={userAvatarUrl}
+            alt=""
+            className="mt-1 h-9 w-9 shrink-0 rounded-full border border-[#e4dcc9] bg-white object-cover shadow-[0_1px_2px_rgba(60,50,30,0.08)]"
+          />
+        ) : (
+          <span
+            aria-hidden
+            className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e4dcc9] bg-white text-[#8a8578] shadow-[0_1px_2px_rgba(60,50,30,0.08)]"
+          >
+            <UserGlyphIcon className="h-5 w-5" />
+          </span>
+        )}
         <div className="min-w-0 flex-1 rounded-[15px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_1px_3px_rgba(40,33,20,0.06)] sm:px-6 sm:py-5">
           <div className="space-y-3 text-[16px] leading-7 text-[#2b2a26] sm:text-base">
             {paragraphs.map((para, i) => (
