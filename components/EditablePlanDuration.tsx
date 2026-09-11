@@ -93,8 +93,8 @@ export default function EditablePlanDuration({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-white/70 bg-white/55 px-4 py-3">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/70 text-[#5b6b63]">
+    <div className="flex items-center gap-3 rounded-xl border border-white/80 bg-white/85 px-4 py-3">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/80 text-[#5b6b63]">
         <ClockIcon />
       </span>
       <div className="min-w-0 flex-1">

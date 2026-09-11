@@ -81,3 +81,28 @@ export function getPlanCoverImage(preferredCity: string | null | undefined): Pla
   }
   return { key, imageSrc: `${COVER_BASE_PATH}/${key}.png` };
 }
+
+/* ------------------------------------------------------------------ */
+/* My Plan ヒーローカードの背景画像                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * My Plan 上部サマリーカードの背景に敷く都市の雰囲気画像。
+ * 都市判定は既存の resolvePlanCoverKey をそのまま再利用する（マッチングを重複実装しない）。
+ * ファイル名だけ cover key と綴りが違う（goldcoast → gold-coast.png）ため、ここで対応付ける。
+ * 対応が無い都市 / 都市未設定は null（呼び出し側は従来の淡いグリーン背景へ fallback）。
+ */
+const MY_PLAN_HERO_FILE: Record<PlanCoverKey, string> = {
+  sydney: "sydney.png",
+  melbourne: "melbourne.png",
+  brisbane: "brisbane.png",
+  goldcoast: "gold-coast.png",
+  cairns: "cairns.png",
+  perth: "perth.png",
+};
+
+export function getMyPlanHeroImage(city: string | null | undefined): string | null {
+  const key = resolvePlanCoverKey(city);
+  if (!key) return null;
+  return `/images/my-plan/${MY_PLAN_HERO_FILE[key]}`;
+}

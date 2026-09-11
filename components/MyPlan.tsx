@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type {
   MyPlanAccPhase,
@@ -19,6 +20,7 @@ import EditableTimeline from "@/components/EditableTimeline";
 import EditablePlanDuration from "@/components/EditablePlanDuration";
 import SavedSchoolMainCard from "@/components/SavedSchoolCard";
 import PlanContextLabel from "@/components/PlanContextLabel";
+import { getMyPlanHeroImage } from "@/lib/planCover";
 
 /**
  * 新しい My Plan（「ユーザーが自分で育てる実行プラン」）の presentation（Step 2-3）。
@@ -1021,6 +1023,8 @@ export default function MyPlan({
   }
 
   const { hero } = view;
+  // 行き先の都市に対応する背景画像（既存 resolvePlanCoverKey を再利用）。無ければ null → 従来背景。
+  const heroImage = getMyPlanHeroImage(hero.destination?.text ?? null);
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-8 pb-24 sm:px-6 sm:py-14 lg:px-8">
@@ -1051,15 +1055,39 @@ export default function MyPlan({
         </p>
       )}
 
-      {/* ヒーローサマリー（明るいブルーグレー地に CSS だけの淡いグラデーション） */}
+      {/* ヒーローサマリー。行き先の都市画像があればカード全面の背景に敷き（左は明るい余白・右に景観）、
+          無ければ従来の淡いグリーン地 ＋ CSS グラデーションへ fallback（§6）。 */}
       <section
-        className="relative mt-6 overflow-hidden rounded-[20px] border border-[#dfe6e3] bg-[#e8eee9] shadow-[0_1px_3px_rgba(30,40,36,0.06)]"
-        style={{
-          backgroundImage:
-            "radial-gradient(120% 80% at 92% 6%, rgba(150,178,155,0.30), transparent 58%), radial-gradient(90% 70% at 4% 98%, rgba(255,255,255,0.92), transparent 55%)",
-        }}
+        className={`relative mt-6 overflow-hidden rounded-[20px] border shadow-[0_1px_3px_rgba(30,40,36,0.06)] ${
+          heroImage ? "border-[#e2e6e0] bg-[#eef1ec]" : "border-[#dfe6e3] bg-[#e8eee9]"
+        }`}
+        style={
+          heroImage
+            ? undefined
+            : {
+                backgroundImage:
+                  "radial-gradient(120% 80% at 92% 6%, rgba(150,178,155,0.30), transparent 58%), radial-gradient(90% 70% at 4% 98%, rgba(255,255,255,0.92), transparent 55%)",
+              }
+        }
       >
-        <div className="relative px-5 py-6 sm:px-9 sm:py-8">
+        {heroImage && (
+          <>
+            <Image
+              src={heroImage}
+              alt=""
+              fill
+              priority
+              sizes="(min-width: 1024px) 1024px, 100vw"
+              className="pointer-events-none select-none object-cover object-center"
+            />
+            {/* 左（テキスト側）を強め・右（景観側）を薄めの生成りグラデーション。mobile は少し強める（§3/§7）。 */}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#fbfaf6]/95 via-[#fbfaf6]/84 to-[#fbfaf6]/52 sm:from-[#fbfaf6]/92 sm:via-[#fbfaf6]/68 sm:to-[#fbfaf6]/22"
+            />
+          </>
+        )}
+        <div className="relative z-10 px-5 py-6 sm:px-9 sm:py-8">
           <p className="text-[11px] font-semibold tracking-[0.18em] text-[#68727c]">
             YOUR PLAN AT A GLANCE
           </p>
@@ -1073,7 +1101,7 @@ export default function MyPlan({
             </p>
           )}
         </div>
-        <div className="relative grid grid-cols-2 gap-2 px-4 pb-4 sm:grid-cols-4 sm:px-6 sm:pb-6">
+        <div className="relative z-10 grid grid-cols-2 gap-2 px-4 pb-4 sm:grid-cols-4 sm:px-6 sm:pb-6">
           <HeroItem
             icon={<PinIcon className="h-4 w-4" />}
             label="行き先"
@@ -1155,8 +1183,8 @@ function HeroItem({
   note?: string | null;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-white/70 bg-white/55 px-4 py-3">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/70 text-[#5b6b63]">
+    <div className="flex items-center gap-3 rounded-xl border border-white/80 bg-white/85 px-4 py-3">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/80 text-[#5b6b63]">
         {icon}
       </span>
       <div className="min-w-0">
