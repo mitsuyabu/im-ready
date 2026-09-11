@@ -8,7 +8,6 @@ import type {
   MyPlanSectionId,
   MyPlanTimedPhase,
   MyPlanTimelinePhase,
-  MyPlanUnscheduledPhase,
   MyPlanView,
 } from "@/lib/myPlanView";
 import { MY_PLAN_SECTIONS, packActivityLanes } from "@/lib/myPlanView";
@@ -314,7 +313,8 @@ function TimelineBarCard({
  * YOUR PLAN TIMELINE — Plan 全体期間を軸にした「実時間スケール」の横タイムライン。
  * activity は実際の startMonth / durationMonths の位置へ配置する（Month 1 が左端・§1-§7）。
  * 全体期間が不明なときだけ従来の「順序だけ」の summary モードにフォールバック（§25）。
- * 期間未設定の保存済み activity は消さず「時期未定」領域へ（§16-§19）。
+ * 時期が決まっている予定だけを載せる場所とし、時期未設定の保存済み activity は timeline に出さない。
+ * （データは plan_blueprint に残り、各セクションで編集・時期設定できる）
  * I'm ready! の warm ivory / editorial トーンを維持し、派手なガントチャートにはしない（§8）。
  */
 const YEARLY_CAPTION: Record<MyPlanMonthlyTimeline["source"], string> = {
@@ -645,38 +645,6 @@ function SummaryPhases({ phases }: { phases: MyPlanTimelinePhase[] }) {
   );
 }
 
-/** 時期未定エリア（§17 / §18）。保存済みだが時期未設定の activity を消さずに出す。 */
-function UnscheduledArea({ phases }: { phases: MyPlanUnscheduledPhase[] }) {
-  return (
-    <div className="mt-6 rounded-[14px] border border-dashed border-[#e0d9ca] bg-[#fdfbf6] p-4">
-      <p className="text-[11px] font-semibold tracking-wide text-[#7d776c]">時期未定</p>
-      <p className="mt-0.5 text-[11px] text-[#8a8578]">まだ時期を決めていない予定です。</p>
-      <ul className="mt-2.5 space-y-1.5">
-        {phases.map((p) => (
-          <li
-            key={p.key}
-            className="flex items-center justify-between gap-3 rounded-lg border border-[#ece5d8] bg-white px-3 py-2"
-          >
-            <span className="min-w-0 truncate text-[13px] text-[#3f3c37]">
-              {p.title}
-              {p.durationNote && (
-                <span className="ml-1.5 text-[11px] text-[#8a8578]">{p.durationNote}</span>
-              )}
-            </span>
-            <a
-              href={`#myplan-${p.section}`}
-              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#c9c2b4] bg-white px-2.5 py-1 text-[11px] font-medium text-[#3f3a34] transition-colors hover:bg-[#f2efe7]"
-            >
-              時期を設定
-              <ArrowRightIcon className="h-3 w-3" />
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline }) {
   const {
     source,
@@ -688,7 +656,6 @@ function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline 
     destinationPhases,
     accommodationPhases,
     arrival,
-    unscheduledPhases,
   } = timeline;
   const scaleMonths = source === "month-scale" && totalMonths != null ? totalMonths : null;
   const isScale = scaleMonths != null;
@@ -724,8 +691,6 @@ function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline 
       ) : (
         summaryPhases.length > 0 && <SummaryPhases phases={summaryPhases} />
       )}
-
-      {unscheduledPhases.length > 0 && <UnscheduledArea phases={unscheduledPhases} />}
 
       {isScale && (
         <p className="mt-3 text-[11px] leading-relaxed text-[#7d776c] sm:hidden">

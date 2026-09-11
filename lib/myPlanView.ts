@@ -191,7 +191,10 @@ export type MyPlanMonthlyTimeline = {
   /** Month 0 の到着アンカー。primary city があれば表示。hasBar = 到着 stay あり。 */
   arrival: { city: string; hasBar: boolean } | null;
 
-  /** 両モード共通で下部に出す「時期未定」の保存済み activity。 */
+  /**
+   * 時期未設定の保存済み activity。timeline は「時期が決まっている予定」だけを載せる場所に
+   * したため、現在 UI では描画しない（データは plan_blueprint に残り、各セクションで編集できる）。
+   */
   unscheduledPhases: MyPlanUnscheduledPhase[];
 };
 
@@ -549,7 +552,7 @@ function pointToUnscheduled(p: MyPlanPointPhase): MyPlanUnscheduledPhase {
  *   1) 軸は作れないが保存済み詳細 Timeline がある → その period を要約（AI 提案として・§36）
  *   2) それ以外 → My Plan 保存内容（＋ Karte hint）から順序だけの summary phase
  * 全体期間が無くても user timing があれば、その month レンジで順序表示する（§25 / §33）。
- * 何も出せない（軸なし / summary < 2 / unscheduled 0）なら null。
+ * 何も出せない（軸なし / summary < 2）なら null。時期未定項目しか無いときも null（timeline には出さない）。
  */
 function buildMonthlyTimeline(input: {
   timeline: PlanTimeline | null;
@@ -717,10 +720,11 @@ function buildMonthlyTimeline(input: {
     if (c) add("進路を整理する", firstLine(c.label, 30), "considering");
   }
 
-  const unscheduledAll = noAxisUnscheduled();
+  // 時期未定項目は timeline に出さないため、順序フェーズが 2 件未満ならセクション自体を出さない
+  // （＝時期確定項目が無いときの空状態は「TIMELINE セクションを表示しない」という既存挙動）。
+  if (phases.length < 2) return null;
 
-  // 順序フェーズが 2 件未満でも、時期未定の保存済み activity があればセクションは出す（§19）。
-  if (phases.length < 2 && unscheduledAll.length === 0) return null;
+  const unscheduledAll = noAxisUnscheduled();
 
   const trimmed = phases.slice(0, 5);
   trimmed.forEach((p, i) => {
