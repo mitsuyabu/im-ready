@@ -343,6 +343,88 @@ function barWidthPercent(durationMonths: number, totalMonths: number): number {
   return (Math.max(durationMonths, 0.5) / totalMonths) * 100;
 }
 
+/* ---- DESTINATIONS lane の packing ----
+ * 時間が重ならない stay は同じ行へ横並びにする（ACTIVITIES の packActivityLanes と同じ考え方）。
+ * ただし ACTIVITIES と違い、DESTINATIONS は bar より「都市名 + 期間ラベル」の方が横に長いので、
+ * bar の重なりだけでなく「直前ラベルがその行に収まるか」も見て判定する。収まらない stay は次の行へ。
+ * ラベル幅は canvas の最小幅(px)基準の機械的な概算（実測はしない・全角 1em / 半角 0.55em）。
+ * 実際の canvas はこれ以上に広くなり得るため、見積もりは「やや広め＝安全側」に働く。
+ * 加えて描画側でも同じ行の次ラベルまでを max-width にして truncate し、重なりを構造的に防ぐ。 */
+const DEST_LANE_GAP_PX = 10;
+const DEST_CITY_FONT_PX = 14;
+const DEST_RANGE_FONT_PX = 12;
+
+function estimateTextPx(text: string, fontPx: number): number {
+  let w = 0;
+  for (const ch of text) w += /[\u0020-\u007e]/.test(ch) ? fontPx * 0.55 : fontPx;
+  return w;
+}
+
+function estimateDestLabelPx(city: string, rangeLabel: string): number {
+  // 都市名 + ml-1.5(6px) + range ラベル + 右側に空ける余白(10px)。
+  return (
+    estimateTextPx(city, DEST_CITY_FONT_PX) +
+    6 +
+    estimateTextPx(rangeLabel, DEST_RANGE_FONT_PX) +
+    10
+  );
+}
+
+type DestLaneItem = {
+  phase: MyPlanDestPhase;
+  /** bar / dot の左位置（%）。 */
+  leftPercent: number;
+  /** bar 幅（%）。point（durationMonths なし）は null。 */
+  widthPercent: number | null;
+  /** ラベルの左位置（%）。右端で溢れないよう clamp 済み（packing もこの値で判定する）。 */
+  labelLeftPercent: number;
+  /** ラベルの最大幅（%）。同じ行の次ラベル手前まで。超える分は truncate する。 */
+  labelMaxPercent: number;
+};
+
+function packDestinationLanes(
+  phases: MyPlanDestPhase[],
+  totalMonths: number,
+  canvasPx: number,
+): DestLaneItem[][] {
+  const gap = (DEST_LANE_GAP_PX / canvasPx) * 100;
+  const lanes: { items: DestLaneItem[]; barEnd: number; labelEnd: number }[] = [];
+
+  for (const phase of phases) {
+    const leftPercent = barLeftPercent(phase.startMonth, totalMonths);
+    const widthPercent =
+      phase.durationMonths != null ? barWidthPercent(phase.durationMonths, totalMonths) : null;
+    const labelWidth = (estimateDestLabelPx(phase.city, phase.rangeLabel) / canvasPx) * 100;
+    const labelLeftPercent = Math.max(0, Math.min(leftPercent, 100 - labelWidth));
+
+    const item: DestLaneItem = {
+      phase,
+      leftPercent,
+      widthPercent,
+      labelLeftPercent,
+      labelMaxPercent: 100 - labelLeftPercent,
+    };
+    const lane = lanes.find(
+      (l) => leftPercent >= l.barEnd + gap && labelLeftPercent >= l.labelEnd,
+    );
+    if (lane) {
+      // 直前ラベルの max-width を「この stay のラベル開始位置まで」に縮めて重なりを断つ。
+      const prev = lane.items[lane.items.length - 1];
+      prev.labelMaxPercent = Math.max(0, labelLeftPercent - prev.labelLeftPercent);
+      lane.items.push(item);
+      lane.barEnd = Math.max(lane.barEnd, leftPercent + (widthPercent ?? 0));
+      lane.labelEnd = Math.max(lane.labelEnd, labelLeftPercent + labelWidth);
+    } else {
+      lanes.push({
+        items: [item],
+        barEnd: leftPercent + (widthPercent ?? 0),
+        labelEnd: labelLeftPercent + labelWidth,
+      });
+    }
+  }
+  return lanes.map((l) => l.items);
+}
+
 /** month label の間引き（§28）。tick は全 boundary 分持つ。 */
 function axisLabelMonths(totalMonths: number): number[] {
   const step =
@@ -374,6 +456,9 @@ function MonthScaleTimeline({
   // ACTIVITIES（School / Work）を lane packing（§9-§16）。色は元の並び順で固定（lane で再割りしない）。
   const activityLanes = packActivityLanes(timedPhases);
   const colorByKey = new Map(timedPhases.map((p, i) => [p.key, i]));
+  // DESTINATIONS も重ならない stay は同じ行へ。色は元の並び順で固定（lane で再割りしない）。
+  const destLanes = packDestinationLanes(destinationPhases, totalMonths, minWidthPx);
+  const destColorByKey = new Map(destinationPhases.map((d, i) => [d.key, i]));
 
   return (
     <div className="mt-6 overflow-x-auto pb-1 [scrollbar-width:thin]">
@@ -393,43 +478,56 @@ function MonthScaleTimeline({
                 <span className="text-[10px] text-[#8a949c]">最初の滞在都市</span>
               </div>
             )}
-            {/* 各 stay: [都市名] [range] を1段目、bar を2段目（重ねない・§12 / §13）。 */}
+            {/* 各行: [都市名] [range] を1段目、bar を2段目（重ねない）。時間が重ならない stay は
+                同じ行に横並び。ラベル同士が当たる場合だけ次の行へ落とす。 */}
             <div className="mt-1.5 space-y-2.5">
-              {destinationPhases.map((d, i) => {
-                const pal = PHASE_PALETTE[i % PHASE_PALETTE.length];
-                const left = barLeftPercent(d.startMonth, totalMonths);
-                return (
-                  <div key={d.key}>
-                    <p
-                      className="whitespace-nowrap text-[13px] font-medium text-[#45413a] sm:text-[14px]"
-                      style={{ marginLeft: `min(${left}%, calc(100% - 160px))` }}
-                    >
-                      {d.city}
-                      <span className="ml-1.5 text-[11px] font-normal text-[#8a8578] sm:text-[12px]">
-                        {d.rangeLabel}
-                      </span>
-                    </p>
-                    <div className="relative mt-1 h-2">
-                      {d.durationMonths != null ? (
+              {destLanes.map((lane, laneIdx) => (
+                <div key={`dest-lane-${laneIdx}`}>
+                  <div className="relative h-5">
+                    {lane.map((it) => (
+                      <p
+                        key={`${it.phase.key}-label`}
+                        className="absolute top-0 truncate text-[13px] font-medium leading-5 text-[#45413a] sm:text-[14px]"
+                        style={{
+                          left: `${it.labelLeftPercent}%`,
+                          maxWidth: `${it.labelMaxPercent}%`,
+                        }}
+                      >
+                        {it.phase.city}
+                        <span className="ml-1.5 text-[11px] font-normal text-[#8a8578] sm:text-[12px]">
+                          {it.phase.rangeLabel}
+                        </span>
+                      </p>
+                    ))}
+                  </div>
+                  <div className="relative mt-1 h-2">
+                    {lane.map((it) => {
+                      const pal =
+                        PHASE_PALETTE[
+                          (destColorByKey.get(it.phase.key) ?? 0) % PHASE_PALETTE.length
+                        ];
+                      return it.widthPercent != null ? (
                         <span
+                          key={`${it.phase.key}-bar`}
                           className="absolute top-0 h-2 rounded-full opacity-90"
                           style={{
-                            left: `${left}%`,
-                            width: `${barWidthPercent(d.durationMonths, totalMonths)}%`,
+                            left: `${it.leftPercent}%`,
+                            width: `${it.widthPercent}%`,
                             backgroundColor: pal.node,
                           }}
                         />
                       ) : (
                         <span
+                          key={`${it.phase.key}-dot`}
                           aria-hidden
                           className="absolute top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full ring-2 ring-[#fcfbf8]"
-                          style={{ left: `${left}%`, backgroundColor: pal.node }}
+                          style={{ left: `${it.leftPercent}%`, backgroundColor: pal.node }}
                         />
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </div>
         )}
