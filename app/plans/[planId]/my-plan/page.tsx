@@ -6,7 +6,7 @@ import { loadPlanBlueprint } from "@/lib/planBlueprint";
 import { buildMyPlanView } from "@/lib/myPlanView";
 import { AUSTRALIA_SCHOOLS } from "@/lib/data/schools";
 import { formatLastUpdated } from "@/lib/planActivity";
-import BrandLogo from "@/components/BrandLogo";
+import MobileBrandHeader from "@/components/MobileBrandHeader";
 import MyPlan from "@/components/MyPlan";
 
 export const metadata: Metadata = {
@@ -66,7 +66,7 @@ export default async function PlanMyPlanPage({ params }: PlanMyPlanPageProps) {
       {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ロゴだけの単独headerは二重表示を避けて隠す
           （戻る導線は MyPlan 本体の左上に移動している） */}
       <header className="border-b border-[#e5dfd6] px-4 py-4 sm:px-6 lg:hidden">
-        <BrandLogo href="/mypage" />
+        <MobileBrandHeader />
       </header>
 
       <MyPlan planId={planId} planTitle={plan.title} view={view} lastUpdated={lastUpdated} />

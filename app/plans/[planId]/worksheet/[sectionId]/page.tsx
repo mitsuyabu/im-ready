@@ -6,7 +6,7 @@ import { loadPlanKarte } from "@/lib/planChat";
 import { CATEGORIES } from "@/lib/worksheetQuestions";
 import { WORKSHEET_SECTION_META } from "@/lib/worksheetSectionMeta";
 import WorksheetSectionDetail from "@/components/WorksheetSectionDetail";
-import BrandLogo from "@/components/BrandLogo";
+import MobileBrandHeader from "@/components/MobileBrandHeader";
 
 interface PlanWorksheetSectionPageProps {
   params: Promise<{ planId: string; sectionId: string }>;
@@ -60,7 +60,7 @@ export default async function PlanWorksheetSectionPage({ params }: PlanWorksheet
     <div className="min-h-dvh bg-[#fcfbf8]">
       {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ロゴだけの単独headerは二重表示を避けて隠す */}
       <header className="border-b border-[#e5dfd6] px-4 py-4 sm:px-6 lg:hidden">
-        <BrandLogo href="/mypage" />
+        <MobileBrandHeader />
       </header>
 
       <div className="mx-auto max-w-6xl px-4 pt-8 pb-20 sm:px-6 sm:py-14 lg:px-8">

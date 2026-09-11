@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import WorksheetSectionList from "@/components/WorksheetSectionList";
-import BrandLogo from "@/components/BrandLogo";
+import MobileBrandHeader from "@/components/MobileBrandHeader";
 
 export const metadata: Metadata = {
   title: "テーマから整理する | I'm ready!",
@@ -45,7 +45,7 @@ export default async function PlanWorksheetPage({ params }: PlanWorksheetPagePro
     <div className="min-h-dvh bg-[#f7f4ec]">
       {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ロゴだけの単独headerは二重表示を避けて隠す */}
       <header className="border-b border-[#e4ddcf] px-4 py-4 sm:px-6 lg:hidden">
-        <BrandLogo href="/mypage" />
+        <MobileBrandHeader />
       </header>
 
       <div className="mx-auto max-w-6xl px-4 pt-8 pb-20 sm:px-6 sm:py-14 lg:px-10">

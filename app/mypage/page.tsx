@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { loadPlanCardSummaries } from "@/lib/planCardSummary";
 import { formatLastUpdated, loadPlanLastActivityMap } from "@/lib/planActivity";
 import HomePlanCard from "@/components/HomePlanCard";
-import BrandLogo from "@/components/BrandLogo";
+import MobileBrandHeader from "@/components/MobileBrandHeader";
 import CreatePlanForm from "@/components/CreatePlanForm";
 import NewPlanButton from "@/components/NewPlanButton";
 
@@ -78,9 +78,9 @@ export default async function MyPagePage() {
 
   return (
     <div className="min-h-dvh bg-[#f6f2ea]">
-      {/* PCではAppNavの左sidebarに同じロゴがあるため、mobileだけこのheaderを表示する（サイズは変更しない） */}
+      {/* PCではAppNavの左sidebarに同じロゴがあるため、mobileだけこのheaderを表示する（ロゴ＋タグライン） */}
       <header className="border-b border-[#e7decd] bg-worksheet-surface px-4 py-4 sm:px-6 lg:hidden">
-        <BrandLogo href="/mypage" />
+        <MobileBrandHeader />
       </header>
 
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:max-w-7xl lg:py-12">

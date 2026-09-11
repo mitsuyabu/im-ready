@@ -10,7 +10,7 @@ import { getCityGuideDescription } from "@/lib/cityGuide";
 import PlanTravelHero from "@/components/PlanTravelHero";
 import PlanJourneyRibbon from "@/components/PlanJourneyRibbon";
 import PlanWorksheetProgress from "@/components/PlanWorksheetProgress";
-import BrandLogo from "@/components/BrandLogo";
+import MobileBrandHeader from "@/components/MobileBrandHeader";
 import { toCityChipText, toDeparturePlanInfoText } from "@/lib/planHeroImage";
 
 export const metadata: Metadata = {
@@ -151,9 +151,9 @@ export default async function PlanPage({ params }: PlanPageProps) {
 
   return (
     <div className="min-h-dvh bg-[#fbf8f1]">
-      {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、mobileのみこのheader（サイズは変更しない） */}
+      {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、mobileのみこのheader（ロゴ＋タグライン） */}
       <header className="border-b border-[#e7ddc9] bg-[#fdfbf4] px-4 py-4 sm:px-6 lg:hidden">
-        <BrandLogo href="/mypage" />
+        <MobileBrandHeader />
       </header>
 
       <div className="mx-auto max-w-7xl px-4 pb-12 pt-5 sm:px-6 sm:pb-16 sm:pt-6">

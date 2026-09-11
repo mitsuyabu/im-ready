@@ -8,7 +8,7 @@ import {
   DOCUMENT_ROLE_DEFINITIONS,
   type DocumentRoleKey,
 } from "@/lib/documentRoles";
-import BrandLogo from "@/components/BrandLogo";
+import MobileBrandHeader from "@/components/MobileBrandHeader";
 import DocumentsWorkspaceHeader from "@/components/DocumentsWorkspaceHeader";
 import DocumentsJourney from "@/components/DocumentsJourney";
 import DocumentWorkspaceCard, {
@@ -140,9 +140,9 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
   return (
     <div className="min-h-dvh bg-[#fbfaf6]">
       <header className="flex items-center justify-between border-b border-black/[0.06] bg-worksheet-surface px-4 py-3 sm:px-6">
-        {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ここでは隠す（戻る導線は残す。BrandLogoサイズは変更しない） */}
+        {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ここでは隠す（戻る導線は残す） */}
         <div className="lg:hidden">
-          <BrandLogo href="/mypage" />
+          <MobileBrandHeader />
         </div>
         <div className="hidden lg:block" />
         <Link
