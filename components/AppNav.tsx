@@ -268,6 +268,9 @@ export default function AppNav({
   const pathname = usePathname();
   const planId = planIdFromPathname(pathname);
   const inPlan = planId !== null;
+  // いま見ている Plan の名前。navData（layout が既に取得済み）から引くので追加 fetch は発生しない。
+  const currentPlanTitle =
+    planId !== null ? (navData.plans.find((p) => p.id === planId)?.title ?? null) : null;
   const hideMobileBottomNav = isPlanChatRoute(pathname);
 
   const [openPanel, setOpenPanel] = useState<PanelKey | null>(null);
@@ -295,6 +298,7 @@ export default function AppNav({
       <Sidebar
         inPlan={inPlan}
         planId={planId}
+        currentPlanTitle={currentPlanTitle}
         pathname={pathname}
         avatarUrl={avatarUrl}
         onSelectPanel={setOpenPanel}
@@ -429,6 +433,7 @@ function StartCta({ onClick }: { onClick: () => void }) {
 function Sidebar({
   inPlan,
   planId,
+  currentPlanTitle,
   pathname,
   avatarUrl,
   onSelectPanel,
@@ -436,6 +441,8 @@ function Sidebar({
 }: {
   inPlan: boolean;
   planId: string | null;
+  /** Plan 階層で sidebar 上部に出す「いま見ている Plan」名。無ければ null。 */
+  currentPlanTitle: string | null;
   pathname: string;
   avatarUrl: string | null;
   onSelectPanel: (panel: PanelKey) => void;
@@ -458,6 +465,13 @@ function Sidebar({
               active={false}
               onClick={onClosePanel}
             />
+            {/* いま見ている Plan（nav item ではなく現在地のコンテキスト表示。navData から取るので追加 fetch なし）。
+                pill / 背景 / border は付けず、長い title は最大 2 行で自然に折り返す（§4 / §15）。 */}
+            {currentPlanTitle && (
+              <p className="px-3 pb-1 pt-3 text-[12px] font-semibold leading-snug text-[#6f6a61]">
+                {currentPlanTitle}
+              </p>
+            )}
             {planNavItems(planId).map((item) => (
               <SidebarLink
                 key={item.key}

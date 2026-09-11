@@ -9,6 +9,7 @@ import { type PlanDocumentType } from "@/lib/planDocuments";
 import { PARENT_EXPLANATION_DEFAULT_TITLE } from "@/lib/parentExplanationPrompt";
 import { classifyShareStatus, type ShareStatusRow } from "@/lib/parentExplanationShare";
 import BrandLogo from "@/components/BrandLogo";
+import PlanContextLabel from "@/components/PlanContextLabel";
 import ParentExplanationBody from "@/components/ParentExplanationBody";
 import ParentExplanationGenerator from "@/components/ParentExplanationGenerator";
 import ParentExplanationShare from "@/components/ParentExplanationShare";
@@ -154,6 +155,7 @@ export default async function ParentExplanationDocumentPage({ params }: ParentEx
 
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
             <div className="min-w-0">
+              <PlanContextLabel planTitle={plan.title} />
               <p className="text-xs font-medium tracking-wide text-[#5f7050]">家族へ共有</p>
               <h1 className="mt-1.5 text-[26px] font-bold leading-[1.25] tracking-tight text-[#172033] sm:text-[32px]">
                 {pageTitle}

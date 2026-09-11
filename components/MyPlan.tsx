@@ -18,6 +18,7 @@ import EditableSchools from "@/components/EditableSchools";
 import EditableTimeline from "@/components/EditableTimeline";
 import EditablePlanDuration from "@/components/EditablePlanDuration";
 import SavedSchoolMainCard from "@/components/SavedSchoolCard";
+import PlanContextLabel from "@/components/PlanContextLabel";
 
 /**
  * 新しい My Plan（「ユーザーが自分で育てる実行プラン」）の presentation（Step 2-3）。
@@ -1032,11 +1033,12 @@ export default function MyPlan({
 
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div>
+          {/* いま見ている Plan 名。desktop は sidebar が同じ役割を持つため PlanContextLabel 側で lg:hidden。 */}
+          <PlanContextLabel planTitle={planTitle} />
           <h1 className="text-[28px] font-bold leading-[1.18] tracking-tight text-[#151515] sm:text-[42px]">
             My Plan
           </h1>
           <p className="mt-1 text-[15px] text-[#6f6a64]">留学・ワーホリの実行プラン</p>
-          <p className="mt-0.5 text-[13px] text-[#8a8578]">{planTitle}</p>
         </div>
         {lastUpdated && (
           <p className="shrink-0 text-[13px] text-[#8a8578] sm:mt-3">最終更新 {lastUpdated}</p>

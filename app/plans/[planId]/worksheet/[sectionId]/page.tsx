@@ -44,7 +44,7 @@ export default async function PlanWorksheetSectionPage({ params }: PlanWorksheet
 
   const { data: plan } = await supabase
     .from("plans")
-    .select("id")
+    .select("id, title")
     .eq("id", planId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -72,7 +72,12 @@ export default async function PlanWorksheetSectionPage({ params }: PlanWorksheet
         </Link>
 
         <div className="mt-6">
-          <WorksheetSectionDetail planId={planId} sectionId={sectionId} karte={karte} />
+          <WorksheetSectionDetail
+            planId={planId}
+            sectionId={sectionId}
+            karte={karte}
+            planTitle={plan.title}
+          />
         </div>
       </div>
     </div>

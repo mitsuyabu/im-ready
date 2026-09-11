@@ -10,6 +10,7 @@ import { parseMyNoteContent } from "@/lib/myNoteGenerator";
 import { type PlanDocumentType } from "@/lib/planDocuments";
 import { DOCUMENT_ROLE_DEFINITIONS } from "@/lib/documentRoles";
 import BrandLogo from "@/components/BrandLogo";
+import PlanContextLabel from "@/components/PlanContextLabel";
 import MyNoteGenerator from "@/components/MyNoteGenerator";
 
 export const metadata: Metadata = {
@@ -111,6 +112,7 @@ export default async function MyNotePage({ params }: MyNotePageProps) {
 
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
             <div className="min-w-0">
+              <PlanContextLabel planTitle={plan.title} />
               <p className="text-xs font-medium tracking-wide text-[#5f7050]">{roleDef.role}</p>
               <h1 className="mt-1 text-[27px] font-bold tracking-tight text-[#172033] sm:text-[34px] lg:text-[44px]">
                 My Note

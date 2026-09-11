@@ -7,6 +7,7 @@ import { CATEGORIES } from "@/lib/worksheetQuestions";
 import { WORKSHEET_SECTION_META } from "@/lib/worksheetSectionMeta";
 import type { Karte } from "@/lib/karte";
 import { buildWorksheetKarteCandidates } from "@/lib/worksheetKarteCandidates";
+import PlanContextLabel from "@/components/PlanContextLabel";
 
 /**
  * 「I'm ready!」のテーマ詳細画面（presentation のみ）。
@@ -108,9 +109,12 @@ export default function WorksheetSectionDetail({
   planId,
   sectionId,
   karte,
+  planTitle,
 }: {
   planId: string;
   sectionId: string;
+  /** いま見ている Plan 名（ページタイトル上の小さなコンテキスト表示に使う）。 */
+  planTitle: string;
   /** その Plan の Karte（server 取得・normalizeKarte 済み）。AI相談からの回答候補の生成にだけ使う。 */
   karte: Karte | null;
 }) {
@@ -209,6 +213,7 @@ export default function WorksheetSectionDetail({
       {/* ページ上部: ラベル + タイトル（左） / completion（右） */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div>
+          <PlanContextLabel planTitle={planTitle} />
           <p className="text-sm font-medium tracking-wide text-[#5f7050]">
             {categoryNum} <span className="text-[#b7b1a6]">/</span> {meta.enName}
           </p>

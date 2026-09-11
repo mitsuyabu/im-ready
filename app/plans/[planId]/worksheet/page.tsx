@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import WorksheetSectionList from "@/components/WorksheetSectionList";
+import PlanContextLabel from "@/components/PlanContextLabel";
 import MobileBrandHeader from "@/components/MobileBrandHeader";
 
 export const metadata: Metadata = {
@@ -32,7 +33,7 @@ export default async function PlanWorksheetPage({ params }: PlanWorksheetPagePro
 
   const { data: plan } = await supabase
     .from("plans")
-    .select("id")
+    .select("id, title")
     .eq("id", planId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -56,9 +57,12 @@ export default async function PlanWorksheetPage({ params }: PlanWorksheetPagePro
           <span aria-hidden>←</span> Plan Homeに戻る
         </Link>
 
-        <h1 className="mt-4 text-[28px] font-bold leading-[1.18] tracking-tight text-[#26251f] sm:text-[38px] lg:text-[44px]">
-          テーマから整理する
-        </h1>
+        <div className="mt-4">
+          <PlanContextLabel planTitle={plan.title} />
+          <h1 className="text-[28px] font-bold leading-[1.18] tracking-tight text-[#26251f] sm:text-[38px] lg:text-[44px]">
+            テーマから整理する
+          </h1>
+        </div>
         <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-[#6f6b62] sm:text-sm">
           留学を考えるうえで、自分の気持ちや条件をテーマごとに整理していきます。気になるテーマから始めてください。
         </p>
