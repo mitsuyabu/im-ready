@@ -41,12 +41,14 @@ const ROLE_ROUTE_SLUG: Record<DocumentRoleKey, string> = {
 /**
  * Documents トップ用の presentation 設定（この画面だけの見た目・コピー）。
  * role / title / createLabel は lib/documentRoles.ts をそのまま使い、トップの説明文（lines）と
- * カードの visual variant・grid 配置・open CTA だけをここで参考デザインに合わせて持つ。
- * lib/documentRoles.ts 自体は変更しない。
+ * カードの accent variant・open CTA だけをここで持つ。lib/documentRoles.ts 自体は変更しない。
+ *
+ * カードは 4 種とも同じ共通カードシステム（DocumentWorkspaceCard）で、grid も均等 2 列。
+ * 以前のように「カードごとに違う col-span / row-span で紙もののコラージュに見せる」ことはしない。
  */
 const CARD_PRESENTATION: Record<
   DocumentRoleKey,
-  { variant: DocumentWorkspaceVariant; lines: string[]; openCta: string; grid: string; shareBadge?: boolean }
+  { variant: DocumentWorkspaceVariant; lines: string[]; openCta: string; shareBadge?: boolean }
 > = {
   my_note: {
     variant: "note",
@@ -55,25 +57,21 @@ const CARD_PRESENTATION: Record<
       "留学したい理由、楽しみなこと、不安なこと。ぜんぶ書き出して、自分の気持ちを整理しよう。",
     ],
     openCta: "ひらく →",
-    grid: "sm:col-span-2 lg:col-span-5 lg:row-span-2",
   },
   study_plan: {
     variant: "plan",
     lines: ["やることリストやスケジュールを整理して、留学までの流れをつくろう。"],
     openCta: "ひらく →",
-    grid: "sm:col-span-1 lg:col-span-7",
   },
   school_comparison: {
     variant: "compare",
     lines: ["気になる学校を比較して、自分の条件に合うか整理しよう。"],
     openCta: "ひらく →",
-    grid: "sm:col-span-1 lg:col-span-7",
   },
   parent_explanation: {
     variant: "parent",
     lines: ["家族に、留学の理由と現在の計画を伝えるための資料です。"],
     openCta: "内容をみる →",
-    grid: "sm:col-span-2 lg:col-span-12",
     shareBadge: true,
   },
 };
@@ -153,11 +151,14 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
         </Link>
       </header>
 
-      <div className="mx-auto max-w-7xl px-4 pt-8 pb-12 sm:px-6 sm:pt-10 sm:pb-14 lg:pt-10 lg:pb-16">
-        <DocumentsWorkspaceHeader planTitle={plan.title} />
+      <div className="mx-auto max-w-6xl px-4 pt-8 pb-12 sm:px-6 sm:pt-10 sm:pb-14 lg:pt-10 lg:pb-16">
+        <DocumentsWorkspaceHeader
+          planTitle={plan.title}
+          lastUpdatedText={rows.length > 0 ? formatLastUpdated(rows[0].updated_at) : null}
+        />
 
         {documentsError ? (
-          <div className="mt-8 rounded-2xl border border-black/[0.08] bg-worksheet-surface p-6 sm:p-8">
+          <div className="mt-8 rounded-[18px] border border-[#e6e1d8] bg-white p-6 sm:p-8">
             <p className="text-base font-medium text-worksheet-primary">資料を読み込めませんでした。</p>
             <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
               しばらくしてから再度お試しください。
@@ -165,11 +166,11 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
           </div>
         ) : (
           <>
-            <div className="mt-6">
+            <div className="mt-9 sm:mt-10">
               <DocumentsJourney />
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-12 lg:gap-5">
+            <div className="mt-8 grid grid-cols-1 gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5">
               {DOCUMENT_ORDER.map((key) => {
                 const def = DOCUMENT_ROLE_DEFINITIONS[key];
                 const presentation = CARD_PRESENTATION[key];
@@ -185,7 +186,6 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
                     updatedText={doc ? formatLastUpdated(doc.updated_at) : null}
                     cta={doc ? presentation.openCta : `${def.createLabel} →`}
                     shareBadge={presentation.shareBadge}
-                    className={presentation.grid}
                   />
                 );
               })}
@@ -193,8 +193,8 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
 
             {otherRows.length > 0 && (
               <div className="mt-12">
-                <h2 className="text-sm font-medium text-worksheet-secondary">その他の資料</h2>
-                <div className="mt-4 divide-y divide-black/[0.06] rounded-2xl border border-black/[0.07] bg-worksheet-surface">
+                <h2 className="text-[13px] font-medium text-[#8e887e]">その他の資料</h2>
+                <div className="mt-4 divide-y divide-[#eeeae2] rounded-[18px] border border-[#e6e1d8] bg-white">
                   {otherRows.map((doc) => (
                     <div key={doc.id} className="flex items-center justify-between gap-4 px-4 py-4">
                       <div>
