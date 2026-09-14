@@ -155,9 +155,14 @@ export default function WorksheetSectionDetail({
   const categoryNum = String(categoryIndex + 1).padStart(2, "0");
   const canGenerateAxisSummary = (rankings["priority-ranking"] ?? []).length > 0;
 
+  // 自由記述に加え、選択式に添えた自由記入欄（現実条件）も「書いたこと」として拾う。
   const writtenChips = deriveWrittenChips(
     category.questions
-      .filter((q) => q.kind === "freeText")
+      .filter(
+        (q) =>
+          q.kind === "freeText" ||
+          ((q.kind === "singleSelect" || q.kind === "multiSelect") && q.freeText != null),
+      )
       .map((q) => (answers[q.id] ?? "").trim())
       .filter((t) => t.length > 0),
   );

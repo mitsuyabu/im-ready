@@ -14,6 +14,21 @@
 
 import { PRIORITY_ITEMS, type PriorityItem } from "@/lib/worksheetPriorities";
 import { READINESS_OPTIONS, NEXT_TOPICS, type ChoiceOption } from "@/lib/worksheetNextStep";
+import {
+  ACCOMMODATION_OPTIONS,
+  ADJUSTMENT_OPTIONS,
+  BUDGET_OPTIONS,
+  CITY_OPTIONS,
+  COUNTRY_OPTIONS,
+  DEPARTURE_TIMING_OPTIONS,
+  ENGLISH_LEVEL_OPTIONS,
+  FAMILY_SHARING_OPTIONS,
+  LOCAL_WORK_OPTIONS,
+  OCCUPATION_OPTIONS,
+  STAY_DURATION_OPTIONS,
+  STUDY_DURATION_OPTIONS,
+  STUDY_FORMAT_OPTIONS,
+} from "@/lib/worksheetConditions";
 
 type FreeTextQuestion = {
   kind: "freeText";
@@ -48,12 +63,24 @@ type CompromiseQuestion = {
   items: PriorityItem[];
 };
 
+/**
+ * 選択式の設問に添える 1 行の自由記入欄。「事情やニュアンスが人によって違う」設問で使う。
+ * 値は freeText 設問と同じ `WorksheetPersistedData.answers[question.id]` に入るため、
+ * localStorage のスキーマ変更は不要（選択は singleSelections / multiSelections 側に入る）。
+ */
+type FreeTextSupplement = { label: string; placeholder: string };
+
+/** 選択肢の並べ方。"chips" は選択肢が多い設問が mobile で縦に伸びすぎないようにするため。 */
+type OptionLayout = "list" | "chips";
+
 type SingleSelectQuestion = {
   kind: "singleSelect";
   id: string;
   heading: string;
   supplement: string;
   options: ChoiceOption[];
+  freeText?: FreeTextSupplement;
+  optionLayout?: OptionLayout;
 };
 
 type MultiSelectQuestion = {
@@ -62,6 +89,20 @@ type MultiSelectQuestion = {
   heading: string;
   supplement: string;
   options: ChoiceOption[];
+  freeText?: FreeTextSupplement;
+  optionLayout?: OptionLayout;
+};
+
+/** 数値だけを答える設問（年齢）。値は answers[question.id] に文字列として入る。 */
+type NumberQuestion = {
+  kind: "number";
+  id: string;
+  heading: string;
+  supplement: string;
+  placeholder: string;
+  unit: string;
+  min: number;
+  max: number;
 };
 
 export type Question =
@@ -70,7 +111,8 @@ export type Question =
   | RankingQuestion
   | CompromiseQuestion
   | SingleSelectQuestion
-  | MultiSelectQuestion;
+  | MultiSelectQuestion
+  | NumberQuestion;
 
 export type Category = {
   id: string;
@@ -209,74 +251,177 @@ export const CATEGORIES: Category[] = [
     ],
   },
   {
+    /**
+     * 現実条件。「自分が実際に留学するうえでの条件・現状・制約」を整理する場所。
+     * 感情・動機は motivation / future、判断軸は priorities、不安は anxiety、
+     * 次の行動は nextstep が持つ。ここには重複させない。
+     *
+     * 回答形式の考え方:
+     *   - 選択のみ    … 構造化しやすく自由度が不要なもの（留学期間・就学期間・年齢）
+     *   - 選択+自由記入 … 事情やニュアンスが人によって違うもの（その他の設問）
+     *   - 自由記入のみ … ここでは増やさない（深掘りは Why? / My Future / Worries）
+     * どの設問でも「まだ決まっていない / まだ分からない」を正式な回答として扱う。
+     */
     id: "conditions",
     title: "現実条件",
     questions: [
       {
-        kind: "freeText",
+        kind: "multiSelect",
+        id: "destination-country",
+        heading: "行ってみたい国はありますか？",
+        supplement:
+          "候補がいくつあっても大丈夫です。まだ決まっていなければ「まだ決まっていない」で構いません。",
+        options: COUNTRY_OPTIONS,
+        optionLayout: "chips",
+        freeText: {
+          label: "その他の国や、補足があれば",
+          placeholder: "例: アイルランドも気になっている",
+        },
+      },
+      {
+        kind: "multiSelect",
+        id: "destination-city",
+        heading: "行ってみたい都市はありますか？",
+        supplement:
+          "下の候補はオーストラリアの主要都市です。他の国の都市を考えている場合は、自由記入に書いてください。",
+        options: CITY_OPTIONS,
+        optionLayout: "chips",
+        freeText: {
+          label: "その他の都市や、補足があれば",
+          placeholder: "例: バンクーバー / 郊外でも気にならない",
+        },
+      },
+      {
+        kind: "singleSelect",
         id: "timing",
-        heading: "いつ頃、どのくらいの期間で考えていますか？",
+        heading: "いつ頃の出発を考えていますか？",
         supplement:
-          "まだ決まっていなくて大丈夫です。「なんとなくこのへん」でも、時期と期間のイメージがあると、計画が立てやすくなります。",
-        examples: [
-          "来年の春ごろ、半年〜1年くらい",
-          "今の仕事が一段落したら。期間はまだ未定",
-          "できるだけ早く行きたい。1年は滞在したい",
-          "時期も期間も、まだ全然決めていない",
-        ],
+          "まだ決まっていなくて大丈夫です。「今の仕事を辞めたあと」のような決まり方でも構いません。",
+        options: DEPARTURE_TIMING_OPTIONS,
+        freeText: {
+          label: "時期についての補足があれば",
+          placeholder: "例: 大学卒業後 / 来年の春頃",
+        },
       },
       {
-        kind: "freeText",
-        id: "budget",
-        heading: "予算は、今のところどのくらいをイメージしていますか？",
-        supplement:
-          "正確な金額でなくて大丈夫です。ざっくりの感覚や、「これくらいなら用意できそう」という範囲で。現地で働いて補う前提でも構いません。",
-        examples: [
-          "100万円くらいを目安に考えている",
-          "200〜300万円は準備できそう",
-          "あまり余裕はないので、現地で働きながら補いたい",
-          "まだ具体的に計算できていない",
-        ],
+        kind: "singleSelect",
+        id: "stay-duration",
+        heading: "どのくらいの期間を考えていますか？",
+        supplement: "留学全体の期間のイメージです。あとから変えて構いません。",
+        options: STAY_DURATION_OPTIONS,
       },
       {
-        kind: "freeText",
+        kind: "singleSelect",
         id: "english-level",
-        heading: "今の英語力は、自分ではどれくらいだと感じますか？",
+        heading: "現在の英語力について、どのように感じていますか？",
         supplement:
-          "テストのスコアがなくても大丈夫です。「話すのは苦手」「読むのはできる」など、正直な感覚で書いてみてください。",
-        examples: [
-          "挨拶くらいで、会話にはほとんど自信がない",
-          "読み書きはできるけど、話すと固まってしまう",
-          "日常会話はなんとなくできる。もっと伸ばしたい",
-          "自分の英語力が、正直よく分からない",
-        ],
+          "テストのスコアがなくても大丈夫です。近い感覚のものを選んでください。",
+        options: ENGLISH_LEVEL_OPTIONS,
+        freeText: {
+          label: "スコアや、得意・苦手があれば",
+          placeholder: "例: TOEIC 600点 / 読むのはできるが話すのが苦手",
+        },
       },
       {
-        kind: "freeText",
-        id: "local-work",
-        heading: "現地で働くこと（アルバイトなど）は、考えていますか？",
+        kind: "singleSelect",
+        id: "budget",
+        heading: "留学に使える予算の目安はありますか？",
         supplement:
-          "費用の面でも、経験の面でも、現地で働くかどうかは大きな分かれ道です。今の気持ちに近いものを。",
-        examples: [
-          "費用を抑えたいので、現地で働くつもり",
-          "経験として、働いてみたい気持ちがある",
-          "勉強に集中したいので、働く予定はない",
-          "働けるものなら働きたいけど、まだよく分からない",
-        ],
+          "正確な金額でなくて大丈夫です。現地で働いて補う前提でも構いません。",
+        options: BUDGET_OPTIONS,
+        freeText: {
+          label: "金額や条件の補足があれば",
+          placeholder: "例: 貯金120万円＋現地のアルバイトで補いたい",
+        },
       },
       {
-        kind: "freeText",
+        kind: "number",
+        id: "age",
+        heading: "現在の年齢を教えてください。",
+        supplement:
+          "ビザやワーキングホリデーの条件、学校の選び方に関わるため、現実条件のひとつとして伺っています。",
+        placeholder: "例: 24",
+        unit: "歳",
+        min: 10,
+        max: 99,
+      },
+      {
+        kind: "singleSelect",
+        id: "occupation",
+        heading: "現在の状況に近いものを教えてください。",
+        supplement: "留学の進め方や時期の考え方に関わります。近いものを選んでください。",
+        options: OCCUPATION_OPTIONS,
+        freeText: {
+          label: "補足があれば",
+          placeholder: "例: 来月から転職予定",
+        },
+      },
+      {
+        kind: "multiSelect",
         id: "study-format",
-        heading: "現地では、どんな形で学ぶことを考えていますか？",
+        heading: "現地でどんな学び方を考えていますか？",
         supplement:
-          "留学にはいろいろな形があります。今の時点でのイメージで大丈夫です。まだ決まっていなければ、それも含めて選んでみてください。",
-        examples: [
-          "まずは語学学校で、英語の基礎を固めたい",
-          "語学学校のあと、大学や専門学校への進学も考えたい",
-          "大学・大学院など、専門的な勉強をしに行きたい",
-          "ワーキングホリデーで、働きながら生活の中で学びたい",
-          "どんな形がいいか、まだ迷っている",
-        ],
+          "学校そのものを決める必要はありません。学び方のイメージを選んでください（複数可）。",
+        options: STUDY_FORMAT_OPTIONS,
+        optionLayout: "chips",
+        freeText: {
+          label: "学び方についての補足があれば",
+          placeholder: "例: 語学学校のあと専門コースも考えたい",
+        },
+      },
+      {
+        kind: "singleSelect",
+        id: "study-duration",
+        heading: "学校にはどのくらい通いたいですか？",
+        supplement: "留学全体の期間とは別に、学校に通う期間のイメージです。",
+        options: STUDY_DURATION_OPTIONS,
+      },
+      {
+        kind: "multiSelect",
+        id: "accommodation",
+        heading: "どんな滞在方法を考えていますか？",
+        supplement:
+          "いつから・どのくらい住むかは、あとで My Plan で決められます。ここでは希望だけ選んでください。",
+        options: ACCOMMODATION_OPTIONS,
+        optionLayout: "chips",
+        freeText: {
+          label: "滞在についての補足があれば",
+          placeholder: "例: 最初はホームステイ、慣れたらシェアハウス",
+        },
+      },
+      {
+        kind: "singleSelect",
+        id: "local-work",
+        heading: "現地で働くことを考えていますか？",
+        supplement: "費用の面でも経験の面でも大きな分かれ道です。今の気持ちに近いものを。",
+        options: LOCAL_WORK_OPTIONS,
+        freeText: {
+          label: "やってみたい仕事があれば",
+          placeholder: "例: カフェ / 観光 / ファーム",
+        },
+      },
+      {
+        kind: "singleSelect",
+        id: "school-work-adjustment",
+        heading: "今の学校や仕事について、留学に向けた予定は決まっていますか？",
+        supplement: "まだ何も決めていなくて大丈夫です。今の状況に近いものを選んでください。",
+        options: ADJUSTMENT_OPTIONS,
+        freeText: {
+          label: "予定についての補足があれば",
+          placeholder: "例: 上司にはまだ話していない",
+        },
+      },
+      {
+        kind: "singleSelect",
+        id: "family-sharing",
+        heading: "家族には留学について話していますか？",
+        supplement:
+          "話せているかどうかを整理するだけの質問です。説明のための資料は、あとで My Karte で作れます。",
+        options: FAMILY_SHARING_OPTIONS,
+        freeText: {
+          label: "家族の反応や状況があれば",
+          placeholder: "例: 母は前向き、父はまだ反対している",
+        },
       },
     ],
   },
@@ -386,4 +531,22 @@ export const CATEGORIES: Category[] = [
  */
 export const ALL_QUESTIONS: { question: Question; categoryId: string }[] = CATEGORIES.flatMap((category) =>
   category.questions.map((question) => ({ question, categoryId: category.id })),
+);
+
+/**
+ * localStorage 復元時の sanitize 用に、カタログ上「実在する」選択肢 id を kind ごとに集めたもの。
+ * sanitizeWorksheetState は設問単位ではなく kind 単位の集合で検証するため、選択式の設問を
+ * 増やしたときにここを更新し忘れると、保存済みの選択が黙って捨てられる。カタログから
+ * 導出することで、その取りこぼしが起きないようにする。
+ */
+export const ALL_SINGLE_SELECT_OPTION_IDS: Set<string> = new Set(
+  ALL_QUESTIONS.flatMap(({ question }) =>
+    question.kind === "singleSelect" ? question.options.map((o) => o.id) : [],
+  ),
+);
+
+export const ALL_MULTI_SELECT_OPTION_IDS: Set<string> = new Set(
+  ALL_QUESTIONS.flatMap(({ question }) =>
+    question.kind === "multiSelect" ? question.options.map((o) => o.id) : [],
+  ),
 );

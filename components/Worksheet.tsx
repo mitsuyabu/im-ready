@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { PRIORITY_ITEMS, COMPROMISE_NONE_ID, type PriorityItem } from "@/lib/worksheetPriorities";
-import { READINESS_OPTIONS, NEXT_TOPICS, type ChoiceOption } from "@/lib/worksheetNextStep";
+import { type ChoiceOption } from "@/lib/worksheetNextStep";
 import {
   loadWorksheetState,
   saveWorksheetState,
@@ -14,7 +14,14 @@ import { deriveWorksheetKartePatch } from "@/lib/worksheetKarte";
 import { kartePatchToFieldPatches } from "@/lib/karte";
 import { applyKartePatch } from "@/lib/planChat";
 import { createClient } from "@/lib/supabase/client";
-import { CATEGORIES, ALL_QUESTIONS, type Question, type Category } from "@/lib/worksheetQuestions";
+import {
+  CATEGORIES,
+  ALL_QUESTIONS,
+  ALL_SINGLE_SELECT_OPTION_IDS,
+  ALL_MULTI_SELECT_OPTION_IDS,
+  type Question,
+  type Category,
+} from "@/lib/worksheetQuestions";
 
 const KARTE_SYNC_DEBOUNCE_MS = 1500;
 
@@ -48,8 +55,10 @@ export function useWorksheetAnswers(planId?: string) {
         questionIds: new Set(ALL_QUESTIONS.map((entry) => entry.question.id)),
         priorityItemIds: new Set(PRIORITY_ITEMS.map((item) => item.id)),
         compromiseNoneId: COMPROMISE_NONE_ID,
-        readinessOptionIds: new Set(READINESS_OPTIONS.map((option) => option.id)),
-        topicOptionIds: new Set(NEXT_TOPICS.map((option) => option.id)),
+        // 「次の一歩」だけでなく、現実条件の選択式も含めたカタログ全体の option id で検証する
+        // （kind 単位の集合なので、ここが欠けると保存済みの選択が黙って捨てられる）。
+        readinessOptionIds: ALL_SINGLE_SELECT_OPTION_IDS,
+        topicOptionIds: ALL_MULTI_SELECT_OPTION_IDS,
       });
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setAnswers(sanitized.answers);
@@ -117,6 +126,13 @@ export function useWorksheetAnswers(planId?: string) {
    * - compromise: 0件も正当な回答だが、「特にない」を明示選択した場合のみ回答済みにする
    *   （未選択のまま=未回答、と区別する）
    */
+  /** 選択式に添えた自由記入欄だけが埋まっている場合も回答済みとして扱う。 */
+  function hasFreeTextAnswer(question: Question): boolean {
+    if (question.kind !== "singleSelect" && question.kind !== "multiSelect") return false;
+    if (!question.freeText) return false;
+    return (answers[question.id] ?? "").trim().length > 0;
+  }
+
   function isQuestionAnswered(question: Question): boolean {
     switch (question.kind) {
       case "freeText":
@@ -128,9 +144,13 @@ export function useWorksheetAnswers(planId?: string) {
       case "compromise":
         return (compromises[question.id] ?? []).length > 0;
       case "singleSelect":
-        return (singleSelections[question.id] ?? null) !== null;
+        return (
+          (singleSelections[question.id] ?? null) !== null || hasFreeTextAnswer(question)
+        );
       case "multiSelect":
-        return (multiSelections[question.id] ?? []).length > 0;
+        return (multiSelections[question.id] ?? []).length > 0 || hasFreeTextAnswer(question);
+      case "number":
+        return (answers[question.id] ?? "").trim().length > 0;
     }
   }
 
@@ -416,17 +436,28 @@ function CompromiseBody({
 }
 
 /** 縦積みの単一選択（1行1選択肢。選んだものだけ黒背景+白文字、他はアウトライン） */
+/** 選択肢が多い設問（国・都市・学び方・滞在方法）が mobile で縦に伸びすぎないよう、chip 並びにする。 */
+const OPTION_LIST_CLASS = "mt-4 flex flex-col gap-2";
+const OPTION_CHIPS_CLASS = "mt-4 flex flex-wrap gap-2";
+const CHIP_SELECTED_CLASS =
+  "rounded-full bg-worksheet-accent px-3.5 py-2 text-left text-[14px] font-medium text-worksheet-accent-contrast transition-colors duration-150";
+const CHIP_CLASS =
+  "rounded-full border-[0.5px] border-worksheet-border bg-worksheet-surface px-3.5 py-2 text-left text-[14px] text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-border/50";
+
 function SingleSelectBody({
   options,
   selected,
   onSelect,
+  optionLayout = "list",
 }: {
   options: ChoiceOption[];
   selected: string | null;
   onSelect: (optionId: string) => void;
+  optionLayout?: "list" | "chips";
 }) {
+  const isChips = optionLayout === "chips";
   return (
-    <div className="mt-4 flex flex-col gap-2">
+    <div className={isChips ? OPTION_CHIPS_CLASS : OPTION_LIST_CLASS}>
       {options.map((option) => {
         const isSelected = selected === option.id;
         return (
@@ -436,9 +467,13 @@ function SingleSelectBody({
             onClick={() => onSelect(option.id)}
             aria-pressed={isSelected}
             className={
-              isSelected
-                ? "rounded-xl bg-worksheet-accent px-4 py-2.5 text-left text-[15px] font-medium text-worksheet-accent-contrast transition-colors duration-150"
-                : "rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-4 py-2.5 text-left text-[15px] text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-border/50"
+              isChips
+                ? isSelected
+                  ? CHIP_SELECTED_CLASS
+                  : CHIP_CLASS
+                : isSelected
+                  ? "rounded-xl bg-worksheet-accent px-4 py-2.5 text-left text-[15px] font-medium text-worksheet-accent-contrast transition-colors duration-150"
+                  : "rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-4 py-2.5 text-left text-[15px] text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-border/50"
             }
           >
             {option.label}
@@ -454,13 +489,16 @@ function MultiSelectBody({
   options,
   selected,
   onToggle,
+  optionLayout = "list",
 }: {
   options: ChoiceOption[];
   selected: string[];
   onToggle: (optionId: string) => void;
+  optionLayout?: "list" | "chips";
 }) {
+  const isChips = optionLayout === "chips";
   return (
-    <div className="mt-4 flex flex-col gap-2">
+    <div className={isChips ? OPTION_CHIPS_CLASS : OPTION_LIST_CLASS}>
       {options.map((option) => {
         const isSelected = selected.includes(option.id);
         return (
@@ -470,15 +508,82 @@ function MultiSelectBody({
             onClick={() => onToggle(option.id)}
             aria-pressed={isSelected}
             className={
-              isSelected
-                ? "rounded-xl bg-worksheet-accent px-4 py-2.5 text-left text-[15px] font-medium text-worksheet-accent-contrast transition-colors duration-150"
-                : "rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-4 py-2.5 text-left text-[15px] text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-border/50"
+              isChips
+                ? isSelected
+                  ? CHIP_SELECTED_CLASS
+                  : CHIP_CLASS
+                : isSelected
+                  ? "rounded-xl bg-worksheet-accent px-4 py-2.5 text-left text-[15px] font-medium text-worksheet-accent-contrast transition-colors duration-150"
+                  : "rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-4 py-2.5 text-left text-[15px] text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-border/50"
             }
           >
             {option.label}
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * 選択式の下に置く 1 行の自由記入欄（§17 の「選択 + 自由記入」）。
+ * 常時大きく出さないよう textarea ではなく 1 行の input にし、ラベルも小さく муted にする。
+ * 値は freeText 設問と同じ answers[question.id] に入るため、保存・復元の仕組みは変わらない。
+ */
+function FreeTextSupplementBody({
+  label,
+  placeholder,
+  value,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="mt-3 block">
+      <span className="text-[12px] font-medium text-worksheet-secondary">{label}（任意）</span>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="mt-1 w-full rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-3 py-2 text-[15px] leading-relaxed text-worksheet-primary transition-shadow focus:border-worksheet-sage-hover focus:outline-none focus:ring-2 focus:ring-worksheet-sage-hover/50"
+      />
+    </label>
+  );
+}
+
+/** 数値だけを答える設問（年齢）。空文字も許容し、未入力を「未回答」として扱う。 */
+function NumberBody({
+  value,
+  onChange,
+  placeholder,
+  unit,
+  min,
+  max,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  unit: string;
+  min: number;
+  max: number;
+}) {
+  return (
+    <div className="mt-4 flex items-center gap-2">
+      <input
+        type="number"
+        inputMode="numeric"
+        value={value}
+        min={min}
+        max={max}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-28 rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-3 py-2 text-[15px] text-worksheet-primary transition-shadow focus:border-worksheet-sage-hover focus:outline-none focus:ring-2 focus:ring-worksheet-sage-hover/50"
+      />
+      <span className="text-[14px] text-worksheet-secondary">{unit}</span>
     </div>
   );
 }
@@ -606,18 +711,51 @@ export function QuestionCard({
       )}
 
       {question.kind === "singleSelect" && (
-        <SingleSelectBody
-          options={question.options}
-          selected={singleSelected}
-          onSelect={onSelectSingle}
-        />
+        <>
+          <SingleSelectBody
+            options={question.options}
+            selected={singleSelected}
+            onSelect={onSelectSingle}
+            optionLayout={question.optionLayout}
+          />
+          {question.freeText && (
+            <FreeTextSupplementBody
+              label={question.freeText.label}
+              placeholder={question.freeText.placeholder}
+              value={textValue}
+              onChange={onTextChange}
+            />
+          )}
+        </>
       )}
 
       {question.kind === "multiSelect" && (
-        <MultiSelectBody
-          options={question.options}
-          selected={multiSelected}
-          onToggle={onToggleMulti}
+        <>
+          <MultiSelectBody
+            options={question.options}
+            selected={multiSelected}
+            onToggle={onToggleMulti}
+            optionLayout={question.optionLayout}
+          />
+          {question.freeText && (
+            <FreeTextSupplementBody
+              label={question.freeText.label}
+              placeholder={question.freeText.placeholder}
+              value={textValue}
+              onChange={onTextChange}
+            />
+          )}
+        </>
+      )}
+
+      {question.kind === "number" && (
+        <NumberBody
+          value={textValue}
+          onChange={onTextChange}
+          placeholder={question.placeholder}
+          unit={question.unit}
+          min={question.min}
+          max={question.max}
         />
       )}
 
@@ -781,15 +919,39 @@ export default function Worksheet({ planId }: WorksheetProps = {}) {
     }
   }
 
-  /** その問いが自由記述で、答えがあるものだけをカテゴリごとにまとめる（案B: サーバーにはid照合させない） */
+  /**
+   * my note / 親向け資料に渡す「本人が書いた・選んだ内容」をカテゴリごとにまとめる
+   * （案B: サーバーには id 照合させない）。
+   *
+   * 自由記述に加え、現実条件のような選択式（＋自由記入）の回答も、選択肢ラベルをそのまま
+   * テキストにして渡す。ラベル以上の言い換え・推測はしない。数値設問は単位を付けるだけ。
+   * 未回答の設問は entry を作らない（空欄のカテゴリはプロンプトのデータ自体に含めない既存方針）。
+   */
   function buildFreeTextByCategory() {
     const result: { categoryTitle: string; entries: { heading: string; text: string }[] }[] = [];
     for (const category of CATEGORIES) {
       const entries: { heading: string; text: string }[] = [];
       for (const q of category.questions) {
-        if (q.kind !== "freeText") continue;
-        const text = (answers[q.id] ?? "").trim();
-        if (text) entries.push({ heading: q.heading, text });
+        const note = (answers[q.id] ?? "").trim();
+        if (q.kind === "freeText") {
+          if (note) entries.push({ heading: q.heading, text: note });
+          continue;
+        }
+        if (q.kind === "number") {
+          if (note) entries.push({ heading: q.heading, text: `${note}${q.unit}` });
+          continue;
+        }
+        if (q.kind === "singleSelect" || q.kind === "multiSelect") {
+          const selectedIds =
+            q.kind === "singleSelect"
+              ? singleSelections[q.id]
+                ? [singleSelections[q.id]]
+                : []
+              : (multiSelections[q.id] ?? []);
+          const labels = q.options.filter((o) => selectedIds.includes(o.id)).map((o) => o.label);
+          const text = [labels.join("、"), note].filter((t) => t.length > 0).join(" / ");
+          if (text) entries.push({ heading: q.heading, text });
+        }
       }
       if (entries.length > 0) result.push({ categoryTitle: category.title, entries });
     }

@@ -94,7 +94,16 @@ export function buildWorksheetKarteCandidates(
   const out: WorksheetKarteCandidate[] = [];
   for (const m of MVP_MAP) {
     const question = QUESTION_BY_ID.get(m.questionId);
-    if (!question || question.kind !== "freeText") continue;
+    if (!question) continue;
+    // 候補は「文字列をそのまま入れられる設問」にだけ出す。freeText 設問に加え、
+    // 選択式に自由記入欄が付いている設問（現実条件の english-level 等）も、その自由記入欄
+    // （answers[question.id]）へ verbatim で入るため対象にする。選択済みなら
+    // isWorksheetQuestionAnswered が true になり、下の未回答チェックで自然に外れる。
+    const acceptsText =
+      question.kind === "freeText" ||
+      ((question.kind === "singleSelect" || question.kind === "multiSelect") &&
+        question.freeText != null);
+    if (!acceptsText) continue;
 
     // 本人の明示 Worksheet 回答を優先。既に回答があれば候補を出さない（§6 / §20）。
     if (isWorksheetQuestionAnswered(question, data)) continue;

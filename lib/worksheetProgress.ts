@@ -9,6 +9,15 @@
 import { ALL_QUESTIONS, type Category, type Question } from "@/lib/worksheetQuestions";
 import type { WorksheetPersistedData } from "@/lib/worksheetStorage";
 
+/** 選択式に添えた自由記入欄だけが埋まっている場合も「回答済み」として数える。 */
+function hasFreeTextSupplement(
+  question: Extract<Question, { kind: "singleSelect" | "multiSelect" }>,
+  data: WorksheetPersistedData,
+): boolean {
+  if (!question.freeText) return false;
+  return (data.answers[question.id] ?? "").trim().length > 0;
+}
+
 export function isWorksheetQuestionAnswered(question: Question, data: WorksheetPersistedData): boolean {
   switch (question.kind) {
     case "freeText":
@@ -20,9 +29,17 @@ export function isWorksheetQuestionAnswered(question: Question, data: WorksheetP
     case "compromise":
       return (data.compromises[question.id] ?? []).length > 0;
     case "singleSelect":
-      return (data.singleSelections[question.id] ?? null) !== null;
+      return (
+        (data.singleSelections[question.id] ?? null) !== null ||
+        hasFreeTextSupplement(question, data)
+      );
     case "multiSelect":
-      return (data.multiSelections[question.id] ?? []).length > 0;
+      return (
+        (data.multiSelections[question.id] ?? []).length > 0 ||
+        hasFreeTextSupplement(question, data)
+      );
+    case "number":
+      return (data.answers[question.id] ?? "").trim().length > 0;
   }
 }
 

@@ -29,9 +29,9 @@ export const WORKSHEET_SECTION_META: Record<string, WorksheetSectionMeta> = {
   },
   conditions: {
     enName: "Conditions",
-    tagline: "時期・予算・英語・暮らしの条件",
+    tagline: "行き先・時期・予算・いまの状況",
     description:
-      "出発時期や期間、予算、英語力、現地での仕事や学び方など、今考えている条件を整理します。",
+      "行きたい国や都市、出発時期や期間、予算や英語力、今の状況や学び方の希望など、留学するうえでの条件を整理します。まだ決まっていない項目は、そのまま「まだ決まっていない」で構いません。",
   },
   priorities: {
     enName: "My Priorities",
