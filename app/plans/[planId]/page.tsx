@@ -193,7 +193,9 @@ export default async function PlanPage({ params }: PlanPageProps) {
               />
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-bold text-[#2b3a55]">AI相談</h2>
-                <p className="mt-1 text-[15px] leading-relaxed text-[#6b6357]">このPlanについて、続きを話そう。</p>
+                <p className="mt-1 text-[15px] leading-relaxed text-[#6b6357]">
+                  AIカウンセラーと話しながら、気持ちや希望を整理し、自分に合う学校や留学の形を見つけます。
+                </p>
                 {lastChatMessageAt && (
                   <p className="mt-1.5 text-xs text-[#8b857a]">最終相談 {formatLastUpdated(lastChatMessageAt)}</p>
                 )}
@@ -217,7 +219,9 @@ export default async function PlanPage({ params }: PlanPageProps) {
               />
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-bold text-[#2b3a55]">Worksheet</h2>
-                <p className="mt-1 text-[15px] leading-relaxed text-[#6b6357]">気持ちや条件を、自分のペースで整理する。</p>
+                <p className="mt-1 text-[15px] leading-relaxed text-[#6b6357]">
+                  設問に答えながら、留学の目的・条件・優先順位を、自分のペースで整理していきます。
+                </p>
                 {/* 既存 PlanWorksheetProgress はロジック不変。表示される時だけ薄い pill に見せる wrapper。 */}
                 <div className="[&>p]:m-0 [&>p]:mt-2 [&>p]:inline-block [&>p]:rounded-full [&>p]:bg-[#eef1ec] [&>p]:px-2.5 [&>p]:py-0.5 [&>p]:text-[11px] [&>p]:text-[#5b5750]">
                   <PlanWorksheetProgress planId={typedPlan.id} karte={karte} />
@@ -280,7 +284,10 @@ export default async function PlanPage({ params }: PlanPageProps) {
 
             {/* Documents */}
             <section className={`${CARD} bg-white overflow-hidden p-5 sm:p-6 lg:min-h-[165px]`}>
-              <div className="flex items-start gap-4">
+              {/* 右カラムは幅が狭い（lg で 350px 前後）。説明が 2 文あるため、アイコン横の
+                  細い列に押し込まず、アイコン＋見出しの行の下でカード幅いっぱいに折り返す
+                  （truncate / line-clamp は使わず、自然に 2〜3 行）。 */}
+              <div className="flex items-center gap-4">
                 <Image
                   src="/plan-icons/documents.webp"
                   alt=""
@@ -288,17 +295,17 @@ export default async function PlanPage({ params }: PlanPageProps) {
                   height={96}
                   className={CARD_ICON_CLASS}
                 />
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-bold text-[#2b3a55]">My Karte</h2>
-                  <p className="mt-1 text-[15px] leading-relaxed text-[#6b6357]">考えたことを、資料に残す。</p>
-                  <Link
-                    href={`/plans/${typedPlan.id}/documents`}
-                    className="mt-3 inline-block rounded-full border border-[#2b3a55]/30 bg-white px-5 py-2 text-sm font-medium text-[#2b3a55] transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    資料を見る →
-                  </Link>
-                </div>
+                <h2 className="min-w-0 text-lg font-bold text-[#2b3a55]">My Karte</h2>
               </div>
+              <p className="mt-2 text-[15px] leading-relaxed text-[#6b6357]">
+                考えたことや決めたことを、相談や共有に使いやすい資料にまとめます。自分の考えを振り返るときにも役立ちます。
+              </p>
+              <Link
+                href={`/plans/${typedPlan.id}/documents`}
+                className="mt-3 inline-block rounded-full border border-[#2b3a55]/30 bg-white px-5 py-2 text-sm font-medium text-[#2b3a55] transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                資料を見る →
+              </Link>
             </section>
           </div>
         </div>
