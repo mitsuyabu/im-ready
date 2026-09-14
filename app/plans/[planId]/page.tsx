@@ -27,6 +27,14 @@ interface PlanPageProps {
 const CARD =
   "relative rounded-[18px] border border-[#e7ddc9] shadow-[0_2px_6px_rgba(0,0,0,0.08)]";
 
+/**
+ * About This Plan だけの card chrome。radius は他カードと同じ 18px のまま、
+ * border と shadow をさらに静かにして「落ち着いた panel」に見せる。
+ * CARD 本体は AI相談 / Worksheet / My Karte が共有しているため変更しない。
+ */
+const ABOUT_CARD =
+  "relative rounded-[18px] border border-[#e6e1d8] shadow-[0_1px_2px_rgba(30,28,24,0.05)]";
+
 /** AI相談 / Worksheet / Documents の左アイコンは提供画像（背景色・角丸・線画込み）。共通サイズ。 */
 const CARD_ICON_CLASS = "h-16 w-16 shrink-0 sm:h-20 sm:w-20 lg:h-24 lg:w-24";
 
@@ -238,37 +246,32 @@ export default async function PlanPage({ params }: PlanPageProps) {
 
           {/* 右カラム（狭め）: About This Plan → Documents */}
           <div className="flex flex-col gap-4">
-            {/* About This Plan（pinned note 風・下辺が破れ） */}
+            {/* About This Plan。手描き・紙もの装飾（ピン / 星 / 波線下線 / 破れた下辺）は持たず、
+                落ち着いた panel として見せる。他カードが white なのに対しここだけ warm ivory で、
+                Plan の要約であることをおだやかに示す（＝残す「特別感」はこの地色だけ）。 */}
             <section
-              className={`${CARD} bg-[#fdfbf4] p-5 sm:p-6 lg:min-h-[220px]`}
-              style={{ clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 4px), 86% 100%, 62% calc(100% - 5px), 38% 100%, 14% calc(100% - 5px), 0 100%)" }}
+              className={`${ABOUT_CARD} bg-[#fdfbf4] p-5 sm:p-6 lg:min-h-[220px]`}
             >
-              <span aria-hidden className="absolute left-[58%] top-0 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#8a9a86] shadow-[0_1px_2px_rgba(0,0,0,0.25)] ring-2 ring-[#fdfbf4]" />
-              <svg aria-hidden viewBox="0 0 24 24" className="pointer-events-none absolute right-4 top-3 h-4 w-4 text-[#8a9a86]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <path d="M12 4v16M4 12h16M6.5 6.5l11 11M17.5 6.5l-11 11" />
-              </svg>
+              <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-[#1f2d43] sm:text-[24px]">
+                About This Plan
+              </h2>
 
-              <h2 className="text-[22px] font-bold leading-tight text-[#1f2d43] sm:text-2xl">About This Plan</h2>
-              <svg aria-hidden viewBox="0 0 130 8" className="mt-1.5 h-2 w-28 text-[#8ba086]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M2 5c20-6 40 5 60 1s45-6 68-2" />
-              </svg>
-
-              <dl className="mt-4 divide-y divide-[#d8d0c3]">
-                <div className="flex items-center justify-between gap-3 py-4 first:pt-3">
-                  <dt className="inline-flex shrink-0 items-center gap-2 text-base font-medium text-[#625c54]">
-                    <PinIcon className="h-5 w-5 text-[#2f2d2a]" />
+              <dl className="mt-4 divide-y divide-[#e6e1d8]">
+                <div className="flex items-center justify-between gap-3 py-3.5 first:pt-2">
+                  <dt className="inline-flex shrink-0 items-center gap-2 text-[15px] font-medium text-[#625c54]">
+                    <PinIcon className="h-[18px] w-[18px] text-[#7c766d]" />
                     行き先
                   </dt>
-                  <dd className="min-w-0 text-right text-base font-semibold text-[#1f2d43] sm:text-lg">
+                  <dd className="min-w-0 text-right text-[15px] font-semibold text-[#1f2d43] sm:text-base">
                     {destinationCity ? toCityChipText(destinationCity) : "これから整理"}
                   </dd>
                 </div>
-                <div className="flex items-center justify-between gap-3 py-4">
-                  <dt className="inline-flex shrink-0 items-center gap-2 text-base font-medium text-[#625c54]">
-                    <ClockIcon className="h-5 w-5 text-[#2f2d2a]" />
+                <div className="flex items-center justify-between gap-3 py-3.5">
+                  <dt className="inline-flex shrink-0 items-center gap-2 text-[15px] font-medium text-[#625c54]">
+                    <ClockIcon className="h-[18px] w-[18px] text-[#7c766d]" />
                     出発の目安
                   </dt>
-                  <dd className="min-w-0 text-right text-base font-semibold text-[#1f2d43] sm:text-lg">
+                  <dd className="min-w-0 text-right text-[15px] font-semibold text-[#1f2d43] sm:text-base">
                     {summary.departureTiming ? toDeparturePlanInfoText(summary.departureTiming) : "これから整理"}
                   </dd>
                 </div>
