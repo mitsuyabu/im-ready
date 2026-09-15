@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import WorksheetSectionList from "@/components/WorksheetSectionList";
+import { loadPlanWorksheet } from "@/lib/planWorksheet";
 import PlanContextLabel from "@/components/PlanContextLabel";
 import MobileBrandHeader from "@/components/MobileBrandHeader";
 
@@ -42,6 +43,9 @@ export default async function PlanWorksheetPage({ params }: PlanWorksheetPagePro
     notFound();
   }
 
+  // 各テーマの回答済み件数は、端末ごとに違わないよう正本（plan_worksheet）から出す。
+  const worksheet = await loadPlanWorksheet(supabase, planId);
+
   return (
     <div className="min-h-dvh bg-[#f7f4ec]">
       {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ロゴだけの単独headerは二重表示を避けて隠す */}
@@ -67,7 +71,7 @@ export default async function PlanWorksheetPage({ params }: PlanWorksheetPagePro
           留学を考えるうえで、自分の気持ちや条件をテーマごとに整理していきます。気になるテーマから始めてください。
         </p>
 
-        <WorksheetSectionList planId={planId} />
+        <WorksheetSectionList planId={planId} serverWorksheet={worksheet} />
       </div>
     </div>
   );

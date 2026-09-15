@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { PRIORITY_ITEMS, COMPROMISE_NONE_ID, type PriorityItem } from "@/lib/worksheetPriorities";
+import { COMPROMISE_NONE_ID, type PriorityItem } from "@/lib/worksheetPriorities";
 import { type ChoiceOption } from "@/lib/worksheetNextStep";
 import {
+  loadPendingWorksheetChange,
   loadWorksheetState,
   saveWorksheetState,
   sanitizeWorksheetState,
+  savePendingWorksheetChange,
   type WorksheetPersistedData,
 } from "@/lib/worksheetStorage";
 import { deriveWorksheetKartePatch, dropUnchangedWorksheetPatches } from "@/lib/worksheetKarte";
@@ -15,64 +17,121 @@ import { kartePatchToFieldPatches, type Karte } from "@/lib/karte";
 import { applyKartePatch } from "@/lib/planChat";
 import { createClient } from "@/lib/supabase/client";
 import {
-  CATEGORIES,
-  ALL_QUESTIONS,
-  ALL_SINGLE_SELECT_OPTION_IDS,
-  ALL_MULTI_SELECT_OPTION_IDS,
-  type Question,
-  type Category,
-} from "@/lib/worksheetQuestions";
+  WORKSHEET_VALID_IDS,
+  coerceWorksheetState,
+  hasAnyWorksheetAnswer,
+  type LoadedPlanWorksheet,
+} from "@/lib/planWorksheet";
+import { createWorksheetServerSync, type WorksheetSaveStatus } from "@/lib/worksheetServerSync";
+import { CATEGORIES, ALL_QUESTIONS, type Question, type Category } from "@/lib/worksheetQuestions";
 
 const KARTE_SYNC_DEBOUNCE_MS = 1500;
+/** サーバー保存の debounce。タブを閉じる前に保存が済んでいるよう、長くしすぎない。 */
+const SERVER_SAVE_DEBOUNCE_MS = 700;
+
+export type { WorksheetSaveStatus };
 
 function findCategoryOf(questionId: string): Category | undefined {
   return CATEGORIES.find((category) => category.questions.some((q) => q.id === questionId));
 }
 
 /**
- * 回答state・localStorage復元/保存・Karte同期(debounce)をまとめたhook。
- * 元はWorksheetコンポーネント内に直接書かれていたロジックをそのまま移しただけで、挙動は変えていない。
+ * 回答state・保存（サーバー / localStorage）・Karte同期(debounce)をまとめたhook。
  * 匿名Worksheet（Worksheetコンポーネント本体）と、Plan側のI'm ready!セクション詳細画面
- * （components/WorksheetSectionDetail.tsx）の両方から同じ状態管理を再利用するために独立させている。
+ * （components/WorksheetSectionDetail.tsx）の両方から同じ状態管理を再利用する。
+ *
+ * 保存先の決まり方:
+ * - 匿名（planId なし）、または plan_worksheet が使えない（migration 未適用・読み込み失敗）
+ *   … 従来どおり localStorage だけ。
+ * - Plan Worksheet で serverWorksheet（server component が読んだ plan_worksheet）が渡されたとき
+ *   … **サーバーが正本**。localStorage は補助キャッシュ / 既存回答の移行元。
+ *     - サーバーに行がある → その内容で初期表示（SSR 時点から表示されるので「一度消えて見える」ことがない）。
+ *       端末の localStorage に古い回答があっても、サーバーを上書きしない。
+ *     - サーバーに行が無い＋この端末の localStorage に回答がある → 1回だけサーバーへ移行する。
+ *     - 変更は React state → localStorage（即時）→ サーバー（短い debounce）の順に反映する。
+ *     - 別端末と同時に保存した場合は、revision で検出して最新を読み直し、設問単位でマージしてから保存し直す。
  */
-export function useWorksheetAnswers(planId?: string, initialKarte?: Karte | null) {
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [ratings, setRatings] = useState<Record<string, Record<string, 1 | 2 | 3 | 4 | 5>>>({});
-  const [rankings, setRankings] = useState<Record<string, string[]>>({});
-  const [compromises, setCompromises] = useState<Record<string, string[]>>({});
-  const [singleSelections, setSingleSelections] = useState<Record<string, string>>({});
-  const [multiSelections, setMultiSelections] = useState<Record<string, string[]>>({});
-  const [hasRestored, setHasRestored] = useState(false);
+export function useWorksheetAnswers(
+  planId?: string,
+  initialKarte?: Karte | null,
+  serverWorksheet?: LoadedPlanWorksheet,
+) {
+  // 初回 render 時点の値だけを使う（以後 props の identity が変わっても読み直さない）。
+  const [serverInit] = useState(() => (planId && serverWorksheet?.available ? serverWorksheet : null));
+  const serverRow = serverInit?.available ? serverInit.row : null;
 
-  // マウント後（クライアント側でのみ）localStorageから復元する。SSRとの初回レンダーを
-  // 一致させるため、useStateの初期値は空のままにし、復元はここで1回だけ行う。
-  // localStorageというReact外部のシステムからの初期化であり、他に起点となるイベントが
-  // 存在しないため、effect内でのsetState呼び出しが正しい手段（差分の派生ではない）。
+  const [answers, setAnswers] = useState<Record<string, string>>(() => serverRow?.state.answers ?? {});
+  const [ratings, setRatings] = useState<Record<string, Record<string, 1 | 2 | 3 | 4 | 5>>>(
+    () => serverRow?.state.ratings ?? {},
+  );
+  const [rankings, setRankings] = useState<Record<string, string[]>>(() => serverRow?.state.rankings ?? {});
+  const [compromises, setCompromises] = useState<Record<string, string[]>>(
+    () => serverRow?.state.compromises ?? {},
+  );
+  const [singleSelections, setSingleSelections] = useState<Record<string, string>>(
+    () => serverRow?.state.singleSelections ?? {},
+  );
+  const [multiSelections, setMultiSelections] = useState<Record<string, string[]>>(
+    () => serverRow?.state.multiSelections ?? {},
+  );
+  // サーバーに行があれば、その内容で初期化済み＝復元完了。無ければ localStorage 復元（effect）を待つ。
+  const [hasRestored, setHasRestored] = useState(serverRow !== null);
+  const [saveStatus, setSaveStatus] = useState<WorksheetSaveStatus>("idle");
+
+  function applyState(next: WorksheetPersistedData) {
+    setAnswers(next.answers);
+    setRatings(next.ratings);
+    setRankings(next.rankings);
+    setCompromises(next.compromises);
+    setSingleSelections(next.singleSelections);
+    setMultiSelections(next.multiSelections);
+  }
+
+  // Plan につき 1 つの同期器（保存・conflict マージ・再試行は lib/worksheetServerSync.ts）。
+  // 渡している callback は state setter（常に同一）だけを使うので、初回に作ったものを使い続けてよい。
+  const [serverSync] = useState(() =>
+    planId && serverInit
+      ? createWorksheetServerSync({
+          planId,
+          getClient: createClient,
+          initialRow: serverRow,
+          onMerged: applyState,
+          onStatus: setSaveStatus,
+          persistPending: (pending) => savePendingWorksheetChange(planId, pending),
+          debounceMs: SERVER_SAVE_DEBOUNCE_MS,
+        })
+      : null,
+  );
+
+  // 復元。サーバーに行がある場合は useState 初期値で済んでいるので何もしない。
+  // それ以外は localStorage から（React 外部のシステムからの初期化なので effect 内の setState が正しい手段）。
+  // Plan Worksheet でサーバーに行が無く、この端末にだけ回答がある場合は、下の保存 effect がそのまま
+  // サーバーへ移行する（1回だけ。行ができた後はサーバーが正本になる）。
   useEffect(() => {
+    if (serverRow) {
+      // 前回この端末で保存しきれなかった変更があれば、今のサーバー状態に重ねて保存し直す。
+      const pending = planId && serverSync ? loadPendingWorksheetChange(planId) : null;
+      if (pending && serverSync) {
+        const restored = serverSync.restorePending({
+          baseRevision: pending.baseRevision,
+          base: coerceWorksheetState(pending.base),
+          local: coerceWorksheetState(pending.local),
+        });
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (restored) applyState(restored);
+      }
+      return;
+    }
     const stored = loadWorksheetState(planId);
     if (stored) {
-      const sanitized = sanitizeWorksheetState(stored, {
-        questionIds: new Set(ALL_QUESTIONS.map((entry) => entry.question.id)),
-        priorityItemIds: new Set(PRIORITY_ITEMS.map((item) => item.id)),
-        compromiseNoneId: COMPROMISE_NONE_ID,
-        // 「次の一歩」だけでなく、現実条件の選択式も含めたカタログ全体の option id で検証する
-        // （kind 単位の集合なので、ここが欠けると保存済みの選択が黙って捨てられる）。
-        readinessOptionIds: ALL_SINGLE_SELECT_OPTION_IDS,
-        topicOptionIds: ALL_MULTI_SELECT_OPTION_IDS,
-      });
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAnswers(sanitized.answers);
-      setRatings(sanitized.ratings);
-      setRankings(sanitized.rankings);
-      setCompromises(sanitized.compromises);
-      setSingleSelections(sanitized.singleSelections);
-      setMultiSelections(sanitized.multiSelections);
+      const sanitized = sanitizeWorksheetState(stored, WORKSHEET_VALID_IDS);
+      applyState(sanitized);
     }
     setHasRestored(true);
-  }, [planId]);
+  }, [planId, serverRow, serverSync]);
 
-  // 復元より前に保存が走ると、空の初期stateでlocalStorageを上書きしてしまうため、
-  // 復元が完了する（hasRestoredがtrueになる）まで保存しない。
+  // localStorage は補助キャッシュとして即時に更新する（匿名 Worksheet では従来どおりこれが保存先）。
+  // 復元より前に保存が走ると空の初期stateで上書きしてしまうため、復元完了まで保存しない。
   useEffect(() => {
     if (!hasRestored) return;
     saveWorksheetState(
@@ -88,6 +147,35 @@ export function useWorksheetAnswers(planId?: string, initialKarte?: Karte | null
   /** debounce 待ちの同期があるか（unmount 時に取りこぼさないため）。 */
   const pendingSyncRef = useRef(false);
   const latestDataRef = useRef<WorksheetPersistedData | null>(null);
+
+  // 回答が変わったら、サーバーへの保存を予約する（Plan Worksheet のみ・短い debounce）。
+  useEffect(() => {
+    if (!hasRestored || !serverSync) return;
+    const data = { answers, ratings, rankings, compromises, singleSelections, multiSelections };
+    // 初回（復元直後）はサーバーと同じ内容なら何もしない。移行が必要なときだけ保存される。
+    if (!serverRow && !hasAnyWorksheetAnswer(data)) return;
+    serverSync.notifyChange(data);
+  }, [hasRestored, serverSync, serverRow, answers, ratings, rankings, compromises, singleSelections, multiSelections]);
+
+  // 画面遷移（unmount）・タブが裏に回る・ページを離れる・通信が戻ったときに、未保存分を送る。
+  // 完了は保証できないため、通常操作中に短い debounce で保存しておくことを主にしている。
+  useEffect(() => {
+    if (!serverSync) return;
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") serverSync.flushIfPending();
+    };
+    const onPageHideOrOnline = () => serverSync.flushIfPending();
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onPageHideOrOnline);
+    window.addEventListener("online", onPageHideOrOnline);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onPageHideOrOnline);
+      window.removeEventListener("online", onPageHideOrOnline);
+      serverSync.flushIfPending();
+      serverSync.dispose();
+    };
+  }, [serverSync]);
 
   /**
    * Worksheet 回答から deterministic に写せる項目だけを Karte へ送る（source は "worksheet"）。
@@ -267,6 +355,7 @@ export function useWorksheetAnswers(planId?: string, initialKarte?: Karte | null
     singleSelections,
     multiSelections,
     hasRestored,
+    saveStatus,
     isQuestionAnswered,
     handleChange,
     handleRate,

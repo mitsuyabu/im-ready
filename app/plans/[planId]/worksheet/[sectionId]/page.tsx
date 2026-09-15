@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanKarte } from "@/lib/planChat";
+import { loadPlanWorksheet } from "@/lib/planWorksheet";
 import { CATEGORIES } from "@/lib/worksheetQuestions";
 import { WORKSHEET_SECTION_META } from "@/lib/worksheetSectionMeta";
 import WorksheetSectionDetail from "@/components/WorksheetSectionDetail";
@@ -53,8 +54,12 @@ export default async function PlanWorksheetSectionPage({ params }: PlanWorksheet
     notFound();
   }
 
-  // AI相談からの「回答候補」表示用。Worksheet 回答へは自動反映しない（採用はユーザー操作のみ）。
-  const karte = await loadPlanKarte(supabase, planId);
+  // karte: AI相談からの「回答候補」表示用。Worksheet 回答へは自動反映しない（採用はユーザー操作のみ）。
+  // worksheet: 回答の正本（plan_worksheet）。server で読んでおくことで、初回描画から回答済みで表示される。
+  const [karte, worksheet] = await Promise.all([
+    loadPlanKarte(supabase, planId),
+    loadPlanWorksheet(supabase, planId),
+  ]);
 
   return (
     <div className="min-h-dvh bg-[#fcfbf8]">
@@ -76,6 +81,7 @@ export default async function PlanWorksheetSectionPage({ params }: PlanWorksheet
             planId={planId}
             sectionId={sectionId}
             karte={karte}
+            serverWorksheet={worksheet}
             planTitle={plan.title}
           />
         </div>

@@ -11,6 +11,7 @@ import {
   type WorksheetKarteCandidate,
 } from "@/lib/worksheetKarteCandidates";
 import PlanContextLabel from "@/components/PlanContextLabel";
+import type { LoadedPlanWorksheet } from "@/lib/planWorksheet";
 
 /**
  * 「I'm ready!」のテーマ詳細画面（presentation のみ）。
@@ -113,9 +114,12 @@ export default function WorksheetSectionDetail({
   sectionId,
   karte,
   planTitle,
+  serverWorksheet,
 }: {
   planId: string;
   sectionId: string;
+  /** その Plan の Worksheet 回答（server 取得の plan_worksheet）。回答の正本。未適用・失敗時は available=false。 */
+  serverWorksheet?: LoadedPlanWorksheet;
   /** いま見ている Plan 名（ページタイトル上の小さなコンテキスト表示に使う）。 */
   planTitle: string;
   /** その Plan の Karte（server 取得・normalizeKarte 済み）。AI相談からの回答候補の生成にだけ使う。 */
@@ -133,6 +137,7 @@ export default function WorksheetSectionDetail({
     singleSelections,
     multiSelections,
     hasRestored,
+    saveStatus,
     isQuestionAnswered,
     handleChange,
     handleRate,
@@ -140,7 +145,7 @@ export default function WorksheetSectionDetail({
     handleToggleCompromise,
     handleSelectSingle,
     handleToggleMulti,
-  } = useWorksheetAnswers(planId, karte);
+  } = useWorksheetAnswers(planId, karte, serverWorksheet);
 
   const [openExamples, setOpenExamples] = useState<Record<string, boolean>>({});
 
@@ -259,8 +264,17 @@ export default function WorksheetSectionDetail({
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#8a8578]">
         <span className="inline-flex items-center gap-1.5">
           <CheckIcon className="h-3.5 w-3.5 text-[#5f7050]" />
-          {hasRestored && answeredCount > 0 ? "下書き保存済み" : "回答は自動保存されます"}
+          {saveStatus === "saving"
+            ? "保存中…"
+            : hasRestored && answeredCount > 0
+              ? "保存済み"
+              : "回答は自動保存されます"}
         </span>
+        {saveStatus === "error" && (
+          <span className="text-[#9a5b4a]" role="status">
+            保存できませんでした。この端末には残っているので、自動でもう一度保存します。
+          </span>
+        )}
         <Link
           href="/widget"
           className="inline-flex items-center gap-1.5 text-[#3f3a34] transition-colors hover:text-[#111]"

@@ -5,6 +5,7 @@ import { loadPlanNavData } from "@/lib/planNavData";
 import { formatLastUpdated } from "@/lib/planActivity";
 import PlanListRow from "@/components/PlanListRow";
 import WorksheetRowProgress from "@/components/WorksheetRowProgress";
+import { loadPlanWorksheetsForPlans } from "@/lib/planWorksheet";
 
 export const metadata: Metadata = {
   title: "Worksheet",
@@ -12,7 +13,8 @@ export const metadata: Metadata = {
 
 /**
  * Worksheet一覧。「Worksheetを選んでからPlanを選ぶ」導線。全Planを表示し、未着手でも消さない。
- * 進捗（n/22問）はlocalStorage由来のためクライアント側（WorksheetRowProgress）で取得する。
+ * 進捗（回答済み件数）は回答の正本 plan_worksheet から出す（全 Plan 分を1クエリで取得）。
+ * サーバーに無い Plan だけ、クライアント側（WorksheetRowProgress）でこの端末の localStorage を見る。
  * ソートはMVPでは既存のPlan activity（chat/karte基準）を流用する。Worksheet自身の正確な更新時刻は
  * DBに無いため、activity日付は「Plan更新」という補助情報として小さく添えるだけに留める
  * （「Worksheetが更新された」という誤認を避けるため）。
@@ -32,6 +34,11 @@ export default async function WorksheetsPage() {
   }
 
   const { plans: planList, activityMap } = await loadPlanNavData(user.id);
+
+  const worksheetsByPlan = await loadPlanWorksheetsForPlans(
+    supabase,
+    planList.map((p) => p.id),
+  );
 
   const orderedPlans = [...planList].sort((a, b) => {
     const activityA = activityMap[a.id] ?? a.updatedAt;
@@ -61,7 +68,7 @@ export default async function WorksheetsPage() {
                   title={plan.title}
                 >
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <WorksheetRowProgress planId={plan.id} />
+                    <WorksheetRowProgress planId={plan.id} serverWorksheet={worksheetsByPlan[plan.id]} />
                     <span className="text-xs text-worksheet-secondary">
                       Plan更新: {formatLastUpdated(activityIso)}
                     </span>

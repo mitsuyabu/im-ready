@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadLastChatMessageAt, loadPlanKarte } from "@/lib/planChat";
+import { loadPlanWorksheet } from "@/lib/planWorksheet";
 import { formatLastUpdated, loadPlanLastActivityMap } from "@/lib/planActivity";
 import { summarizeKarteForCard } from "@/lib/planCardSummary";
 import { getCityGuideDescription } from "@/lib/cityGuide";
@@ -128,10 +129,12 @@ export default async function PlanPage({ params }: PlanPageProps) {
 
   const typedPlan = plan as PlanRow;
 
-  const [karte, lastChatMessageAt, activityMap] = await Promise.all([
+  const [karte, lastChatMessageAt, activityMap, worksheet] = await Promise.all([
     loadPlanKarte(supabase, planId),
     loadLastChatMessageAt(supabase, planId),
     loadPlanLastActivityMap(supabase, [planId]),
+    // Worksheet の回答済み件数を端末に依存させないため、正本（plan_worksheet）を一緒に読む。
+    loadPlanWorksheet(supabase, planId),
   ]);
 
   const summary = summarizeKarteForCard(karte);
@@ -232,7 +235,7 @@ export default async function PlanPage({ params }: PlanPageProps) {
                 </p>
                 {/* 既存 PlanWorksheetProgress はロジック不変。表示される時だけ薄い pill に見せる wrapper。 */}
                 <div className="[&>p]:m-0 [&>p]:mt-2 [&>p]:inline-block [&>p]:rounded-full [&>p]:bg-[#eef1ec] [&>p]:px-2.5 [&>p]:py-0.5 [&>p]:text-[11px] [&>p]:text-[#5b5750]">
-                  <PlanWorksheetProgress planId={typedPlan.id} karte={karte} />
+                  <PlanWorksheetProgress planId={typedPlan.id} karte={karte} serverWorksheet={worksheet} />
                 </div>
               </div>
               <Link

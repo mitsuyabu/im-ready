@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { CATEGORIES } from "@/lib/worksheetQuestions";
-import { loadWorksheetState } from "@/lib/worksheetStorage";
+import type { WorksheetPersistedData } from "@/lib/worksheetStorage";
+import type { LoadedPlanWorksheet } from "@/lib/planWorksheet";
+import { resolvePlanWorksheetForDisplay, serverWorksheetStateOrNull } from "@/lib/planWorksheetClient";
 import { countAnsweredInCategory, type WorksheetProgress } from "@/lib/worksheetProgress";
 import { WORKSHEET_SECTION_META } from "@/lib/worksheetSectionMeta";
 
@@ -59,28 +61,44 @@ function statusDotClass(state: SectionState): string {
 
 /**
  * 「I'm ready!」のテーマ一覧（セクション選択画面）。
- * Worksheet の回答は localStorage にのみ保存されているため、各テーマの回答済み件数と
- * 「整理済み」判定はマウント後にクライアント側だけで集計する
- * （PlanWorksheetProgress.tsx と同じ理由・同じパターン。判定ロジック・保存形式は変更しない）。
+ * 各テーマの回答済み件数と「整理済み」判定は、回答の正本（plan_worksheet）から集計する。
+ * サーバーに回答があれば初回描画から出し、無ければ（未移行・migration 未適用）マウント後に
+ * この端末の localStorage から集計する（lib/planWorksheetClient.ts。移行もそこで1回だけ行う）。
  *
  * 見た目は、共有された6枚のカード画像を next/image でそのままカードUIとして表示する。
  * 上部の summary bar（テーマ数・整理済み数・見直し導線）は実データ由来のまま維持。
  * カードごとの進捗は、画像デザインを邪魔しないよう画像の「下」に小さく添えるだけにする。
  */
-export default function WorksheetSectionList({ planId }: { planId: string }) {
-  const [progressByCategory, setProgressByCategory] = useState<Record<string, WorksheetProgress> | null>(
-    null,
-  );
+function progressFor(data: WorksheetPersistedData | null): Record<string, WorksheetProgress> {
+  const next: Record<string, WorksheetProgress> = {};
+  for (const category of CATEGORIES) {
+    next[category.id] = countAnsweredInCategory(data, category);
+  }
+  return next;
+}
+
+export default function WorksheetSectionList({
+  planId,
+  serverWorksheet,
+}: {
+  planId: string;
+  serverWorksheet?: LoadedPlanWorksheet;
+}) {
+  const [progressByCategory, setProgressByCategory] = useState<Record<string, WorksheetProgress> | null>(() => {
+    const fromServer = serverWorksheetStateOrNull(serverWorksheet);
+    return fromServer ? progressFor(fromServer) : null;
+  });
 
   useEffect(() => {
-    const stored = loadWorksheetState(planId);
-    const next: Record<string, WorksheetProgress> = {};
-    for (const category of CATEGORIES) {
-      next[category.id] = countAnsweredInCategory(stored, category);
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setProgressByCategory(next);
-  }, [planId]);
+    if (serverWorksheetStateOrNull(serverWorksheet)) return;
+    let cancelled = false;
+    void resolvePlanWorksheetForDisplay(planId, serverWorksheet).then((data) => {
+      if (!cancelled) setProgressByCategory(progressFor(data));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [planId, serverWorksheet]);
 
   const totalThemes = CATEGORIES.length;
   const completedThemes = progressByCategory

@@ -82,6 +82,44 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
+/* ---- Plan Worksheet: サーバーへまだ保存できていない変更の控え ----
+ * サーバー保存に失敗したまま画面を離れると、次に開いたときはサーバー（正本）が優先されるため、
+ * この端末の未保存の変更が失われてしまう。それを防ぐため「どのサーバー状態（revision / base）を
+ * もとに、どう変えたか（local）」だけを別 key に控えておき、次回ロード時に設問単位でマージして保存し直す。
+ * 保存が完了したら消す。匿名 Worksheet では使わない。 */
+
+const PENDING_KEY_PREFIX = "ryugaku-worksheet-pending:plan:";
+
+export type PendingWorksheetChange = {
+  /** 変更のもとになったサーバーの revision（null はサーバーにまだ行が無かった）。 */
+  baseRevision: number | null;
+  base: WorksheetPersistedData;
+  local: WorksheetPersistedData;
+};
+
+export function savePendingWorksheetChange(planId: string, pending: PendingWorksheetChange | null): void {
+  try {
+    if (pending === null) window.localStorage.removeItem(`${PENDING_KEY_PREFIX}${planId}`);
+    else window.localStorage.setItem(`${PENDING_KEY_PREFIX}${planId}`, JSON.stringify({ version: STORAGE_VERSION, ...pending }));
+  } catch {
+    // 保存できなくても入力自体は継続できるため、握りつぶす
+  }
+}
+
+export function loadPendingWorksheetChange(planId: string): { baseRevision: number | null; base: unknown; local: unknown } | null {
+  try {
+    const raw = window.localStorage.getItem(`${PENDING_KEY_PREFIX}${planId}`);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed) || parsed.version !== STORAGE_VERSION) return null;
+    const baseRevision =
+      typeof parsed.baseRevision === "number" && Number.isInteger(parsed.baseRevision) ? parsed.baseRevision : null;
+    return { baseRevision, base: parsed.base, local: parsed.local };
+  } catch {
+    return null;
+  }
+}
+
 /** 復元時に「今のカテゴリ・項目に存在するid」だけを残すために渡す集合 */
 export type WorksheetValidIds = {
   questionIds: Set<string>;
