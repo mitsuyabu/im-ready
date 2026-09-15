@@ -89,6 +89,12 @@ export const BUDGET_SPEC = {
   monthlyCap: { kind: "number", description: "月あたり予算上限（円）" },
   fundingSource: { kind: "string", description: "資金源（自己資金/親の支援/ローン 等）" },
   flexibility: { kind: "string", description: "予算の融通のきき具合" },
+  rangeLabel: {
+    kind: "string",
+    description:
+      "予算の目安を本人の言葉やレンジのまま（例: 100〜150万円 / 150万円以内 / まだ分からない）。" +
+      "本人が予算に触れたら totalCap 等の数値とは別にここにも入れる。レンジを1つの金額に換算しない",
+  },
 } as const satisfies BlockSpec;
 
 export const TIMING_SPEC = {
@@ -96,6 +102,12 @@ export const TIMING_SPEC = {
   departureTiming: { kind: "string", description: "希望渡航時期" },
   deadline: { kind: "string", description: "決めなければならない締め切り" },
   flexibility: { kind: "string", description: "時期の融通のきき具合" },
+  durationLabel: {
+    kind: "string",
+    description:
+      "留学全体の期間の目安を本人の言葉のまま（例: 半年 / 1年くらい / まだ決めていない）。" +
+      "durationWeeks（週の数値）とは別。「半年」を26週のように換算しない",
+  },
 } as const satisfies BlockSpec;
 
 export const WORK_SPEC = {
@@ -123,6 +135,11 @@ export const CONSTRAINTS_SPEC = {
   avoidCountries: { kind: "string[]", description: "避けたい国・地域" },
   health: { kind: "string", description: "健康上の配慮事項" },
   visaConstraints: { kind: "string", description: "ビザ上の制約" },
+  currentCommitmentPlan: {
+    kind: "string",
+    description:
+      "今の学校・仕事を留学に向けてどうする予定か（例: 卒業後に行く予定 / 休学を考えている / 退職を考えている / まだ何も決めていない）",
+  },
 } as const satisfies BlockSpec;
 
 export const SUPPORT_SPEC = {
@@ -137,6 +154,15 @@ export const SCHOOL_PREFS_SPEC = {
   accommodation: { kind: "string", description: "滞在スタイルの希望（ホームステイ/学生寮 等）" },
   sizeNationality: { kind: "string", description: "学校規模・国籍構成の希望" },
   startFlexibility: { kind: "string", description: "開始時期の融通" },
+  preferredCountries: {
+    kind: "string[]",
+    description: "行ってみたい国（複数可・本人の言葉のまま。例: オーストラリア, カナダ）。避けたい国は constraints.avoidCountries",
+  },
+  studyDurationLabel: {
+    kind: "string",
+    description:
+      "学校に通う期間の目安（例: 1〜3ヶ月 / 学校には通わない / まだ決めていない）。留学全体の期間とは別",
+  },
 } as const satisfies BlockSpec;
 
 export const DECISION_SPEC = {
@@ -150,6 +176,11 @@ export const DECISION_SPEC = {
     kind: "enum",
     values: ["self", "parent", "partner_consent_needed"],
     description: "意思決定者",
+  },
+  familySharingStatus: {
+    kind: "string",
+    description:
+      "留学について家族にどこまで話せているか（例: すでに相談している / 少し話している / まだ話していない / 家族への相談は必要ない）。意思決定者（decisionOwner）とは別",
   },
 } as const satisfies BlockSpec;
 
@@ -625,12 +656,14 @@ const FIELD_LABELS: Record<BlockName, Record<string, string>> = {
     monthlyCap: "月あたり予算",
     fundingSource: "資金源",
     flexibility: "予算の融通",
+    rangeLabel: "予算の目安",
   },
   timing: {
     durationWeeks: "期間",
     departureTiming: "渡航時期",
     deadline: "締め切り",
     flexibility: "時期の融通",
+    durationLabel: "留学期間の目安",
   },
   work: {
     wantsToWork: "現地就労希望",
@@ -654,6 +687,7 @@ const FIELD_LABELS: Record<BlockName, Record<string, string>> = {
     avoidCountries: "避けたい国",
     health: "健康上の配慮",
     visaConstraints: "ビザ上の制約",
+    currentCommitmentPlan: "今の学校・仕事の予定",
   },
   support: {
     scope: "サポート希望範囲",
@@ -666,12 +700,15 @@ const FIELD_LABELS: Record<BlockName, Record<string, string>> = {
     accommodation: "滞在スタイル",
     sizeNationality: "学校規模・国籍構成",
     startFlexibility: "開始時期の融通",
+    preferredCountries: "希望する国",
+    studyDurationLabel: "学校に通う期間の目安",
   },
   decision: {
     stage: "検討段階",
     leaning: "現時点の意向",
     topConcern: "いま一番の懸念",
     decisionOwner: "意思決定者",
+    familySharingStatus: "家族への共有状況",
   },
 };
 

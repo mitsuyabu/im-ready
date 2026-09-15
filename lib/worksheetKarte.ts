@@ -12,10 +12,16 @@ import type { WorksheetPersistedData } from "@/lib/worksheetStorage";
 import type { ChoiceOption } from "@/lib/worksheetNextStep";
 import {
   ACCOMMODATION_OPTIONS,
+  ADJUSTMENT_OPTIONS,
+  BUDGET_OPTIONS,
   CITY_OPTIONS,
+  COUNTRY_OPTIONS,
   DEPARTURE_TIMING_OPTIONS,
   ENGLISH_LEVEL_OPTIONS,
+  FAMILY_SHARING_OPTIONS,
   OCCUPATION_OPTIONS,
+  STAY_DURATION_OPTIONS,
+  STUDY_DURATION_OPTIONS,
   STUDY_FORMAT_OPTIONS,
   concreteLabels,
   isCourseTypeOptionId,
@@ -93,12 +99,15 @@ export function deriveWorksheetKartePatch(data: WorksheetPersistedData): KartePa
   }
 
   /* ---- 現実条件（conditions）。意味が完全に一致する Karte field にだけ写す ----
-   * 写さないもの（対応 field が無い / 変換に解釈が要る）:
-   *   希望する国      … Karte に「希望国」field が無い（constraints.avoidCountries は逆の意味）
-   *   留学期間 / 就学期間 … timing.durationWeeks は「週」の数値。「半年」を週へ換算しない
-   *   予算            … budget.totalCap は円の数値。「100〜150万円」を1つの数値にしない
-   *   学校・仕事の調整 / 家族への共有 … 対応する field が無い
-   * これらは Worksheet にだけ保存する（近い意味の field へ無理に入れない）。 */
+   * 数値 field（timing.durationWeeks / budget.totalCap / monthlyCap）には一切写さない。
+   * 「半年」を週へ、「100〜150万円」を1つの金額へ換算しないため、ラベル用の field
+   * （durationLabel / rangeLabel / studyDurationLabel）に選択肢のラベルをそのまま入れる。
+   *
+   * 「まだ決まっていない」系の扱い:
+   *   - ラベル field（期間・予算・就学期間・学校/仕事の予定・家族共有）… 本人が明言した状態なので写す
+   *   - 学校提案 gate が参照する field（都市・コース種別）や希望国のリスト … 写さない
+   *     （「まだ決まっていない」を都市名・国名として扱うと、gate や一覧の意味が壊れるため）
+   *   - 「その他」だけ … 値を持たないので、自由記入があればそれだけを写す */
 
   const departureTiming = selectionWithNote(
     DEPARTURE_TIMING_OPTIONS,
@@ -154,6 +163,64 @@ export function deriveWorksheetKartePatch(data: WorksheetPersistedData): KartePa
     patch.schoolPrefs = {
       ...patch.schoolPrefs,
       accommodation: { value: stays.join("／"), certainty: "stated" },
+    };
+  }
+
+  // 希望国: 具体的な国のラベル ＋ 自由記入があれば本人の言葉のまま1要素として保持する。
+  const countries = concreteLabels(COUNTRY_OPTIONS, data.multiSelections["destination-country"] ?? []);
+  const countryNote = data.answers["destination-country"]?.trim();
+  const preferredCountries = countryNote ? [...countries, countryNote] : countries;
+  if (preferredCountries.length > 0) {
+    patch.schoolPrefs = {
+      ...patch.schoolPrefs,
+      preferredCountries: { value: preferredCountries, certainty: "stated" },
+    };
+  }
+
+  const durationLabel = selectionWithNote(STAY_DURATION_OPTIONS, data.singleSelections["stay-duration"], undefined);
+  if (durationLabel) {
+    patch.timing = { ...patch.timing, durationLabel: { value: durationLabel, certainty: "stated" } };
+  }
+
+  // 予算: 「100〜150万円（できれば120万円以内）」のように、選択と自由記入の両方を失わずに1つの値へ。
+  const rangeLabel = selectionWithNote(BUDGET_OPTIONS, data.singleSelections["budget"], data.answers["budget"]);
+  if (rangeLabel) {
+    patch.budget = { ...patch.budget, rangeLabel: { value: rangeLabel, certainty: "stated" } };
+  }
+
+  const studyDurationLabel = selectionWithNote(
+    STUDY_DURATION_OPTIONS,
+    data.singleSelections["study-duration"],
+    undefined,
+  );
+  if (studyDurationLabel) {
+    patch.schoolPrefs = {
+      ...patch.schoolPrefs,
+      studyDurationLabel: { value: studyDurationLabel, certainty: "stated" },
+    };
+  }
+
+  const commitmentPlan = selectionWithNote(
+    ADJUSTMENT_OPTIONS,
+    data.singleSelections["school-work-adjustment"],
+    data.answers["school-work-adjustment"],
+  );
+  if (commitmentPlan) {
+    patch.constraints = {
+      ...patch.constraints,
+      currentCommitmentPlan: { value: commitmentPlan, certainty: "stated" },
+    };
+  }
+
+  const familySharing = selectionWithNote(
+    FAMILY_SHARING_OPTIONS,
+    data.singleSelections["family-sharing"],
+    data.answers["family-sharing"],
+  );
+  if (familySharing) {
+    patch.decision = {
+      ...patch.decision,
+      familySharingStatus: { value: familySharing, certainty: "stated" },
     };
   }
 

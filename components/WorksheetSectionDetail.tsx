@@ -195,8 +195,11 @@ export default function WorksheetSectionDetail({
       if (singleSelections[questionId] !== adoption.optionId) {
         handleSelectSingle(questionId, adoption.optionId);
       }
-    } else if (!(multiSelections[questionId] ?? []).includes(adoption.optionId)) {
-      handleToggleMulti(questionId, adoption.optionId);
+    } else {
+      const current = multiSelections[questionId] ?? [];
+      for (const optionId of adoption.optionIds) {
+        if (!current.includes(optionId)) handleToggleMulti(questionId, optionId);
+      }
     }
   }
 

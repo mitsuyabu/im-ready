@@ -198,6 +198,14 @@ export function concreteLabels(options: ChoiceOption[], selectedIds: string[]): 
  * 自動で選ばせるべきでない選択肢には alias を置かない。
  */
 const OPTION_ALIASES: Record<string, string[]> = {
+  "country-au": ["australia", "豪州"],
+  "country-ca": ["canada"],
+  "country-nz": ["new zealand", "nz"],
+  "country-uk": ["uk", "united kingdom", "英国"],
+  "country-us": ["usa", "us", "united states", "米国"],
+  "country-ph": ["philippines"],
+  "country-mt": ["malta"],
+
   "city-sydney": ["sydney"],
   "city-melbourne": ["melbourne"],
   "city-goldcoast": ["gold coast", "goldcoast"],
@@ -234,15 +242,61 @@ function normalizeForAlias(value: string): string {
 }
 
 /**
+ * 期間ラベル専用の正規化。「約」「くらい」「程度」「前後」「ほど」「間」のような
+ * **概数を表す飾りだけ**を外す（例: 「1年くらい」「約1年」「1年間」→「1年」）。
+ * 数値そのものは変えず、「3ヶ月」を「1〜3ヶ月」のようなレンジへ寄せることもしない。
+ */
+function normalizeApproxDuration(value: string): string {
+  return normalizeForAlias(value)
+    .replace(/^約/, "")
+    .replace(/(くらい|ぐらい|程度|前後|ほど)$/, "")
+    .replace(/間$/, "")
+    .replace(/^一年/, "1年")
+    .replace(/カ月|ヵ月|か月|ケ月/g, "ヶ月");
+}
+
+/**
+ * 期間系の選択肢（留学期間・就学期間）に完全一致する id を返す。概数の飾りだけ外して比べる。
+ * これらはラベル field（durationLabel / studyDurationLabel）と往復するため、
+ * 「まだ決めていない」「学校には通わない」もラベル完全一致なら選択できる（「その他」だけは不可）。
+ */
+export function matchDurationOptionId(options: ChoiceOption[], value: string): string | null {
+  const target = normalizeApproxDuration(value);
+  if (target.length === 0) return null;
+  const hits = options.filter(
+    (o) => isAutoSelectable(o.id, true) && normalizeApproxDuration(o.label) === target,
+  );
+  return hits.length === 1 ? hits[0].id : null;
+}
+
+/**
+ * Karte 値から自動で選んでよい選択肢か。
+ *   - 「その他」は値を持たないので常に不可
+ *   - 「まだ決まっていない」系は、Worksheet → Karte でも写しているラベル field
+ *     （期間・予算・就学期間・学校/仕事の予定・家族共有）でだけ許可（allowUndecided）。
+ *     都市・滞在・学び方など gate や一覧に関わる設問では不可のまま
+ *   - 「無職」（occ-none）は未定ではなく職業の選択肢なので可
+ */
+function isAutoSelectable(optionId: string, allowUndecided: boolean): boolean {
+  if (optionId.endsWith("-other")) return false;
+  if (allowUndecided || optionId === "occ-none") return true;
+  return !NEVER_AUTO_SELECT.test(optionId);
+}
+
+/**
  * Karte の文字列値に **完全一致**する選択肢 id を返す。見つからなければ null。
  * 複数の選択肢に当たる曖昧なケースも null（どちらかを推測で選ばない）。
  * `occ-none`（無職）だけは「働く予定はない」系ではなく職業の選択肢なので例外的に許可する。
  */
-export function matchOptionIdExactly(options: ChoiceOption[], value: string): string | null {
+export function matchOptionIdExactly(
+  options: ChoiceOption[],
+  value: string,
+  opts: { allowUndecided?: boolean } = {},
+): string | null {
   const target = normalizeForAlias(value);
   if (target.length === 0) return null;
   const hits = options.filter((o) => {
-    if (NEVER_AUTO_SELECT.test(o.id) && o.id !== "occ-none") return false;
+    if (!isAutoSelectable(o.id, opts.allowUndecided === true)) return false;
     const forms = [o.label, ...(OPTION_ALIASES[o.id] ?? [])];
     return forms.some((f) => normalizeForAlias(f) === target);
   });

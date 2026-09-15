@@ -17,11 +17,18 @@ import { isWorksheetQuestionAnswered } from "@/lib/worksheetProgress";
 import { ALL_QUESTIONS, type Question } from "@/lib/worksheetQuestions";
 import {
   ACCOMMODATION_OPTIONS,
+  ADJUSTMENT_OPTIONS,
+  BUDGET_OPTIONS,
   CITY_OPTIONS,
+  COUNTRY_OPTIONS,
   DEPARTURE_TIMING_OPTIONS,
   ENGLISH_LEVEL_OPTIONS,
+  FAMILY_SHARING_OPTIONS,
   OCCUPATION_OPTIONS,
+  STAY_DURATION_OPTIONS,
+  STUDY_DURATION_OPTIONS,
   STUDY_FORMAT_OPTIONS,
+  matchDurationOptionId,
   matchOptionIdExactly,
   optionLabel,
 } from "@/lib/worksheetConditions";
@@ -30,12 +37,12 @@ import {
  * 候補を採用したときに、既存のどの回答変更経路へ流すか。
  *   text         … handleChange(questionId, value)（freeText 本体 / 選択式の自由記入欄 / 数値）
  *   singleOption … handleSelectSingle(questionId, optionId)
- *   multiOption  … handleToggleMulti(questionId, optionId)（既存の選択は消さない＝追加のみ）
+ *   multiOption  … optionIds それぞれを handleToggleMulti で追加（既存の選択は消さない＝未選択のものだけ）
  */
 export type WorksheetCandidateAdoption =
   | { kind: "text"; value: string }
   | { kind: "singleOption"; optionId: string }
-  | { kind: "multiOption"; optionId: string };
+  | { kind: "multiOption"; optionIds: string[] };
 
 export type WorksheetKarteCandidate = {
   questionId: string;
@@ -44,6 +51,8 @@ export type WorksheetKarteCandidate = {
   adoption: WorksheetCandidateAdoption;
   sourceField: { block: string; key: string };
 };
+
+type Converted = { adoption: WorksheetCandidateAdoption; displayText: string };
 
 type Mapping = {
   questionId: string;
@@ -69,26 +78,70 @@ function asText(value: unknown): { adoption: WorksheetCandidateAdoption; display
  * 選択式設問向け: 完全一致する選択肢があればその選択肢、無ければ自由記入欄へのテキスト候補。
  * 選択肢へは alias の完全一致でしか変換しない（部分一致で近い選択肢を選ばない）。
  */
-function asOptionOrText(options: ChoiceOption[], multi: boolean) {
-  return (value: unknown, question: Question) => {
+function asOptionOrText(
+  options: ChoiceOption[],
+  multi: boolean,
+  opts: { allowUndecided?: boolean } = {},
+) {
+  return (value: unknown, question: Question): Converted | null => {
     if (typeof value !== "string") return null;
     const v = value.trim();
     if (v.length === 0 || isPlaceholderValue(v)) return null;
-    const optionId = matchOptionIdExactly(options, v);
+    const optionId = matchOptionIdExactly(options, v, opts);
     if (optionId) {
-      const label = optionLabel(options, optionId) ?? v;
-      return {
-        adoption: multi
-          ? ({ kind: "multiOption", optionId } as const)
-          : ({ kind: "singleOption", optionId } as const),
-        displayText: label,
-      };
+      const adoption: WorksheetCandidateAdoption = multi
+        ? { kind: "multiOption", optionIds: [optionId] }
+        : { kind: "singleOption", optionId };
+      return { adoption, displayText: optionLabel(options, optionId) ?? v };
     }
     // 選択肢に無い値は、自由記入欄がある設問でだけテキスト候補にする。
     const hasFreeText =
       (question.kind === "singleSelect" || question.kind === "multiSelect") && question.freeText != null;
-    return hasFreeText ? { adoption: { kind: "text", value: v } as const, displayText: v } : null;
+    return hasFreeText ? { adoption: { kind: "text", value: v }, displayText: v } : null;
   };
+}
+
+/**
+ * 期間系（自由記入欄の無い単一選択）向け: 概数の飾りを外した完全一致だけを選択肢にする。
+ * 一致しなければ候補にしない（「3ヶ月」を「1〜3ヶ月」「3〜6ヶ月」のどちらかへ寄せない）。
+ */
+function asDurationOption(options: ChoiceOption[]) {
+  return (value: unknown): Converted | null => {
+    if (typeof value !== "string") return null;
+    const v = value.trim();
+    if (v.length === 0 || isPlaceholderValue(v)) return null;
+    const optionId = matchDurationOptionId(options, v);
+    if (!optionId) return null;
+    return {
+      adoption: { kind: "singleOption", optionId },
+      displayText: optionLabel(options, optionId) ?? v,
+    };
+  };
+}
+
+/**
+ * 希望国（string[]）→ 国の複数選択。全要素が選択肢に完全一致したときだけ選択肢として追加し、
+ * 1つでも一致しない要素があれば、本人の言葉を「、」でつないだ自由記入候補にする（一部だけ選んで
+ * 残りを黙って捨てない）。
+ */
+function asCountries(value: unknown, question: Question): Converted | null {
+  if (!Array.isArray(value)) return null;
+  const items = value
+    .filter((x): x is string => typeof x === "string")
+    .map((x) => x.trim())
+    .filter((x) => x.length > 0 && !isPlaceholderValue(x));
+  if (items.length === 0) return null;
+  const ids = items.map((x) => matchOptionIdExactly(COUNTRY_OPTIONS, x));
+  if (ids.every((id): id is string => id !== null)) {
+    const unique = Array.from(new Set(ids));
+    return {
+      adoption: { kind: "multiOption", optionIds: unique },
+      displayText: unique.map((id) => optionLabel(COUNTRY_OPTIONS, id) ?? id).join("、"),
+    };
+  }
+  const hasFreeText = question.kind === "multiSelect" && question.freeText != null;
+  const text = items.join("、");
+  return hasFreeText ? { adoption: { kind: "text", value: text }, displayText: text } : null;
 }
 
 /**
@@ -97,7 +150,7 @@ function asOptionOrText(options: ChoiceOption[], multi: boolean) {
  * optional chaining で書く。
  *
  * 候補にしないもの:
- *   - 希望国 / 留学期間 / 予算 / 就学期間 / 学校・仕事の調整 / 家族共有 … 対応する Karte field が無い
+ *   - timing.durationWeeks / budget.totalCap 等の数値 field … 週や金額をレンジの選択肢へ寄せない
  *   - local-work ← work.wantsToWork=true … 「ぜひ」「できれば」のどちらかを推測で選ぶことになるため。
  *     false（働かない）だけは「働く予定はない」と意味が完全一致するので候補にする
  *   - work.postReturnCareer 等、近いが別の意味の field
@@ -168,6 +221,48 @@ const MAPPINGS: Mapping[] = [
       if (typeof value !== "number" || !Number.isInteger(value) || value < 10 || value > 99) return null;
       return { adoption: { kind: "text", value: String(value) }, displayText: `${value}歳` };
     },
+  },
+  {
+    questionId: "destination-country",
+    block: "schoolPrefs",
+    key: "preferredCountries",
+    getField: (k) => k.schoolPrefs?.preferredCountries,
+    toAdoption: asCountries,
+  },
+  {
+    questionId: "stay-duration",
+    block: "timing",
+    key: "durationLabel",
+    getField: (k) => k.timing?.durationLabel,
+    toAdoption: asDurationOption(STAY_DURATION_OPTIONS),
+  },
+  {
+    questionId: "budget",
+    block: "budget",
+    key: "rangeLabel",
+    getField: (k) => k.budget?.rangeLabel,
+    toAdoption: asOptionOrText(BUDGET_OPTIONS, false, { allowUndecided: true }),
+  },
+  {
+    questionId: "study-duration",
+    block: "schoolPrefs",
+    key: "studyDurationLabel",
+    getField: (k) => k.schoolPrefs?.studyDurationLabel,
+    toAdoption: asDurationOption(STUDY_DURATION_OPTIONS),
+  },
+  {
+    questionId: "school-work-adjustment",
+    block: "constraints",
+    key: "currentCommitmentPlan",
+    getField: (k) => k.constraints?.currentCommitmentPlan,
+    toAdoption: asOptionOrText(ADJUSTMENT_OPTIONS, false, { allowUndecided: true }),
+  },
+  {
+    questionId: "family-sharing",
+    block: "decision",
+    key: "familySharingStatus",
+    getField: (k) => k.decision?.familySharingStatus,
+    toAdoption: asOptionOrText(FAMILY_SHARING_OPTIONS, false, { allowUndecided: true }),
   },
   {
     questionId: "local-work",
