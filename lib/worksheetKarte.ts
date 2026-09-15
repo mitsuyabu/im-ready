@@ -7,7 +7,7 @@
  * kartePatchToFieldPatches(patch, "worksheet") で呼び出し側が付与する。
  */
 
-import type { KartePatch } from "@/lib/karte";
+import type { FieldPatch, Karte, KartePatch } from "@/lib/karte";
 import type { WorksheetPersistedData } from "@/lib/worksheetStorage";
 import type { ChoiceOption } from "@/lib/worksheetNextStep";
 import {
@@ -18,6 +18,7 @@ import {
   OCCUPATION_OPTIONS,
   STUDY_FORMAT_OPTIONS,
   concreteLabels,
+  isCourseTypeOptionId,
   optionLabel,
 } from "@/lib/worksheetConditions";
 
@@ -135,7 +136,12 @@ export function deriveWorksheetKartePatch(data: WorksheetPersistedData): KartePa
     };
   }
 
-  const studyFormats = concreteLabels(STUDY_FORMAT_OPTIONS, data.multiSelections["study-format"] ?? []);
+  // 「学校には通わない予定」は学び方の種類ではないので courseType に入れない
+  // （入れると学校提案の gate が「コース種別あり」と誤判定する）。
+  const selectedFormats = data.multiSelections["study-format"] ?? [];
+  const studyFormats = STUDY_FORMAT_OPTIONS.filter(
+    (o) => selectedFormats.includes(o.id) && isCourseTypeOptionId(o.id),
+  ).map((o) => o.label);
   if (studyFormats.length > 0) {
     patch.schoolPrefs = {
       ...patch.schoolPrefs,
@@ -164,4 +170,24 @@ export function deriveWorksheetKartePatch(data: WorksheetPersistedData): KartePa
   }
 
   return patch;
+}
+
+/**
+ * Karte に **すでに同じ内容で入っている** Worksheet 由来の書き込みを取り除く。
+ *
+ * Worksheet 画面を開くたびに全項目を apply_karte_patch へ送り直すと、値は変わらないのに
+ * meta.updatedAt だけが進み、不要な write になる。そこで「その field が stated・source=worksheet・
+ * 値が完全一致」のものだけを送らない。1 つでも条件が違えば（Chat 側が別の値を持つ・conflict 中・
+ * inferred 等）送る。裁定そのものは従来どおり RPC に任せ、ここでは判断を増やさない。
+ */
+export function dropUnchangedWorksheetPatches(fieldPatches: FieldPatch[], karte: Karte | null): FieldPatch[] {
+  if (!karte) return fieldPatches;
+  const conflictKeys = new Set((karte.handoff?.conflicts ?? []).map((c) => `${c.block}.${c.key}`));
+  return fieldPatches.filter((p) => {
+    if (conflictKeys.has(`${p.block}.${p.key}`)) return true;
+    const block = karte[p.block] as Record<string, { value?: unknown; certainty?: string; source?: string }> | undefined;
+    const field = block?.[p.key];
+    if (!field || field.certainty !== "stated" || field.source !== "worksheet") return true;
+    return JSON.stringify(field.value) !== JSON.stringify(p.value);
+  });
 }

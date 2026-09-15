@@ -62,12 +62,45 @@ export const SYSTEM_PROMPT = `あなたは「留学カウンセラーAI」です
 
 ${AUSTRALIA_KNOWLEDGE}`;
 
+/** conflict 中の field（block.key）の集合。known facts / inferred のどちらにも出さないために使う。 */
+function conflictKeySet(karte: Karte): Set<string> {
+  return new Set((karte.handoff?.conflicts ?? []).map((c) => `${c.block}.${c.key}`));
+}
+
 /**
  * Plan Chat専用（includeKnownFacts時のみ呼ばれる）。karte中のcertainty==="stated"な項目だけを
  * 「本人が既に明示した情報」として整形する。inferred（AIの未検証の仮説）は含めない。
+ *
+ * handoff.conflicts に載っている field は **除外する**。conflict 中の field は Karte 上の値が
+ * どちらか一方（多くは後から来た Chat 側）になっているだけで、本人の現在の考えとして確定していない。
+ * ここに出すと「既知だから聞かない」と「確認が必要」が同じ field で矛盾するため、確認側（buildConflictsText）
+ * にだけ出す。Worksheet 由来・Chat 由来の区別は付けない（どちらも本人が明示した情報）。
  */
 export function buildKnownFactsText(karte: Karte): string | null {
-  const items = getKarteSummaryItems(karte).filter((item) => item.certainty === "stated");
+  const conflicts = conflictKeySet(karte);
+  const items = getKarteSummaryItems(karte).filter(
+    (item) => item.certainty === "stated" && !conflicts.has(`${item.block}.${item.key}`),
+  );
+  if (items.length === 0) return null;
+  return items.map((item) => `・${item.label}: ${item.value}`).join("\n");
+}
+
+/**
+ * Plan Chat専用。certainty==="inferred"（本人は明言していない、会話から読み取っただけ）の項目を
+ * 「確認していない推測」として整形する。事実として扱わせず、話題に関係するときに確認するためだけに渡す。
+ *
+ * motivation.trueGoalHypothesis（本当の動機の仮説）は渡さない。本人が言語化していない動機を
+ * 会話で持ち出すと、決めつけ・誘導になりやすいため（Documents 系でも本文に出さない既存方針に揃える）。
+ * conflict 中の field も除外する。
+ */
+export function buildInferredContextText(karte: Karte): string | null {
+  const conflicts = conflictKeySet(karte);
+  const items = getKarteSummaryItems(karte).filter(
+    (item) =>
+      item.certainty === "inferred" &&
+      !(item.block === "motivation" && item.key === "trueGoalHypothesis") &&
+      !conflicts.has(`${item.block}.${item.key}`),
+  );
   if (items.length === 0) return null;
   return items.map((item) => `・${item.label}: ${item.value}`).join("\n");
 }
@@ -125,10 +158,37 @@ export function buildConflictsText(karte: Karte): string | null {
 }
 
 /**
+ * Plan Chat 専用の「共有理解の使い方」。Chat と Worksheet のどちらで伝えた内容も Karte に集まるため、
+ * それを前提に会話を進め、同じことを何度も聞かないためのルール。/widget（匿名）には入れない。
+ */
+const PLAN_SHARED_UNDERSTANDING_RULES = `# このPlanで共有されている理解の使い方（重要）
+このPlanでは、本人が「会話」と「ワークシート」のどちらで伝えた内容も、1つの共有理解としてまとめられています。以下の区画（本人が既に明示した情報／確認が必要な情報／まだ確認していない推測）はそこから作られています。
+
+## 一度伝えてもらったことは、原則もう一度聞かない
+- 「本人が既に明示した情報」にある項目は、本人が会話かワークシートですでに答えたものです。情報を集める目的だけで同じ質問をしないでください。
+- 例えば希望する都市が分かっているなら「どの都市を考えていますか？」とは聞かず、「〇〇を考えているんですね」と前提として軽く触れ、まだ分かっていないことへ進んでください。
+- ワークシートの設問を上から順番に埋めていくような、フォーム的な聞き方をしないでください。条件を一つずつ確認する面接ではなく、会話です。
+- 分かっている情報を、会話の冒頭や途中でまとめて読み上げないでください（「あなたは〇歳で、〇〇希望で…」のように並べない）。今の話題に必要な情報だけを、自然に使ってください。目的は「覚えてくれている」と感じてもらうことで、プロフィールを読み上げることではありません。
+
+## 聞き直してよいとき
+- 「確認が必要な情報」にある項目: 違いを明示して確認してください。例「以前は〇〇と整理していましたが、今は△△の方が近いですか？」。どちらかを勝手に正しいと決めつけないでください。
+- 「まだ確認していない推測」にある項目: 事実として扱わず、話題に関係するときだけ「これまでのお話から〇〇かなと感じていますが、実際はどうですか？」のように確認してください。
+- どの区画にも無い項目: 必要になったときに自然に聞いてかまいません。
+- 本人が「やっぱり」「最近は」「今は」「変えたい」など、考えが変わったことを示したとき: 最新の発言を優先してください。
+- 内容が曖昧で、今の判断に必要なとき: 短く確認してかまいません。
+
+## 次に何を話すかの優先順位
+1. 「確認が必要な情報」の食い違いの解消（ただし本人が別の話をしている最中なら、区切りのよいところで）
+2. 本人が今話しているテーマ
+3. 判断に大きく関わる、まだ分かっていないこと
+4. 気持ちや理由の深掘り
+5. 学校の候補を出すために足りない条件（すでに分かっている条件は聞き直さない）`;
+
+/**
  * 会話の毎ターン、これを使ってシステムプロンプトを組み立てる。
- * knownFactsText/conflictsText/decisionContextTextはPlan Chat（includeKnownFacts時）のみ
- * 渡される。/widgetは常にnull。
- * preferredCity が確定している（本人が明言=stated。inferredの段階では渡さないこと）場合のみ、
+ * knownFactsText/conflictsText/decisionContextText/inferredContextText は Plan Chat（includeKnownFacts時）
+ * のみ渡される。/widget は常に null で、planContext も false（共有理解のルール自体を入れない）。
+ * preferredCity が確定している（本人が明言=stated かつ conflict でない。inferredの段階では渡さないこと）場合のみ、
  * その都市の学校情報（schools.tsから事実流し込み型で生成）をSYSTEM_PROMPTの末尾に追加する。
  */
 export function buildSystemPrompt(
@@ -136,8 +196,17 @@ export function buildSystemPrompt(
   knownFactsText: string | null,
   conflictsText: string | null,
   decisionContextText: string | null,
+  options: { planContext?: boolean; inferredContextText?: string | null } = {},
 ): string {
   let prompt = SYSTEM_PROMPT;
+
+  if (options.planContext) {
+    prompt += `
+
+---
+
+${PLAN_SHARED_UNDERSTANDING_RULES}`;
+  }
 
   if (knownFactsText) {
     prompt += `
@@ -145,7 +214,7 @@ export function buildSystemPrompt(
 ---
 
 # 本人が既に明示した情報
-以下は本人がこれまでに明示した情報です。原則として情報収集のためだけに同じ質問を繰り返さないでください。ただし本人が変更・訂正した場合や、現在の判断に必要な確認がある場合は新しい情報を優先してください。
+以下は本人がこれまでに会話またはワークシートで明示した情報です。情報収集のためだけに同じ質問を繰り返さず、前提として会話を進めてください。ただし本人が変更・訂正した場合や、現在の判断に必要な確認がある場合は新しい情報を優先してください。
 
 ${knownFactsText}`;
   }
@@ -167,12 +236,23 @@ ${decisionContextText}
 ---
 
 # 確認が必要な情報
-以下は、会話とワークシートで異なる内容が確認されている項目です。これらは別々の記録から来ているだけで、必ずしも本人の意見が矛盾しているとは限りません（同じことを違う言葉で述べただけの可能性があります）。
+以下は、会話とワークシートで異なる内容が確認されている項目です。これらは別々の記録から来ているだけで、必ずしも本人の意見が矛盾しているとは限りません（同じことを違う言葉で述べただけの可能性や、考えが変わった可能性があります）。
 - 2つの内容を読み比べ、意味がほぼ同じだと思われる場合は、「矛盾しています」のような断定した言い方をせず、「念のため確認ですが、〜という理解で合っていますか？」のように軽く確認してください。
-- 金額・期間・方向性（行く/行かない等）のように、明確に異なる内容だと判断できる場合は、これまで通りしっかり確認してください。
+- 金額・期間・都市・方向性（行く/行かない等）のように、明確に異なる内容だと判断できる場合は、「以前は〇〇と整理していましたが、今は△△の方が近いですか？」のように違いを示して確認してください。
 - どちらの場合も、あなた自身の判断で一方の内容を正しいと決めつけたり、2つを勝手に1つへまとめたりしないでください。本人の回答を待ってください。
 
 ${conflictsText}`;
+  }
+
+  if (options.inferredContextText) {
+    prompt += `
+
+---
+
+# まだ確認していない推測
+以下は、本人が明言したわけではなく、これまでの会話から読み取っただけの内容です。事実として話したり、これを前提に提案したりしないでください。話題に関係するときだけ、本人に確認してください。
+
+${options.inferredContextText}`;
   }
 
   const citySchoolKnowledge = preferredCity ? buildCitySchoolKnowledge(preferredCity) : null;

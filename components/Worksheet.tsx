@@ -10,8 +10,8 @@ import {
   sanitizeWorksheetState,
   type WorksheetPersistedData,
 } from "@/lib/worksheetStorage";
-import { deriveWorksheetKartePatch } from "@/lib/worksheetKarte";
-import { kartePatchToFieldPatches } from "@/lib/karte";
+import { deriveWorksheetKartePatch, dropUnchangedWorksheetPatches } from "@/lib/worksheetKarte";
+import { kartePatchToFieldPatches, type Karte } from "@/lib/karte";
 import { applyKartePatch } from "@/lib/planChat";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -35,7 +35,7 @@ function findCategoryOf(questionId: string): Category | undefined {
  * 匿名Worksheet（Worksheetコンポーネント本体）と、Plan側のI'm ready!セクション詳細画面
  * （components/WorksheetSectionDetail.tsx）の両方から同じ状態管理を再利用するために独立させている。
  */
-export function useWorksheetAnswers(planId?: string) {
+export function useWorksheetAnswers(planId?: string, initialKarte?: Karte | null) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [ratings, setRatings] = useState<Record<string, Record<string, 1 | 2 | 3 | 4 | 5>>>({});
   const [rankings, setRankings] = useState<Record<string, string[]>>({});
@@ -83,41 +83,77 @@ export function useWorksheetAnswers(planId?: string) {
 
   const karteSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSyncedFieldPatchesJsonRef = useRef<string | null>(null);
+  /** 直近で分かっている Karte（初回は server 取得のもの、以後は RPC が返した確定値）。no-op write の判定用。 */
+  const knownKarteRef = useRef<Karte | null>(initialKarte ?? null);
+  /** debounce 待ちの同期があるか（unmount 時に取りこぼさないため）。 */
+  const pendingSyncRef = useRef(false);
+  const latestDataRef = useRef<WorksheetPersistedData | null>(null);
 
   /**
-   * planId指定時のみ、確定済みのdeterministic項目（5〜6件）をKarteへ同期する。
+   * Worksheet 回答から deterministic に写せる項目だけを Karte へ送る（source は "worksheet"）。
+   * - Karte に既に同じ内容（stated・source=worksheet・値一致）で入っている field は送らない
+   * - 前回送信した内容と同一なら送らない
+   * certainty / source / conflict の裁定は従来どおり apply_karte_patch RPC が行う。
+   */
+  function syncWorksheetToKarte(targetPlanId: string, data: WorksheetPersistedData) {
+    pendingSyncRef.current = false;
+    const patch = deriveWorksheetKartePatch(data);
+    const fieldPatches = dropUnchangedWorksheetPatches(
+      kartePatchToFieldPatches(patch, "worksheet"),
+      knownKarteRef.current,
+    );
+    if (fieldPatches.length === 0) return;
+
+    const json = JSON.stringify(fieldPatches);
+    if (json === lastSyncedFieldPatchesJsonRef.current) return;
+
+    void applyKartePatch(createClient(), targetPlanId, { fieldPatches }).then((result) => {
+      if (!result) return;
+      lastSyncedFieldPatchesJsonRef.current = json;
+      knownKarteRef.current = result;
+    });
+  }
+
+  /**
+   * planId指定時のみ、確定済みのdeterministic項目をKarteへ同期する。
    * 1文字ごとに発火するlocalStorage保存とは独立し、1.5秒のdebounceを挟む。
-   * unmount時の送信保証は行わない（保証できないため）。前回送信した内容と同一なら送信しない。
    */
   useEffect(() => {
     if (!hasRestored || !planId) return;
 
+    const data: WorksheetPersistedData = {
+      answers,
+      ratings,
+      rankings,
+      compromises,
+      singleSelections,
+      multiSelections,
+    };
+    latestDataRef.current = data;
+    pendingSyncRef.current = true;
+
     if (karteSyncTimerRef.current) clearTimeout(karteSyncTimerRef.current);
     karteSyncTimerRef.current = setTimeout(() => {
-      const data: WorksheetPersistedData = {
-        answers,
-        ratings,
-        rankings,
-        compromises,
-        singleSelections,
-        multiSelections,
-      };
-      const patch = deriveWorksheetKartePatch(data);
-      const fieldPatches = kartePatchToFieldPatches(patch, "worksheet");
-      if (fieldPatches.length === 0) return;
-
-      const json = JSON.stringify(fieldPatches);
-      if (json === lastSyncedFieldPatchesJsonRef.current) return;
-
-      void applyKartePatch(createClient(), planId, { fieldPatches }).then((result) => {
-        if (result) lastSyncedFieldPatchesJsonRef.current = json;
-      });
+      syncWorksheetToKarte(planId, data);
     }, KARTE_SYNC_DEBOUNCE_MS);
 
     return () => {
       if (karteSyncTimerRef.current) clearTimeout(karteSyncTimerRef.current);
     };
   }, [hasRestored, planId, answers, ratings, rankings, compromises, singleSelections, multiSelections]);
+
+  /**
+   * 画面遷移（例: 回答直後に Chat へ移動）で debounce 待ちの回答が Karte に届かず、
+   * Chat で同じことを聞き直す原因になるのを防ぐため、unmount 時に待ち分だけ送る。
+   * アプリ内遷移では JS 実行が続くので届く。タブを閉じる等の完全な離脱では保証できない（best effort）。
+   */
+  useEffect(() => {
+    return () => {
+      if (!planId || !pendingSyncRef.current || !latestDataRef.current) return;
+      syncWorksheetToKarte(planId, latestDataRef.current);
+    };
+    // unmount 時だけ動かす。値は ref 経由で最新を読む。
+  }, [planId]);
 
   /**
    * 「回答済み」判定はkindごとに異なる（オーナー承認済みの基準）:

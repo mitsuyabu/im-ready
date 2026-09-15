@@ -1,7 +1,13 @@
 import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { anthropic, MODEL } from "@/lib/anthropic";
-import { buildConflictsText, buildDecisionContextText, buildKnownFactsText, buildSystemPrompt } from "@/lib/prompt";
+import {
+  buildConflictsText,
+  buildDecisionContextText,
+  buildInferredContextText,
+  buildKnownFactsText,
+  buildSystemPrompt,
+} from "@/lib/prompt";
 import { isValidMessages } from "@/lib/chat";
 import type { Karte } from "@/lib/karte";
 
@@ -16,10 +22,16 @@ function isValidKarte(value: unknown): value is Karte {
 /**
  * 本人が明言した（certainty: "stated"）場合のみ都市を返す。
  * inferred（AIの仮説段階）では学校情報を注入しない。
+ * Chat とワークシートで希望都市が食い違っている（handoff.conflicts にある）間も、どちらの都市か
+ * 確定していないため注入しない（確認前に片方の都市の学校情報を前提に話させない）。
  */
 function extractStatedPreferredCity(karte: Karte): string | null {
   const preferredCity = karte.schoolPrefs.preferredCity;
   if (preferredCity.certainty !== "stated" || !preferredCity.value) return null;
+  const inConflict = (karte.handoff?.conflicts ?? []).some(
+    (c) => c.block === "schoolPrefs" && c.key === "preferredCity",
+  );
+  if (inConflict) return null;
   return preferredCity.value;
 }
 
@@ -56,11 +68,16 @@ export async function POST(req: NextRequest) {
   const knownFactsText = usePlanKarteContext ? buildKnownFactsText(validKarte) : null;
   const conflictsText = usePlanKarteContext ? buildConflictsText(validKarte) : null;
   const decisionContextText = usePlanKarteContext ? buildDecisionContextText(validKarte) : null;
+  const inferredContextText = usePlanKarteContext ? buildInferredContextText(validKarte) : null;
 
   const stream = anthropic.messages.stream({
     model: MODEL,
     max_tokens: 4096,
-    system: buildSystemPrompt(preferredCity, knownFactsText, conflictsText, decisionContextText),
+    system: buildSystemPrompt(preferredCity, knownFactsText, conflictsText, decisionContextText, {
+      // 「一度伝えたことは聞き直さない」等の共有理解ルールは Plan Chat にだけ入れる（/widget は従来どおり）
+      planContext: includeKnownFacts === true,
+      inferredContextText,
+    }),
     messages,
   });
   const iterator = stream[Symbol.asyncIterator]();

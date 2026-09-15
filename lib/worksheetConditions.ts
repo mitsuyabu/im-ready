@@ -182,3 +182,78 @@ export function concreteLabels(options: ChoiceOption[], selectedIds: string[]): 
     .filter((o) => selectedIds.includes(o.id) && isConcreteOptionId(o.id))
     .map((o) => o.label);
 }
+
+/* ------------------------------------------------------------------ */
+/* Karte（AI相談で本人が明言した値）→ Worksheet 選択肢 の対応表            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 選択肢ごとの「同じ意味だと確定できる表記」の一覧（ラベル自身は常に含めて扱う）。
+ *
+ * Chat 由来の Karte 値（例: "Gold Coast"）を Worksheet の選択肢（city-goldcoast）へ戻すときにだけ使う。
+ * 部分一致・類似度・`includes` のような fuzzy match はしない。正規化（全角半角・大小文字・空白）後の
+ * **完全一致**だけを採用し、どれにも当たらなければ選択肢には変換しない（自由記入候補として扱う）。
+ *
+ * 「その他」「まだ決まっていない」「学校には通わない予定」のように、Karte の値から
+ * 自動で選ばせるべきでない選択肢には alias を置かない。
+ */
+const OPTION_ALIASES: Record<string, string[]> = {
+  "city-sydney": ["sydney"],
+  "city-melbourne": ["melbourne"],
+  "city-goldcoast": ["gold coast", "goldcoast"],
+  "city-brisbane": ["brisbane"],
+  "city-cairns": ["cairns"],
+  "city-perth": ["perth"],
+  "city-adelaide": ["adelaide"],
+
+  "stay-homestay": ["homestay", "home stay"],
+  "stay-dorm": ["寮", "dormitory", "dorm", "student accommodation"],
+  "stay-share": ["share house", "sharehouse", "フラットシェア", "flat share", "flatshare"],
+  "stay-hotel": ["ホテル", "ホステル", "hotel", "hostel"],
+  "stay-friend": ["友人宅", "家族宅", "知人宅"],
+
+  "study-language": ["language school", "english school", "英語学校"],
+  "study-university": ["university"],
+  "study-grad": ["graduate school"],
+  "study-vet": ["専門学校", "vet", "tafe"],
+  "study-short": ["short course"],
+
+  "occ-employee": ["正社員", "会社勤め"],
+  "occ-parttime": ["アルバイト", "パート", "フリーター"],
+  "occ-freelance": ["個人事業主"],
+  "occ-vocational": ["専門学校生"],
+  "occ-none": ["離職中"],
+};
+
+/** 自動で選ばせない選択肢（label 完全一致でも変換しない）。 */
+const NEVER_AUTO_SELECT = /(?:-other|-undecided|-unknown|-notyet|-nonstudy|-none)$/;
+
+/** 全角半角・大小文字・空白の違いだけを吸収する。意味の言い換えはしない。 */
+function normalizeForAlias(value: string): string {
+  return value.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+}
+
+/**
+ * Karte の文字列値に **完全一致**する選択肢 id を返す。見つからなければ null。
+ * 複数の選択肢に当たる曖昧なケースも null（どちらかを推測で選ばない）。
+ * `occ-none`（無職）だけは「働く予定はない」系ではなく職業の選択肢なので例外的に許可する。
+ */
+export function matchOptionIdExactly(options: ChoiceOption[], value: string): string | null {
+  const target = normalizeForAlias(value);
+  if (target.length === 0) return null;
+  const hits = options.filter((o) => {
+    if (NEVER_AUTO_SELECT.test(o.id) && o.id !== "occ-none") return false;
+    const forms = [o.label, ...(OPTION_ALIASES[o.id] ?? [])];
+    return forms.some((f) => normalizeForAlias(f) === target);
+  });
+  return hits.length === 1 ? hits[0].id : null;
+}
+
+/**
+ * Worksheet → Karte（schoolPrefs.courseType）に書いてよい学び方か。
+ * 「学校には通わない予定」は学び方の種類ではなく、courseType に入れると
+ * 学校提案の gate（courseType あり）を誤って満たしてしまうため除外する。
+ */
+export function isCourseTypeOptionId(optionId: string): boolean {
+  return isConcreteOptionId(optionId) && optionId !== "study-nonstudy";
+}

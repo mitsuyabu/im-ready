@@ -6,7 +6,10 @@ import { QuestionCard, useWorksheetAnswers } from "@/components/Worksheet";
 import { CATEGORIES } from "@/lib/worksheetQuestions";
 import { WORKSHEET_SECTION_META } from "@/lib/worksheetSectionMeta";
 import type { Karte } from "@/lib/karte";
-import { buildWorksheetKarteCandidates } from "@/lib/worksheetKarteCandidates";
+import {
+  buildWorksheetKarteCandidates,
+  type WorksheetKarteCandidate,
+} from "@/lib/worksheetKarteCandidates";
 import PlanContextLabel from "@/components/PlanContextLabel";
 
 /**
@@ -137,7 +140,7 @@ export default function WorksheetSectionDetail({
     handleToggleCompromise,
     handleSelectSingle,
     handleToggleMulti,
-  } = useWorksheetAnswers(planId);
+  } = useWorksheetAnswers(planId, karte);
 
   const [openExamples, setOpenExamples] = useState<Record<string, boolean>>({});
 
@@ -178,6 +181,24 @@ export default function WorksheetSectionDetail({
       multiSelections,
     }).map((c) => [c.questionId, c]),
   );
+
+  /**
+   * 「この内容を使う」。候補専用の保存経路は作らず、通常の回答操作と同じ handler に流す
+   * （localStorage 保存・progress・Karte 同期・completion 判定がすべて通常回答と同じに動く）。
+   * 複数選択は「追加」だけ行い、既に選ばれている選択肢をトグルで外さない。
+   */
+  function adoptCandidate(candidate: WorksheetKarteCandidate) {
+    const { questionId, adoption } = candidate;
+    if (adoption.kind === "text") {
+      handleChange(questionId, adoption.value);
+    } else if (adoption.kind === "singleOption") {
+      if (singleSelections[questionId] !== adoption.optionId) {
+        handleSelectSingle(questionId, adoption.optionId);
+      }
+    } else if (!(multiSelections[questionId] ?? []).includes(adoption.optionId)) {
+      handleToggleMulti(questionId, adoption.optionId);
+    }
+  }
 
   async function handleGenerateAxisSummary() {
     setAxisLoading(true);
@@ -320,7 +341,7 @@ export default function WorksheetSectionDetail({
                     return (
                       <CandidateCard
                         text={candidate.displayText}
-                        onAdopt={() => handleChange(q.id, candidate.value)}
+                        onAdopt={() => adoptCandidate(candidate)}
                       />
                     );
                   })()}
