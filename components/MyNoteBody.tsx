@@ -1,5 +1,6 @@
 import { parseDocumentBodyOutline } from "@/lib/documentBodyOutline";
 import { MY_NOTE_DEFAULT_TITLE } from "@/lib/myNotePrompt";
+import { MY_NOTE_EMPTY_CARD_TEXT } from "@/lib/myNoteBuckets";
 import DocumentPlainText from "@/components/DocumentPlainText";
 
 /**
@@ -11,6 +12,9 @@ import DocumentPlainText from "@/components/DocumentPlainText";
  *  - lib/documentBodyOutline.ts で「■ 見出し ＋ 行」に機械分解するだけ（要約・言い換え・並べ替えなし）
  *  - 「■ 」見出しが 1 つも無い（parser が null）body は、元 body 全文を plain text で完全 fallback
  *  - preamble・各 section の非空行は 1 行も落とさない
+ *
+ * 6 カード構成（lib/myNoteBuckets.ts）では、材料の無いカードの本文は「まだ整理されていません」の1行だけに
+ * なる。その場合だけ本文を小さく muted にして、空であることが静かに伝わるようにする（旧形式の本文は従来どおり）。
  *
  * フォントは他画面と統一して基本 sans。serif は装飾的な大きい番号（01〜）だけに使う。
  * hooks を持たない純粋表示コンポーネント。
@@ -33,6 +37,13 @@ function toParagraphs(lines: string[]): string[] {
   if (buffer.length > 0) paragraphs.push(buffer.join("\n"));
   return paragraphs;
 }
+
+/** 材料が無く「まだ整理されていません」だけのカードか（厳密一致のみ）。 */
+function isEmptyCard(paragraphs: string[]): boolean {
+  return paragraphs.length === 1 && paragraphs[0].trim() === MY_NOTE_EMPTY_CARD_TEXT;
+}
+
+const EMPTY_CARD_CLASS = "mt-3 text-[14px] leading-relaxed text-[#9a948a]";
 
 /** 02 以降のカード上辺のテーマカラー（Worksheet 一覧と近い sage / pale blue / gray / coral）。 */
 const ACCENT_LINE = ["#7d9a63", "#9fb6cb", "#b6afa1", "#c8836b"];
@@ -133,7 +144,9 @@ export default function MyNoteBody({ body }: { body: string }) {
             </div>
             <div className="px-5 py-6 sm:px-9 sm:py-7">
               <h2 className="text-sm font-semibold tracking-wide text-[#5f7050]">{first.heading}</h2>
-              {firstParas.length > 0 && (
+              {isEmptyCard(firstParas) ? (
+                <p className={EMPTY_CARD_CLASS}>{MY_NOTE_EMPTY_CARD_TEXT}</p>
+              ) : firstParas.length > 0 && (
                 <div className={firstBodyClass}>
                   {firstParas.map((p, j) => (
                     <p key={j} className="whitespace-pre-wrap">
@@ -153,7 +166,8 @@ export default function MyNoteBody({ body }: { body: string }) {
               const num = String(idx + 2).padStart(2, "0");
               const accent = ACCENT_LINE[idx % ACCENT_LINE.length];
               const paragraphs = toParagraphs(section.lines);
-              const isImportant = section.heading.includes("大切");
+              const isEmpty = isEmptyCard(paragraphs);
+              const isImportant = section.heading.includes("大切") && !isEmpty;
               return (
                 <article
                   key={idx}
@@ -169,7 +183,9 @@ export default function MyNoteBody({ body }: { body: string }) {
                   </span>
                   <h3 className="mt-2 text-lg font-semibold text-[#172033]">{section.heading}</h3>
 
-                  {paragraphs.length > 0 && (
+                  {isEmpty ? (
+                    <p className={EMPTY_CARD_CLASS}>{MY_NOTE_EMPTY_CARD_TEXT}</p>
+                  ) : paragraphs.length > 0 && (
                     <div className="mt-3 space-y-5 text-[17px] leading-8 text-[#3f3a34]">
                       {isImportant ? (
                         <>

@@ -1,14 +1,17 @@
 import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { anthropic, MODEL } from "@/lib/anthropic";
-import { stripMarkdownBold } from "@/lib/markdown";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanKarte } from "@/lib/planChat";
-import { buildMyNoteView } from "@/lib/myNoteView";
+import { loadPlanWorksheet } from "@/lib/planWorksheet";
+import { buildMyNoteBuckets } from "@/lib/myNoteBuckets";
 import {
+  assembleMyNoteBody,
   buildMyNoteSystemPrompt,
   canGenerateMyNote,
   MY_NOTE_DEFAULT_TITLE,
+  MY_NOTE_TOOL,
+  MY_NOTE_TOOL_NAME,
   MY_NOTE_USER_MESSAGE,
 } from "@/lib/myNotePrompt";
 
@@ -27,9 +30,10 @@ import {
  * documentId・userId はいずれも Client から受け取らず、Server が Canonical な Plan Karte から
  * 決定する（parent_explanation と同じ一方向構造）。
  *
- * 処理順: 認証 → request body validation → Plan ownership 確認 → Karte 取得 →
- * MyNoteView 構築 → canGenerateMyNote（false なら 422、Anthropic を呼ばない） →
- * Anthropic 生成 → stripMarkdownBold → 空なら 502（保存しない） →
+ * 処理順: 認証 → request body validation → Plan ownership 確認 → Karte / Worksheet 取得 →
+ * 6 カードの材料に振り分け（buildMyNoteBuckets） → canGenerateMyNote（false なら 422、Anthropic を呼ばない） →
+ * Anthropic 生成（write_my_note_cards tool でカードごとの本文だけを受け取る） →
+ * 本文の組み立て（タイトル・順番・空カードはコードで固定。assembleMyNoteBody） →
  * plan_documents upsert（onConflict: "plan_id,type"） → 保存済み document を response。
  *
  * 同時リクエスト競合: upsert（INSERT ... ON CONFLICT (plan_id, type) DO UPDATE）自体が
@@ -117,11 +121,15 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "対象のPlanが見つかりません" }, { status: 404 });
   }
 
-  // Client 由来のデータは使わず、Server 側で Plan Karte から MyNoteView を作る。
-  const karte = await loadPlanKarte(supabase, planId);
-  const view = buildMyNoteView(karte);
+  // Client 由来のデータは使わず、Server 側で Plan Karte と Worksheet 回答（plan_worksheet）から
+  // 6 カードの材料を作る。plan_worksheet が使えない（migration 未適用等）場合は Karte だけで作る。
+  const [karte, worksheet] = await Promise.all([
+    loadPlanKarte(supabase, planId),
+    loadPlanWorksheet(supabase, planId),
+  ]);
+  const buckets = buildMyNoteBuckets(karte, worksheet.available ? (worksheet.row?.state ?? null) : null);
 
-  if (!canGenerateMyNote(view)) {
+  if (!canGenerateMyNote(buckets)) {
     return Response.json({ error: "not_enough_context" }, { status: 422 });
   }
 
@@ -130,15 +138,17 @@ export async function POST(req: NextRequest) {
     const response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 2048,
-      system: buildMyNoteSystemPrompt(view),
+      system: buildMyNoteSystemPrompt(buckets),
+      tools: [MY_NOTE_TOOL],
+      tool_choice: { type: "tool", name: MY_NOTE_TOOL_NAME },
       messages: [{ role: "user", content: MY_NOTE_USER_MESSAGE }],
     });
 
-    const textBlock = response.content.find(
-      (block): block is Anthropic.TextBlock => block.type === "text",
+    const toolUse = response.content.find(
+      (block): block is Anthropic.ToolUseBlock => block.type === "tool_use" && block.name === MY_NOTE_TOOL_NAME,
     );
-    // my_note prompt 側でも Markdown は禁止済みだが、防御として既存 sanitize を通す。
-    generatedBody = textBlock ? stripMarkdownBold(textBlock.text.trim()) : "";
+    // カードのタイトル・順番・空カードの文言はコードで固定する。AI の出力はカード本文としてだけ使う。
+    generatedBody = toolUse ? assembleMyNoteBody(buckets, toolUse.input) : "";
   } catch (err) {
     const isApiError = err instanceof Anthropic.APIError;
     // 内部 error.message はログにのみ。生成本文はログしない。Client へ内部文言を返さない。

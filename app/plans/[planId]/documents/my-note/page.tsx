@@ -4,7 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanKarte } from "@/lib/planChat";
 import { formatLastUpdated } from "@/lib/planActivity";
-import { buildMyNoteView } from "@/lib/myNoteView";
+import { buildMyNoteBuckets } from "@/lib/myNoteBuckets";
+import { loadPlanWorksheet } from "@/lib/planWorksheet";
 import { canGenerateMyNote } from "@/lib/myNotePrompt";
 import { parseMyNoteContent } from "@/lib/myNoteGenerator";
 import { type PlanDocumentType } from "@/lib/planDocuments";
@@ -37,7 +38,7 @@ type PlanDocumentRow = {
  * My Note の詳細画面（Step 18）。app/plans/[planId]/documents/parent-explanation/page.tsx を
  * 参考にした構成:
  * - このServer Componentが login確認・Plan所有者確認・plan_documents(type=my_note)取得・
- *   Karte読み込み → buildMyNoteView → canGenerateMyNote までを行う。
+ *   Karte / Worksheet 読み込み → buildMyNoteBuckets → canGenerateMyNote までを行う。
  * - Karte / MyNoteView そのものはClientへ渡さず、planId・canGenerate・（保存済みなら）
  *   本文と更新日だけを Client Component（components/MyNoteGenerator.tsx）へ渡す。
  * - 生成・保存・生成可否の最終判定は API 側（/api/documents/my-note）でもう一度行われる
@@ -85,8 +86,13 @@ export default async function MyNotePage({ params }: MyNotePageProps) {
   // （Karte・MyNoteView は Client へ渡さない）。DBエラー時はUIを通常状態にしない。
   let canGenerate = false;
   if (!docError) {
-    const karte = await loadPlanKarte(supabase, planId);
-    canGenerate = canGenerateMyNote(buildMyNoteView(karte));
+    const [karte, worksheet] = await Promise.all([
+      loadPlanKarte(supabase, planId),
+      loadPlanWorksheet(supabase, planId),
+    ]);
+    canGenerate = canGenerateMyNote(
+      buildMyNoteBuckets(karte, worksheet.available ? (worksheet.row?.state ?? null) : null),
+    );
   }
 
   const roleDef = DOCUMENT_ROLE_DEFINITIONS.my_note;
