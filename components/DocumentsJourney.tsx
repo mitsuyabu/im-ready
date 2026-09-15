@@ -9,17 +9,22 @@
  * （カード背景や番号には色を付けない）。connector は残すが、ごく薄い線にする。
  * 装飾（番号・アイコン・connector）はすべて aria-hidden。hooks を持たない純粋表示コンポーネント。
  *
- * responsive: Desktop は横 4 列＋connector、Tablet / Mobile は 2×2。
+ * responsive:
+ *   - mobile（〜639px）: 縦 1 列。カード幅を確保し、説明文を途中で切らずに全文読めるようにする
+ *   - sm〜lg（640〜1279px）: 2×2。lg では左に AppNav の sidebar（240px）が出て本文幅が 740px 前後になり、
+ *     4 枚横並びだとカードが 150px 台まで細くなるため、4 列にするのは本文幅に余裕のある xl から
+ *   - xl（1280px〜）: 横 4 列＋connector
+ * 説明文は line-clamp をかけない（短い文言にしてあり、狭い幅でも折り返して全文表示する）。
  */
 
 type StepKey = "think" | "organize" | "compare" | "tell";
 
 /** tone は対応する Document カードの accent と揃える（機能差の補助のみ・§8 / §21）。 */
 const STEPS: { n: number; title: string; desc: string; icon: StepKey; tone: string }[] = [
-  { n: 1, title: "考える", desc: "気持ちやアイデアを書き出してみよう", icon: "think", tone: "#8d968a" },
-  { n: 2, title: "整理する", desc: "条件ややることをひとつずつ整理しよう", icon: "organize", tone: "#7d8ea1" },
-  { n: 3, title: "比べる", desc: "学校やエリアを比べてみよう", icon: "compare", tone: "#7b917b" },
-  { n: 4, title: "伝える", desc: "自分の想いを家族にも伝えよう", icon: "tell", tone: "#a1907a" },
+  { n: 1, title: "考える", desc: "気持ちや希望を書き出す", icon: "think", tone: "#8d968a" },
+  { n: 2, title: "整理する", desc: "条件ややることを整理する", icon: "organize", tone: "#7d8ea1" },
+  { n: 3, title: "比べる", desc: "学校や地域を比べる", icon: "compare", tone: "#7b917b" },
+  { n: 4, title: "伝える", desc: "想いを家族や相談相手に伝える", icon: "tell", tone: "#a1907a" },
 ];
 
 function StepIcon({
@@ -90,17 +95,17 @@ function Step({
   tone: string;
 }) {
   return (
-    <div className="relative rounded-[14px] border border-[#e7e3dc] bg-white px-4 py-3.5 lg:flex-1">
+    <div className="relative rounded-[14px] border border-[#e7e3dc] bg-white px-4 py-3.5 xl:flex-1">
       <div className="flex items-start gap-3">
         <StepIcon name={icon} className="mt-0.5 h-5 w-5 shrink-0" style={{ color: tone }} />
         <div className="min-w-0">
-          <p className="flex items-baseline gap-1.5 text-[13px] font-semibold text-worksheet-primary">
+          <p className="flex items-baseline gap-1.5 text-[14px] font-semibold text-worksheet-primary xl:text-[13px]">
             <span aria-hidden className="text-[11px] font-medium text-[#a8a297]">
               {n}
             </span>
             {title}
           </p>
-          <p className="mt-1 line-clamp-2 text-[12px] leading-[1.6] text-[#7c766d]">{desc}</p>
+          <p className="mt-1 text-[13px] leading-[1.65] text-[#7c766d]">{desc}</p>
         </div>
       </div>
     </div>
@@ -111,14 +116,14 @@ function Connector() {
   return (
     <span
       aria-hidden
-      className="hidden self-center lg:mx-1.5 lg:block lg:w-6 lg:border-t lg:border-[#e7e3dc]"
+      className="hidden self-center xl:mx-1.5 xl:block xl:w-6 xl:border-t xl:border-[#e7e3dc]"
     />
   );
 }
 
 export default function DocumentsJourney() {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:flex lg:gap-0">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:flex xl:gap-0">
       <Step {...STEPS[0]} />
       <Connector />
       <Step {...STEPS[1]} />
