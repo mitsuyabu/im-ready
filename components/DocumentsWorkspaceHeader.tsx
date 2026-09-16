@@ -26,7 +26,7 @@ export default function DocumentsWorkspaceHeader({
           My Karte
         </h1>
         <p className="mt-2 max-w-[42rem] text-[15px] leading-[1.7] text-[#57534c] sm:text-base">
-          留学について考えたことや計画を、少しずつ整理していきます。
+          AI相談やワークシートで考えたことを、資料として整理します。
         </p>
 
         {title.length > 0 && (

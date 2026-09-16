@@ -10,7 +10,6 @@ import {
 } from "@/lib/documentRoles";
 import MobileBrandHeader from "@/components/MobileBrandHeader";
 import DocumentsWorkspaceHeader from "@/components/DocumentsWorkspaceHeader";
-import DocumentsJourney from "@/components/DocumentsJourney";
 import DocumentWorkspaceCard, {
   type DocumentWorkspaceVariant,
 } from "@/components/DocumentWorkspaceCard";
@@ -43,8 +42,11 @@ const ROLE_ROUTE_SLUG: Record<DocumentRoleKey, string> = {
  * role / title / createLabel は lib/documentRoles.ts をそのまま使い、トップの説明文（lines）と
  * カードの accent variant・open CTA だけをここで持つ。lib/documentRoles.ts 自体は変更しない。
  *
- * カードは 4 種とも同じ共通カードシステム（DocumentWorkspaceCard）で、grid も均等 2 列。
- * 以前のように「カードごとに違う col-span / row-span で紙もののコラージュに見せる」ことはしない。
+ * カードは同じ共通カードシステム（DocumentWorkspaceCard）で、grid は均等 2 列。資料が増えても
+ * 同じ形のカードが 1 枚増えるだけで並ぶ（col-span の作り分けや、4 枚前提のレイアウトを持たない）。
+ *
+ * 説明文は「この画面で自分が書く」ではなく「AI相談やワークシートで整理した内容をもとに資料化される」
+ * ことが伝わる書き方にする（〜しよう / 書き出そう のような作業を促す言い回しは使わない）。
  */
 const CARD_PRESENTATION: Record<
   DocumentRoleKey,
@@ -53,30 +55,37 @@ const CARD_PRESENTATION: Record<
   my_note: {
     variant: "note",
     lines: [
-      "いまの気持ちを、ここに残そう。",
-      "留学したい理由、楽しみなこと、不安なこと。ぜんぶ書き出して、自分の気持ちを整理しよう。",
+      "今の気持ちや考えを整理します。",
+      "AI相談やワークシートで話した内容をもとにまとめます。",
     ],
     openCta: "ひらく →",
   },
   study_plan: {
     variant: "plan",
-    lines: ["やることリストやスケジュールを整理して、留学までの流れをつくろう。"],
+    lines: [
+      "希望や条件をプランとしてまとめます。",
+      "これまで整理した内容をもとに、留学計画を見やすくまとめます。",
+    ],
     openCta: "ひらく →",
   },
   school_comparison: {
     variant: "compare",
-    lines: ["気になる学校を比較して、自分の条件に合うか整理しよう。"],
+    lines: [
+      "候補の学校を比較しやすく整理します。",
+      "提案された学校の違いを、同じ項目で見比べられます。",
+    ],
     openCta: "ひらく →",
   },
   parent_explanation: {
     variant: "parent",
-    lines: ["家族に、留学の理由と現在の計画を伝えるための資料です。"],
+    // 親向けだけは下に「家族と共有できます」バッジが出るため、補足文は置かず1行に留める。
+    lines: ["家族に伝えやすい資料にまとめます。"],
     openCta: "内容をみる →",
     shareBadge: true,
   },
 };
 
-/** journey 順の固定 4 種。 */
+/** カードの並び順（考える → 整理する → 比べる → 伝える の流れ）。資料が増えたらここに足す。 */
 const DOCUMENT_ORDER: DocumentRoleKey[] = [
   "my_note",
   "study_plan",
@@ -86,10 +95,11 @@ const DOCUMENT_ORDER: DocumentRoleKey[] = [
 
 /**
  * Documents（＝画面上は "My Karte"）トップ。所有者確認 → plan_documents を読むだけで
- * 一切書き込まない。見せ方は参考デザインに寄せた「考える → 整理する → 比べる → 伝える」の
- * 紙・文具風ワークスペース。
+ * 一切書き込まない。構成は「ヘッダー → CURRENT PLAN → 資料カードの一覧」だけにする。
+ * 以前は上部に「考える → 整理する → 比べる → 伝える」の 4 ステップ帯を置いていたが、直後に同じ役割の
+ * 資料カードが並び説明が重複していたため外した（各カードの役割は、カード内の小さな role ラベルが示す）。
  *
- * DB 行の有無に関係なく 4 カードを常設し（未生成でも detail route へ入って作成できる）、
+ * DB 行の有無に関係なく資料カードを常設し（未生成でも detail route へ入って作成できる）、
  * document がある type だけ「更新日」と open CTA を、無ければ createLabel を出す。生成ロジック・
  * 詳細画面・API・DB・role metadata（lib/documentRoles.ts）は変更しない。fake データは出さない。
  *
@@ -166,10 +176,6 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
           </div>
         ) : (
           <>
-            <div className="mt-9 sm:mt-10">
-              <DocumentsJourney />
-            </div>
-
             <div className="mt-8 grid grid-cols-1 gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5">
               {DOCUMENT_ORDER.map((key) => {
                 const def = DOCUMENT_ROLE_DEFINITIONS[key];
