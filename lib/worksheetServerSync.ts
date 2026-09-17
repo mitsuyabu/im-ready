@@ -63,6 +63,11 @@ export type WorksheetServerSync = {
   restorePending: (pending: PendingWorksheetChange) => WorksheetPersistedData | null;
   /** タイマーを止める（保存はしない）。 */
   dispose: () => void;
+  /**
+   * dispose を解除する。React の開発時 StrictMode では effect が mount → cleanup → mount と2回走るため、
+   * cleanup の dispose で止めたままにすると、その後の保存が予約されなくなる。effect の setup で毎回呼ぶ。
+   */
+  activate: () => void;
   /** テスト・デバッグ用の内部状態。 */
   snapshot: () => { base: WorksheetPersistedData; revision: number | null; dirty: boolean; inflight: boolean };
 };
@@ -221,6 +226,9 @@ export function createWorksheetServerSync(opts: WorksheetServerSyncOptions): Wor
       refreshPending();
       scheduleFlush();
       return restored;
+    },
+    activate() {
+      disposed = false;
     },
     dispose() {
       disposed = true;

@@ -19,7 +19,7 @@ import Link from "next/link";
  * hooks を持たない純粋表示コンポーネント。
  */
 
-export type DocumentWorkspaceVariant = "note" | "plan" | "compare" | "parent";
+export type DocumentWorkspaceVariant = "note" | "plan" | "compare" | "parent" | "consult";
 
 export type DocumentWorkspaceCardProps = {
   href: string;
@@ -43,6 +43,7 @@ const ACCENT: Record<DocumentWorkspaceVariant, { surface: string; icon: string }
   plan: { surface: "#f4f7fa", icon: "#7d8ea1" }, // pale dusty blue
   compare: { surface: "#f2f5f1", icon: "#7b917b" }, // very light sage
   parent: { surface: "#faf6ee", icon: "#a1907a" }, // very light sand
+  consult: { surface: "#f7f6f3", icon: "#8e8a97" }, // very light warm gray（5 枚目だけ目立たせない）
 };
 
 const CARD_BASE =
@@ -93,6 +94,16 @@ function CardIcon({
       <svg {...common}>
         <path d="M12 4v16M5 8h14" />
         <path d="M5 8l-2.5 5h5zM19 8l-2.5 5h5z" />
+      </svg>
+    );
+  }
+  if (variant === "consult") {
+    // clipboard with list（相談メモ・To Do）
+    return (
+      <svg {...common}>
+        <rect x="5" y="4" width="14" height="17" rx="2" />
+        <path d="M9 4V3h6v1" />
+        <path d="M8.5 10h7M8.5 13.5h7M8.5 17h4" />
       </svg>
     );
   }

@@ -161,6 +161,7 @@ export function useWorksheetAnswers(
   // 完了は保証できないため、通常操作中に短い debounce で保存しておくことを主にしている。
   useEffect(() => {
     if (!serverSync) return;
+    serverSync.activate();
     const onVisibility = () => {
       if (document.visibilityState === "hidden") serverSync.flushIfPending();
     };

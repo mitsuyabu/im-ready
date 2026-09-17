@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatLastUpdated } from "@/lib/planActivity";
+import { loadConsultationSheet } from "@/lib/consultationSheet";
 import { planDocumentTypeLabel } from "@/lib/planDocuments";
 import {
   DOCUMENT_ROLE_DEFINITIONS,
@@ -136,6 +137,12 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
     .order("updated_at", { ascending: false });
 
   const rows = (documents ?? []) as PlanDocumentRow[];
+
+  // Consultation Sheet は plan_documents ではなく plan_consultation_sheet が正本（ユーザーが編集するシート）。
+  // 読めない場合（migration 未適用など）もカードは出し、更新日だけ出さない。
+  const consultationSheet = await loadConsultationSheet(supabase, planId);
+  const consultationUpdatedAt =
+    consultationSheet.available && consultationSheet.row?.updatedAt ? consultationSheet.row.updatedAt : null;
   const docByType = (type: string) => rows.find((doc) => doc.type === type) ?? null;
   const otherRows = rows.filter(
     (doc) =>
@@ -195,6 +202,20 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
                   />
                 );
               })}
+
+              {/* 5 枚目: Consultation Sheet（自動生成の資料ではなく、下書き候補＋自分で編集する相談シート） */}
+              <DocumentWorkspaceCard
+                href={`/plans/${planId}/documents/consultation-sheet`}
+                role="相談する"
+                title="Consultation Sheet"
+                lines={[
+                  "相談したいことや確認事項を整理します。",
+                  "AI相談やワークシートをもとに下書きを作り、自分でも追加・編集できます。",
+                ]}
+                variant="consult"
+                updatedText={consultationUpdatedAt ? formatLastUpdated(consultationUpdatedAt) : null}
+                cta={consultationUpdatedAt ? "ひらく →" : "相談シートをひらく →"}
+              />
             </div>
 
             {otherRows.length > 0 && (
