@@ -12,6 +12,8 @@ import { buildConsultationSummary } from "@/lib/consultationSummary";
 import BrandLogo from "@/components/BrandLogo";
 import PlanContextLabel from "@/components/PlanContextLabel";
 import ConsultationSheetEditor from "@/components/ConsultationSheetEditor";
+import ConsultationShareDialog from "@/components/ConsultationShareDialog";
+import { loadActiveConsultationShare } from "@/lib/consultationShare";
 
 export const metadata: Metadata = {
   title: "Consultation Sheet",
@@ -56,11 +58,12 @@ export default async function ConsultationSheetPage({ params }: ConsultationShee
     notFound();
   }
 
-  const [sheet, karte, worksheet, blueprint] = await Promise.all([
+  const [sheet, karte, worksheet, blueprint, share] = await Promise.all([
     loadConsultationSheet(supabase, planId),
     loadPlanKarte(supabase, planId),
     loadPlanWorksheet(supabase, planId),
     loadPlanBlueprint(supabase, planId),
+    loadActiveConsultationShare(supabase, planId),
   ]);
 
   const summary = buildConsultationSummary(karte, blueprint.available ? blueprint.data : null);
@@ -104,12 +107,19 @@ export default async function ConsultationSheetPage({ params }: ConsultationShee
         </div>
 
         {sheet.available ? (
-          <ConsultationSheetEditor
-            planId={planId}
-            initialRow={sheet.row}
-            summary={summary}
-            candidates={candidates}
-          />
+          <>
+            {/* 共有導線は編集 UI とは独立（シートの中身は渡さない）。共有中かどうかは Server が毎回渡す。 */}
+            <ConsultationShareDialog
+              planId={planId}
+              initialShare={share.available ? share.share : null}
+            />
+            <ConsultationSheetEditor
+              planId={planId}
+              initialRow={sheet.row}
+              summary={summary}
+              candidates={candidates}
+            />
+          </>
         ) : (
           <div className="mt-8 rounded-2xl border border-[#e5dfd6] bg-white p-6 sm:p-8">
             <p className="text-base font-medium text-[#172033]">Consultation Sheet を読み込めませんでした。</p>
