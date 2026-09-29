@@ -61,7 +61,7 @@ export default function ValuePropsSection() {
         <div className="mx-auto mt-12 flex max-w-lg items-center gap-3 border-t border-worksheet-border pt-6 text-left">
           <div className="h-10 w-10 shrink-0 rounded-xl bg-worksheet-surface-2" aria-hidden />
           <p className="text-xs text-worksheet-primary/70 sm:text-sm">
-            必要になったら、学校の候補も一緒に考えられます。
+            必要になったら、オーストラリアの語学学校の候補も一緒に考えられます。
           </p>
         </div>
       </div>

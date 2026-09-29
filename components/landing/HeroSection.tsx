@@ -42,6 +42,12 @@ import LandingHeader from "@/components/landing/LandingHeader";
  * （全角10文字）が390px幅の画面（px-4を引いた実効幅358px）に収まる上限として選んで
  * いる（36px=text-4xlだと360pxとなり2pxオーバーフローするため、1段階小さいこの値に
  * している）。
+ * copyの最後（CTAの直前）には、対応地域の補足を1行だけ置いている。メインコピーより
+ * 目立たせないため小さめ・muted・白半透明のpillに留め、Mobileはファーストビューが
+ * 重くならないようDesktopより短い文言にしている（Desktop:「現在はオーストラリア留学・
+ * ワーホリに対応しています。」/ Mobile:「現在はオーストラリアに対応しています」）。
+ * 「オーストラリア限定」のような制限感のある表現は使わず、今後の対応国拡大の案内は
+ * LP下部（LandingFooter）側に置いている。
  * Hero全体の左下だけにrounded-bl-[56px]を付け、他の3隅は直角のまま維持する
  * （Desktop/Mobileとも同じ1つのsection全体に対する角丸で、Mobile側に画像専用の
  * 個別角丸は持たせない＝画像だけが独立カードに見える状態を避けている）。
@@ -138,6 +144,12 @@ function HeroCopy() {
         自分だけの留学Planを少しずつつくっていけます。
       </p>
 
+      {/* 対応地域の補足。メインコピーより目立たせないため、小さめ・muted・白半透明のpillに
+          留めている（背景がHero画像のため、地の文だけだと写真の明るい部分で読みにくい）。 */}
+      <p className="mt-5 inline-flex rounded-full bg-white/70 px-3 py-1 text-xs text-worksheet-primary/80 sm:text-[13px]">
+        現在はオーストラリア留学・ワーホリに対応しています。
+      </p>
+
       <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
         <Link
           href="/login"
@@ -180,6 +192,12 @@ function MobileHeroCopy() {
         話したり、書いたりしながら、
         <br />
         自分だけの留学Planを少しずつつくっていけます。
+      </p>
+
+      {/* Mobileはファーストビューが重くならないよう、Desktopより短い文言にしている
+          （1行に収める。「留学・ワーホリ」はすぐ上のサブコピーで既に伝わっている）。 */}
+      <p className="mt-5 inline-flex rounded-full bg-white/70 px-3 py-1 text-xs text-worksheet-primary/80">
+        現在はオーストラリアに対応しています
       </p>
 
       <div className="mt-8 flex flex-row items-center gap-6">

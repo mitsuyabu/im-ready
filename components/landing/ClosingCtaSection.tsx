@@ -88,6 +88,11 @@ export default function ClosingCtaSection() {
           <p className="mt-3 text-xs text-worksheet-primary sm:text-worksheet-primary/70">
             Googleアカウントで利用できます
           </p>
+          {/* CTAの文言自体は変えず、その近くに対応地域だけを小さく添える
+              （詳しい案内と今後の拡大予定はLandingFooterに置いている）。 */}
+          <p className="mt-1 text-xs text-worksheet-primary sm:text-worksheet-primary/70">
+            現在はオーストラリア対応
+          </p>
         </div>
       </div>
     </section>
