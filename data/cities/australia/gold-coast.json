@@ -1,0 +1,200 @@
+{
+  "_readme": [
+    "【人間レビュー待ちの候補データ】まだDBへ投入していない。",
+    "調査日: 2026-09-30。出典はすべて実際にページを開いて内容を確認した一次情報。",
+    "検索結果の要約だけを根拠にした項目は含めていない。",
+    "",
+    "レビュー時に見てほしい点:",
+    "- 金額がゴールドコースト単位の記載か（クイーンズランド全体と混同していないか）",
+    "- estimates の前提（共有か単身か・2026年の金額か）が出典どおりか",
+    "- 電気代が世帯平均であり学生1人あたりではないこと注記されているか",
+    "",
+    "今回 safety を入れていない理由: ゴールドコースト固有の犯罪統計は Queensland Police Service が",
+    "月次で公表しており（対象地域として Gold Coast を選択できる）、ライセンスも CC BY 4.0 だが、",
+    "その数値・傾向をこの調査では確認できていない（グラフが動的表示のため取得できず）。",
+    "クイーンズランド全体の傾向をゴールドコースト固有の事実として書くことは避け、未登録とする。",
+    "次の担当者向け: QPS の Gold Coast 地域データ、または QGSO の Crime report, Queensland",
+    "2024-25（2026-04-07公表）のLGA別表を確認してから登録する。",
+    "",
+    "food は Bond University の記載を採用したが、大学1校のみが根拠のため confidence は Medium。"
+  ],
+  "cityKey": "goldcoast",
+  "countryCode": "AU",
+  "adminArea": "QLD",
+  "entries": [
+    {
+      "category": "housing",
+      "summary": "Bond University が2026年の目安として公表している金額では、ゴールドコーストで学外のシェア（一室）を借りる場合は週 AUD 200 程度から、ひとりでアパートを借りる場合は週 AUD 550 程度からとされ、ビーチへの近さや周辺環境で変わるとされています。学内の寮は Standard Twin が1学期 AUD 3,825 で、光熱費・洗濯設備・清掃が含まれます。学外のシェアに入居する場合は、敷金などの初期費用として AUD 800〜2,000 を見ておくよう案内されています。",
+      "notes": "Bond University が自校の学生向けに示している目安で、ゴールドコースト全体の実勢家賃の統計ではない。学内寮の金額は1学期あたりで、週あたりの金額ではない点に注意。学外の金額は立地で大きく変わるとページに明記されている。",
+      "reviewedAt": "2026-09-30",
+      "reviewNote": "人間レビュー待ち。confidence は Medium〜High（ゴールドコースト固有・2026年と明記された大学公式の金額）。ただし根拠は大学1校のみなので、Griffith University の living cost ページ（今回はアクセスできず未確認）を追加できると前提の違いを比較できる。",
+      "estimates": [
+        {
+          "sourceName": "Bond University - Living costs",
+          "label": "学外のシェア（一室）",
+          "min": 200,
+          "max": null,
+          "currency": "AUD",
+          "period": "week",
+          "basis": "2026年の目安。ビーチへの近さや周辺環境で変わるとされる下限。"
+        },
+        {
+          "sourceName": "Bond University - Living costs",
+          "label": "学外でひとりでアパートを借りる場合",
+          "min": 550,
+          "max": null,
+          "currency": "AUD",
+          "period": "week",
+          "basis": "2026年の目安。立地で変わるとされる下限。"
+        },
+        {
+          "sourceName": "Bond University - Living costs",
+          "label": "学内寮（Standard Twin・光熱費と清掃込み）",
+          "min": 3825,
+          "max": 3825,
+          "currency": "AUD",
+          "period": "semester",
+          "basis": "2026年の学内寮の料金。1学期あたり。光熱費・洗濯設備・清掃を含む。"
+        },
+        {
+          "sourceName": "Bond University - Living costs",
+          "label": "学外シェア入居時の初期費用（敷金など）",
+          "min": 800,
+          "max": 2000,
+          "currency": "AUD",
+          "period": "one-time",
+          "basis": "入居時に一度必要になる費用の目安。家賃とは別。"
+        }
+      ],
+      "sources": [
+        {
+          "sourceName": "Bond University - Living costs",
+          "sourceUrl": "https://bond.edu.au/fees-and-finance-options/additional-costs-to-consider/living-costs",
+          "sourceType": "university",
+          "sourcePublishedAt": null,
+          "sourceUpdatedAt": null,
+          "note": "ゴールドコーストの大学が2026年の金額として公表。最終更新日の記載なし。学生個人の状況で変わると注記あり。"
+        }
+      ]
+    },
+    {
+      "category": "food",
+      "summary": "Bond University が2026年の目安として公表している金額では、学外で暮らす場合の食料品代は週 AUD 80〜200 程度とされています。外食はファストフードのセットが AUD 15 程度から、中価格帯のレストランのメイン料理が AUD 30 以上とされ、自炊中心にするかどうかで差が出ます。学内の食事プランを使う場合は1学期 AUD 2,400 程度からです。",
+      "notes": "食料品代は自炊を前提とした金額で、外食の頻度によって総額は変わる。大学1校が示す目安であり、統計ではない。",
+      "reviewedAt": "2026-09-30",
+      "reviewNote": "人間レビュー待ち。confidence は Medium（大学1校のみが根拠）。シドニー側は前提が揃う食費データが取れていないため、都市間で食費を比較する用途にはまだ使わないこと。",
+      "estimates": [
+        {
+          "sourceName": "Bond University - Living costs",
+          "label": "食料品（自炊中心）",
+          "min": 80,
+          "max": 200,
+          "currency": "AUD",
+          "period": "week",
+          "basis": "2026年の目安。学外で暮らす場合。"
+        },
+        {
+          "sourceName": "Bond University - Living costs",
+          "label": "学内の食事プラン",
+          "min": 2400,
+          "max": null,
+          "currency": "AUD",
+          "period": "semester",
+          "basis": "2026年の目安。1学期あたりの下限。"
+        }
+      ],
+      "sources": [
+        {
+          "sourceName": "Bond University - Living costs",
+          "sourceUrl": "https://bond.edu.au/fees-and-finance-options/additional-costs-to-consider/living-costs",
+          "sourceType": "university",
+          "sourcePublishedAt": null,
+          "sourceUpdatedAt": null,
+          "note": "ゴールドコーストの大学が2026年の金額として公表。食料品・外食・学内食事プランの目安を記載。"
+        }
+      ]
+    },
+    {
+      "category": "transport",
+      "summary": "クイーンズランド州の公共交通（Translink）は、ゴールドコーストを含む州内の全ゾーン・全交通手段で1回あたり AUD 0.50 の均一運賃です。バス・電車・路面電車・フェリー・オンデマンドサービスが対象で、空港連絡鉄道（Airtrain）は対象外です。この均一運賃はクイーンズランド州政府が2024年11月30日に恒久化を発表しています。",
+      "notes": "州全体の制度で、ゴールコースト固有の料金ではない。均一運賃の期間中はオフピーク割引や一部の割引制度が適用されない点がTranslinkのページに明記されている。運賃制度は政策変更の影響を受けやすいため、他カテゴリより短い間隔で再確認したい。",
+      "reviewedAt": "2026-09-30",
+      "reviewNote": "人間レビュー待ち。confidence は High（交通事業者の公式ページと州政府の公式発表の2つが一致）。Bond University のページにも「1回50セント」と記載があり、3つ目の裏付けになっている。",
+      "estimates": [
+        {
+          "sourceName": "Translink - 50 cent fares",
+          "label": "公共交通の均一運賃（全ゾーン・全交通手段）",
+          "min": 0.5,
+          "max": 0.5,
+          "currency": "AUD",
+          "period": "trip",
+          "basis": "1回の乗車あたり。Airtrainは対象外。オフピーク割引は適用されない。"
+        }
+      ],
+      "sources": [
+        {
+          "sourceName": "Translink - 50 cent fares",
+          "sourceUrl": "https://translink.com.au/tickets-and-fares/50-cent-fares",
+          "sourceType": "transport_authority",
+          "sourcePublishedAt": null,
+          "sourceUpdatedAt": null,
+          "note": "クイーンズランド州の公共交通事業者の公式ページ。均一運賃の対象範囲と除外（Airtrain）を確認。最終更新日の記載なし。"
+        },
+        {
+          "sourceName": "Queensland Government - Ministerial media statement (50 cent fares made permanent)",
+          "sourceUrl": "https://statements.qld.gov.au/statements/101663",
+          "sourceType": "government_information",
+          "sourcePublishedAt": "2024-11-30",
+          "sourceUpdatedAt": null,
+          "note": "州政府の公式発表。Translinkの全ネットワークで均一運賃を恒久化する旨を記載。"
+        }
+      ]
+    },
+    {
+      "category": "utilities",
+      "summary": "Bond University が2026年の目安として公表している金額では、電気代は一般的な世帯で週 AUD 38 程度、インターネット回線は月 AUD 60 程度から、携帯電話のプランは月 AUD 10 程度からとされています。学内の寮に住む場合、光熱費は寮の料金に含まれます。",
+      "notes": "電気代は世帯あたりの平均で、学生1人あたりの金額ではない。シェアハウスなら人数で分けることになる。物件の設備や季節によって変わる。",
+      "reviewedAt": "2026-09-30",
+      "reviewNote": "人間レビュー待ち。confidence は Medium（大学1校のみが根拠。電気代は世帯平均のため1人あたりへの読み替えは禁止）。",
+      "estimates": [
+        {
+          "sourceName": "Bond University - Living costs",
+          "label": "電気代（一般的な世帯の平均）",
+          "min": 38,
+          "max": 38,
+          "currency": "AUD",
+          "period": "week",
+          "basis": "2026年の目安。世帯あたりの平均で、1人あたりの金額ではない。"
+        },
+        {
+          "sourceName": "Bond University - Living costs",
+          "label": "インターネット回線",
+          "min": 60,
+          "max": null,
+          "currency": "AUD",
+          "period": "month",
+          "basis": "2026年の目安。プランの下限。"
+        },
+        {
+          "sourceName": "Bond University - Living costs",
+          "label": "携帯電話のプラン",
+          "min": 10,
+          "max": null,
+          "currency": "AUD",
+          "period": "month",
+          "basis": "2026年の目安。プランの下限。"
+        }
+      ],
+      "sources": [
+        {
+          "sourceName": "Bond University - Living costs",
+          "sourceUrl": "https://bond.edu.au/fees-and-finance-options/additional-costs-to-consider/living-costs",
+          "sourceType": "university",
+          "sourcePublishedAt": null,
+          "sourceUpdatedAt": null,
+          "note": "ゴールドコーストの大学が2026年の金額として公表。電気代は世帯平均としての記載。"
+        }
+      ]
+    }
+  ]
+}

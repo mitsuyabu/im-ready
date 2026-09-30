@@ -13,7 +13,9 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import {
   CITY_ADMIN_AREA,
   CITY_KEYS,
+  isCityReferenceCategory,
   isSafetyComparable,
+  isSourceType,
   needsReviewCaution,
   toCityKey,
   type CityKey,
@@ -528,9 +530,40 @@ async function main() {
     assert(Array.isArray(template.entries), "テンプレートに entries がある");
     assert(template._readme.join(" ").includes("Numbeo"), "テンプレートに禁止ソースの注意がある");
 
-    // 実データはまだ登録していない（出典未確認のまま捏造しない）
+    // 登録済みの都市ファイルは、出典・確認日・category の不変条件を必ず満たすこと。
+    // （都市が未登録でも、この block は「0件でも通る」形にしてある）
     const cityFiles = readdirSync("data/cities/australia").filter((f) => f.endsWith(".json") && !f.startsWith("_"));
-    assert(cityFiles.length === 0, "出典を確認していない都市データは登録していない（empty state）");
+    for (const file of cityFiles) {
+      const doc = JSON.parse(readFileSync(`data/cities/australia/${file}`, "utf8"));
+      assert((CITY_KEYS as string[]).includes(doc.cityKey), `${file}: cityKey が対象都市`);
+      assert(Array.isArray(doc.entries) && doc.entries.length > 0, `${file}: entries がある`);
+      for (const entry of doc.entries) {
+        const at = `${file}/${entry.category}`;
+        assert(isCityReferenceCategory(entry.category), `${at}: category が既存のもの`);
+        assert(typeof entry.summary === "string" && entry.summary.trim().length > 0, `${at}: summary がある`);
+        assert(/^\d{4}-\d{2}-\d{2}$/.test(entry.reviewedAt ?? ""), `${at}: reviewedAt がある`);
+        // 出典の無い要約を作らない
+        assert(Array.isArray(entry.sources) && entry.sources.length > 0, `${at}: 出典が1件以上ある`);
+        for (const source of entry.sources) {
+          assert(/^https:\/\//.test(source.sourceUrl ?? ""), `${at}: 出典URLが https`);
+          assert(isSourceType(source.sourceType), `${at}: source_type が既存のもの`);
+          assert(!/numbeo/i.test(source.sourceUrl) && !/numbeo/i.test(source.sourceName), `${at}: 禁止ソースを使っていない`);
+        }
+        // 金額は必ずどの出典の数字か辿れること（平均せず出典ごとに持つ前提）
+        const sourceNames = new Set(entry.sources.map((s: { sourceName: string }) => s.sourceName));
+        for (const estimate of entry.estimates ?? []) {
+          assert(sourceNames.has(estimate.sourceName), `${at}: 金額の sourceName が出典と一致`);
+          assert(
+            typeof estimate.currency === "string" && typeof estimate.period === "string",
+            `${at}: 金額に通貨と期間が付いている`,
+          );
+          assert(
+            typeof estimate.min === "number" || typeof estimate.max === "number",
+            `${at}: 金額の下限か上限がある`,
+          );
+        }
+      }
+    }
   }
 
   console.log("");
