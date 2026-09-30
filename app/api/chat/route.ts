@@ -10,6 +10,16 @@ import {
 } from "@/lib/prompt";
 import { isValidMessages } from "@/lib/chat";
 import type { Karte } from "@/lib/karte";
+import { detectCityLivingIntent, resolveCityKeysForChat } from "@/lib/cityLivingIntent";
+import {
+  buildCityLivingContext,
+  buildCityLivingNeedsCityContext,
+  buildCityLivingNoDataContext,
+} from "@/lib/cityLivingContext";
+import { hasAnyCityLivingValue } from "@/lib/cityLiving";
+import { loadCityLivingRows } from "@/lib/cityLivingServer";
+import { createClient } from "@/lib/supabase/server";
+import { loadPlanBlueprint } from "@/lib/planBlueprint";
 
 function isValidKarte(value: unknown): value is Karte {
   if (!value || typeof value !== "object") return false;
@@ -35,6 +45,74 @@ function extractStatedPreferredCity(karte: Karte): string | null {
   return preferredCity.value;
 }
 
+/** Karte の preferredCity が conflict 中か（stated でも都市を確定として扱わない）。 */
+function isPreferredCityInConflict(karte: Karte): boolean {
+  return (karte.handoff?.conflicts ?? []).some(
+    (c) => c.block === "schoolPrefs" && c.key === "preferredCity",
+  );
+}
+
+/** 最新のユーザー発言（都市データを出すかどうかの判定はこれだけを見る）。 */
+function latestUserText(messages: { role: string; content: string }[]): string {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i].role === "user") return messages[i].content;
+  }
+  return "";
+}
+
+/**
+ * 都市の治安・生活費を聞かれたときだけ、外部データのコンテキストを組み立てる。
+ *
+ * - 判定は deterministic（lib/cityLivingIntent.ts）。関係ない会話では DB へ触れない。
+ * - 都市の優先順位は 発言 > My Plan の確定都市 > Karte stated（conflict でないとき）。
+ *   inferred は使わず、確定できなければ「本人に確認する」コンテキストを返す。
+ * - DB 読み取りが失敗した・行が無い場合は「データが無い」コンテキストを返し、捏造させない。
+ * - 例外は握り、Chat 本体は必ず継続する（この機能の不調で会話を止めない）。
+ */
+async function buildCityLivingContextForTurn(
+  messages: { role: string; content: string }[],
+  karte: Karte | null,
+  planId: string | null,
+): Promise<string | null> {
+  try {
+    const intent = detectCityLivingIntent(latestUserText(messages));
+    if (!intent) return null;
+
+    const supabase = await createClient();
+
+    // My Plan の確定都市は、都市が発言に出ていないときだけ必要になる。
+    let myPlanCity: string | null = null;
+    if (intent.citiesInMessage.length === 0 && planId) {
+      const blueprint = await loadPlanBlueprint(supabase, planId);
+      if (blueprint.available) myPlanCity = blueprint.data.destinations.primary?.label ?? null;
+    }
+
+    const resolution = resolveCityKeysForChat({
+      citiesInMessage: intent.citiesInMessage,
+      myPlanCity,
+      karteStatedCity: karte ? extractStatedPreferredCity(karte) : null,
+      karteCityInConflict: karte ? isPreferredCityInConflict(karte) : false,
+    });
+
+    if (resolution.kind === "needsCity") {
+      return buildCityLivingNeedsCityContext(resolution.reason);
+    }
+
+    const allRows = await loadCityLivingRows(supabase);
+    const targetRows = resolution.cityKeys
+      .map((key) => allRows.find((row) => row.cityKey === key))
+      .filter((row): row is NonNullable<typeof row> => row !== undefined && hasAnyCityLivingValue(row));
+
+    if (targetRows.length === 0) {
+      return buildCityLivingNoDataContext(resolution.cityKeys);
+    }
+    return buildCityLivingContext(targetRows, allRows, intent.topics);
+  } catch (err) {
+    console.error("city living context error:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest) {
   let body: unknown;
   try {
@@ -46,10 +124,12 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const { messages, karte, includeKnownFacts } = (body ?? {}) as {
+  const { messages, karte, includeKnownFacts, planId } = (body ?? {}) as {
     messages?: unknown;
     karte?: unknown;
     includeKnownFacts?: unknown;
+    /** Plan Chat のときだけ送られる。My Plan の確定都市を都市解決の入力に使うためだけに使う。 */
+    planId?: unknown;
   };
   if (!isValidMessages(messages)) {
     return new Response(JSON.stringify({ error: "messages が不正です" }), {
@@ -70,6 +150,13 @@ export async function POST(req: NextRequest) {
   const decisionContextText = usePlanKarteContext ? buildDecisionContextText(validKarte) : null;
   const inferredContextText = usePlanKarteContext ? buildInferredContextText(validKarte) : null;
 
+  // 都市の治安・生活費を聞かれたターンだけ、外部の都市データを足す（毎ターンは入れない）。
+  const cityLivingContextText = await buildCityLivingContextForTurn(
+    messages,
+    validKarte,
+    typeof planId === "string" && planId.length > 0 ? planId : null,
+  );
+
   const stream = anthropic.messages.stream({
     model: MODEL,
     max_tokens: 4096,
@@ -77,6 +164,7 @@ export async function POST(req: NextRequest) {
       // 「一度伝えたことは聞き直さない」等の共有理解ルールは Plan Chat にだけ入れる（/widget は従来どおり）
       planContext: includeKnownFacts === true,
       inferredContextText,
+      cityLivingContextText,
     }),
     messages,
   });

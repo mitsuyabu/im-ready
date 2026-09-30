@@ -203,7 +203,15 @@ export function buildSystemPrompt(
   knownFactsText: string | null,
   conflictsText: string | null,
   decisionContextText: string | null,
-  options: { planContext?: boolean; inferredContextText?: string | null } = {},
+  options: {
+    planContext?: boolean;
+    inferredContextText?: string | null;
+    /**
+     * 都市の治安・生活費を聞かれたターンにだけ渡される外部データのブロック
+     * （lib/cityLivingContext.ts が組み立てる）。関係ないターンでは null で、常時は入らない。
+     */
+    cityLivingContextText?: string | null;
+  } = {},
 ): string {
   let prompt = SYSTEM_PROMPT;
 
@@ -260,6 +268,14 @@ ${conflictsText}`;
 以下は、本人が明言したわけではなく、これまでの会話から読み取っただけの内容です。事実として話したり、これを前提に提案したりしないでください。話題に関係するときだけ、本人に確認してください。
 
 ${options.inferredContextText}`;
+  }
+
+  if (options.cityLivingContextText) {
+    prompt += `
+
+---
+
+${options.cityLivingContextText}`;
   }
 
   const citySchoolKnowledge = preferredCity ? buildCitySchoolKnowledge(preferredCity) : null;

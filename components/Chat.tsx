@@ -389,6 +389,9 @@ export default function Chat({
           messages: toChatMessages(history),
           karte,
           includeKnownFacts: Boolean(planId),
+          // 都市の治安・生活費を聞かれたときに、My Plan の確定都市をサーバー側で
+          // 参照できるようにするためだけに送る（/widget では未指定のまま）。
+          planId,
         }),
       });
 
