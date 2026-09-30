@@ -128,6 +128,29 @@ DBは使わず、このファイルへの直接編集のみで完結する（こ
 
 ---
 
+## 都市リファレンス（治安・生活費・交通）の運用ルール
+
+Chat が「シドニーって安全？」「メルボルンの生活費は高い？」のように都市について聞かれたときだけ参照する、**人間が出典を確認して蓄積する**都市情報のレイヤー。将来の I'm ready! Guide / City Guide でも同じデータを使う。
+
+- DB: `city_reference_data`（1都市 × 1カテゴリ = 1行）＋ `city_reference_sources`（1行に複数の出典）。カテゴリは `safety` / `housing` / `food` / `transport` / `utilities` / `everyday`。
+- **独自スコアを作らない**。「Safety Index」「生活費指数」のような合成指標は持たず、カテゴリごとの短い要約＋出典として持つ。
+- **自動取得しない**。クローラー・スクレイピング・外部 API 連携は持たない。第三者サイトの無断スクレイピングもしない。
+- 使ってよい出典は、公的統計（ABS 等）・州警察・州の犯罪統計機関・政府の留学情報（Study Australia 等）・公共交通機関の公式情報・大学公式の生活費ガイドのみ。出典不明のブログ・SEO 記事・Reddit・個人 SNS・Numbeo・利用規約が不明な第三者 DB は使わない。
+- `reviewed_at`（こちらが最後に人間で確認した日）は必須。出典側の更新日が分からなければ `null` のままにする（**不明な日付を作らない**）。
+- 出典が1件も無い要約は登録しない。金額は出典ごとに `details.estimates` へ分けて持ち、**複数の出典を平均しない**。
+- 州をまたぐ犯罪統計は集計機関・罪種の定義・公表期間が違うため、Chat には「単純比較はできない」と伝えさせる（判定は `lib/cityReference.ts` の `isSafetyComparable`）。
+
+### データを追加・更新するとき
+
+1. `data/cities/australia/_template.json` をコピーして `data/cities/australia/<city>.json` を作る（`_` 始まりのファイルは取り込み対象外）。
+2. 公的な出典を実際に開いて確認し、要約・補足・`estimates`・`sources`・`reviewed_at` を記入する。未確認のまま推測で埋めない（確認できていない都市は**未登録のままでよい**）。
+3. `npx tsx scripts/import-city-reference-data.ts` を実行する。検証に通った entry だけの SQL が `supabase/seed/city_reference_data.generated.sql` に出る（テンプレートの未記入文・出典なしの entry は自動で除外される）。
+4. 生成された SQL を目で確認し、Supabase の SQL エディタで適用する。スクリプトは DB へ直接書き込まない（このプロジェクトは service role key を使わないため）。
+
+読み取りは sanitized view（`city_reference_public` / `city_reference_sources_public`）だけを公開経路にしている。base table は anon / authenticated から一切読めず、内部メモ（`review_note`）は view に含めない。
+
+---
+
 ## 学校データと Google Places / Maps 連携
 
 ### 大原則

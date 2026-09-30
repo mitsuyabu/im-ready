@@ -207,10 +207,10 @@ export function buildSystemPrompt(
     planContext?: boolean;
     inferredContextText?: string | null;
     /**
-     * 都市の治安・生活費を聞かれたターンにだけ渡される外部データのブロック
-     * （lib/cityLivingContext.ts が組み立てる）。関係ないターンでは null で、常時は入らない。
+     * 都市の治安・生活費を聞かれたターンにだけ渡される、確認済みの都市情報のブロック
+     * （lib/cityReferenceContext.ts が組み立てる）。関係ないターンでは null で、常時は入らない。
      */
-    cityLivingContextText?: string | null;
+    cityReferenceContextText?: string | null;
   } = {},
 ): string {
   let prompt = SYSTEM_PROMPT;
@@ -270,12 +270,12 @@ ${conflictsText}`;
 ${options.inferredContextText}`;
   }
 
-  if (options.cityLivingContextText) {
+  if (options.cityReferenceContextText) {
     prompt += `
 
 ---
 
-${options.cityLivingContextText}`;
+${options.cityReferenceContextText}`;
   }
 
   const citySchoolKnowledge = preferredCity ? buildCitySchoolKnowledge(preferredCity) : null;

@@ -10,14 +10,13 @@ import {
 } from "@/lib/prompt";
 import { isValidMessages } from "@/lib/chat";
 import type { Karte } from "@/lib/karte";
-import { detectCityLivingIntent, resolveCityKeysForChat } from "@/lib/cityLivingIntent";
+import { detectCityReferenceIntent, resolveCityKeysForChat } from "@/lib/cityReferenceIntent";
 import {
-  buildCityLivingContext,
-  buildCityLivingNeedsCityContext,
-  buildCityLivingNoDataContext,
-} from "@/lib/cityLivingContext";
-import { hasAnyCityLivingValue } from "@/lib/cityLiving";
-import { loadCityLivingRows } from "@/lib/cityLivingServer";
+  buildCityReferenceContext,
+  buildCityReferenceNeedsCityContext,
+  buildCityReferenceNoDataContext,
+} from "@/lib/cityReferenceContext";
+import { loadCityReferenceEntries } from "@/lib/cityReferenceServer";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanBlueprint } from "@/lib/planBlueprint";
 
@@ -61,21 +60,21 @@ function latestUserText(messages: { role: string; content: string }[]): string {
 }
 
 /**
- * 都市の治安・生活費を聞かれたときだけ、外部データのコンテキストを組み立てる。
+ * 都市の治安・生活費を聞かれたときだけ、都市リファレンスのコンテキストを組み立てる。
  *
- * - 判定は deterministic（lib/cityLivingIntent.ts）。関係ない会話では DB へ触れない。
+ * - 判定は deterministic（lib/cityReferenceIntent.ts）。関係ない会話では DB へ触れない。
  * - 都市の優先順位は 発言 > My Plan の確定都市 > Karte stated（conflict でないとき）。
  *   inferred は使わず、確定できなければ「本人に確認する」コンテキストを返す。
- * - DB 読み取りが失敗した・行が無い場合は「データが無い」コンテキストを返し、捏造させない。
+ * - 確認済みの情報が無い場合は「情報が無い」コンテキストを返し、捏造させない。
  * - 例外は握り、Chat 本体は必ず継続する（この機能の不調で会話を止めない）。
  */
-async function buildCityLivingContextForTurn(
+async function buildCityReferenceContextForTurn(
   messages: { role: string; content: string }[],
   karte: Karte | null,
   planId: string | null,
 ): Promise<string | null> {
   try {
-    const intent = detectCityLivingIntent(latestUserText(messages));
+    const intent = detectCityReferenceIntent(latestUserText(messages));
     if (!intent) return null;
 
     const supabase = await createClient();
@@ -95,20 +94,16 @@ async function buildCityLivingContextForTurn(
     });
 
     if (resolution.kind === "needsCity") {
-      return buildCityLivingNeedsCityContext(resolution.reason);
+      return buildCityReferenceNeedsCityContext(resolution.reason);
     }
 
-    const allRows = await loadCityLivingRows(supabase);
-    const targetRows = resolution.cityKeys
-      .map((key) => allRows.find((row) => row.cityKey === key))
-      .filter((row): row is NonNullable<typeof row> => row !== undefined && hasAnyCityLivingValue(row));
-
-    if (targetRows.length === 0) {
-      return buildCityLivingNoDataContext(resolution.cityKeys);
+    const entries = await loadCityReferenceEntries(supabase, resolution.cityKeys, intent.categories);
+    if (entries.length === 0) {
+      return buildCityReferenceNoDataContext(resolution.cityKeys);
     }
-    return buildCityLivingContext(targetRows, allRows, intent.topics);
+    return buildCityReferenceContext(entries, resolution.cityKeys);
   } catch (err) {
-    console.error("city living context error:", err instanceof Error ? err.message : err);
+    console.error("city reference context error:", err instanceof Error ? err.message : err);
     return null;
   }
 }
@@ -150,8 +145,8 @@ export async function POST(req: NextRequest) {
   const decisionContextText = usePlanKarteContext ? buildDecisionContextText(validKarte) : null;
   const inferredContextText = usePlanKarteContext ? buildInferredContextText(validKarte) : null;
 
-  // 都市の治安・生活費を聞かれたターンだけ、外部の都市データを足す（毎ターンは入れない）。
-  const cityLivingContextText = await buildCityLivingContextForTurn(
+  // 都市の治安・生活費を聞かれたターンだけ、確認済みの都市情報を足す（毎ターンは入れない）。
+  const cityReferenceContextText = await buildCityReferenceContextForTurn(
     messages,
     validKarte,
     typeof planId === "string" && planId.length > 0 ? planId : null,
@@ -164,7 +159,7 @@ export async function POST(req: NextRequest) {
       // 「一度伝えたことは聞き直さない」等の共有理解ルールは Plan Chat にだけ入れる（/widget は従来どおり）
       planContext: includeKnownFacts === true,
       inferredContextText,
-      cityLivingContextText,
+      cityReferenceContextText,
     }),
     messages,
   });

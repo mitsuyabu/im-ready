@@ -1,0 +1,69 @@
+{
+  "_readme": [
+    "都市リファレンス（city_reference_data）の登録テンプレート。",
+    "このファイル自体は取り込み対象外（先頭が _ のファイルは importer が無視する）。",
+    "使い方: このファイルを sydney.json 等にコピーし、公的・信頼できる出典を人間が確認して記入する。",
+    "そのあと `npx tsx scripts/import-city-reference-data.ts` で検証済みの SQL を生成し、",
+    "内容を目で確認してから Supabase へ適用する（スクリプトは DB へ直接書き込まない）。",
+    "",
+    "禁止事項:",
+    "- 出典を確認していない要約を書かない（空のままでよい。captions を埋めるために推測しない）",
+    "- 出典不明のブログ・SEO 記事・Reddit・個人SNS・Numbeo・利用規約が不明な第三者DBを使わない",
+    "- 複数の出典の金額を勝手に平均しない（estimates に出典ごとに分けて入れる）",
+    "- source_updated_at が分からないときは null のままにする（不明な日付を作らない）",
+    "- 「絶対安全」「治安が良い」などの断定を summary に書かない",
+    "",
+    "reviewed_at には、出典を実際に確認した日（YYYY-MM-DD）を入れる。"
+  ],
+  "cityKey": "sydney",
+  "countryCode": "AU",
+  "adminArea": "NSW",
+  "entries": [
+    {
+      "category": "safety",
+      "summary": "（出典を確認したうえで、留学生・ワーホリ利用者向けの短い要約を日本語で書く。エリア差・時間帯差など、事実として確認できたことだけを書く）",
+      "notes": null,
+      "reviewedAt": "2026-01-01",
+      "reviewNote": "（内部メモ。何を確認したか・次回見るべき点。公開 view には出ない）",
+      "estimates": [],
+      "sources": [
+        {
+          "sourceName": "（例: NSW Bureau of Crime Statistics and Research）",
+          "sourceUrl": "https://example.gov.au/",
+          "sourceType": "government_statistics",
+          "sourcePublishedAt": null,
+          "sourceUpdatedAt": null,
+          "note": "（参照した範囲。例: LGA別の四半期データ）"
+        }
+      ]
+    },
+    {
+      "category": "housing",
+      "summary": "（住居費について確認できたことを書く）",
+      "notes": null,
+      "reviewedAt": "2026-01-01",
+      "reviewNote": null,
+      "estimates": [
+        {
+          "sourceName": "（この金額の出典名。sources のどれかと一致させる）",
+          "label": "（例: シェアハウス1室）",
+          "min": null,
+          "max": null,
+          "currency": "AUD",
+          "period": "week",
+          "basis": "（前提。例: 単身・シェア・都市中心部を含む）"
+        }
+      ],
+      "sources": [
+        {
+          "sourceName": "（例: Study Australia / 大学公式の student living costs）",
+          "sourceUrl": "https://example.gov.au/",
+          "sourceType": "government_information",
+          "sourcePublishedAt": null,
+          "sourceUpdatedAt": null,
+          "note": null
+        }
+      ]
+    }
+  ]
+}
