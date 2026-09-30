@@ -126,6 +126,8 @@ DBは使わず、このファイルへの直接編集のみで完結する（こ
 
 これはコードでは強制できないため、データを追加・更新する人が上記ルールを守る運用上の約束事とする。
 
+**例外は開発・検証専用の snapshot だけ**: 上記の禁止は「ユーザーに届くデータ」に対するもの。回答品質の確認のために、人間がブラウザで一度確認した数値を**開発環境でのみ**参照する経路だけは、下記「開発・検証専用の都市指数 snapshot」の条件下で認める。production で使うには (b) のライセンス確認が必要で、「一度手入力したから production でも使える」とは扱わない。
+
 ---
 
 ## 都市リファレンス（治安・生活費・交通）の運用ルール
@@ -148,6 +150,60 @@ Chat が「シドニーって安全？」「メルボルンの生活費は高い
 4. 生成された SQL を目で確認し、Supabase の SQL エディタで適用する。スクリプトは DB へ直接書き込まない（このプロジェクトは service role key を使わないため）。
 
 読み取りは sanitized view（`city_reference_public` / `city_reference_sources_public`）だけを公開経路にしている。base table は anon / authenticated から一切読めず、内部メモ（`review_note`）は view に含めない。
+
+---
+
+## 開発・検証専用の都市指数 snapshot（production では使用しない）
+
+> **Numbeo snapshot is development/evaluation only. Do not deploy or use in production without confirming an appropriate Numbeo licence.**
+>
+> この snapshot は開発・検証専用。適切な Numbeo のライセンスを確認しないまま production へ載せたり、production で使用したりしてはいけない。
+
+Chat が都市の治安・生活費を聞かれたときの**回答品質を確認する**ためだけに、人間がブラウザで一度確認した指数を開発環境で参照できる経路。正式なデータ源は上記の公的情報ベース（`city_reference_data`）で、この snapshot はそれを**置き換えも上書きもしない**。
+
+### 禁止事項
+
+- **取得コードを作らない**: fetch / axios / curl / scraping / crawling / HTML parsing / Playwright / Puppeteer・その他のブラウザ自動化、および **AI エージェントによる自動巡回・自動収集**はすべて禁止。リポジトリにも一切含めない。
+- **production で使わない**: production Chat・公開 City Guide・I'm ready! Guide・公開 Web ページ・顧客向け環境では使用しない。
+- **公開しない**: 公開 view・公開 REST エンドポイント・API・Media のデータフィードとして出さない。
+- **独自スコアを作らない**: この数値から Safety Score / City Score / ランキングを作らない。
+
+### 仕組み
+
+| 層 | 実体 |
+|---|---|
+| 入力 | [data/dev/numbeo/australia.json](data/dev/numbeo/australia.json)（人間が手入力。初期値はすべて `null`） |
+| 読み取り | [lib/devCitySnapshot.ts](lib/devCitySnapshot.ts)（サーバー専用。JSON を static import せず実行時に読む） |
+| SQL 生成 | [scripts/generate-dev-city-snapshot-sql.ts](scripts/generate-dev-city-snapshot-sql.ts) → `supabase/seed/dev_city_snapshot.generated.sql` |
+| DB | `dev_snapshot` スキーマ（**public ではない**ので PostgREST の API から到達できない）。migration には入れない |
+
+**production ガードは二重**。`NODE_ENV === "production"` なら環境変数に関わらず無効で、そのうえで `CITY_REFERENCE_DEV_SNAPSHOT=true` の明示指定が必要（既定は OFF）。さらにアプリは dev 用 table を SELECT しないため、production のコード上に snapshot へ到達する経路が存在しない。
+
+### 人間が確認する項目
+
+Numbeo のページを開いて、以下だけを目で確認して手入力する。ページ上に無い項目・読めない項目は **`null` のまま**にする（0 で埋めない、推測しない）。
+
+| 区分 | 記入欄 |
+|---|---|
+| Safety | `safetyIndex` / `crimeIndex` / `safetyWalkingAloneDaylight` / `safetyWalkingAloneNight` |
+| Cost | `costOfLivingIndex` / `rentIndex` / `groceriesIndex` / `restaurantPriceIndex` |
+| メタデータ | `sourceUrl`（参照したページ）/ `capturedAt`（確認した日 YYYY-MM-DD） |
+
+対象は既存6都市（`sydney` / `melbourne` / `brisbane` / `goldcoast` / `cairns` / `perth`）のみ。ページ上の項目名が上記と対応しない場合は、その項目を空のままにして報告する。
+
+### 作業フロー
+
+1. 人間が Numbeo の該当都市のページをブラウザで開く
+2. 上記の項目の数値を目で確認する
+3. `data/dev/numbeo/australia.json` に手入力する
+4. 参照したページの URL を `sourceUrl` に記録する
+5. 確認した日を `capturedAt` に記録する
+6. `npx tsx scripts/generate-dev-city-snapshot-sql.ts` で SQL を生成する
+7. 生成された SQL を**目視確認**する
+8. **開発用 DB にだけ**適用する（remote / production DB へは適用しない）
+9. `CITY_REFERENCE_DEV_SNAPSHOT=true npm run dev` で Chat の回答を確認する
+
+Chat 側の優先順位は、production が「公的情報 → 無ければ『確認済み情報なし』」、開発時にフラグ ON のときだけ「公的情報 → snapshot → 情報なし」。公的情報がある項目では snapshot は使われない。
 
 ---
 

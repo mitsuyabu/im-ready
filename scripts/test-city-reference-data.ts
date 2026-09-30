@@ -394,8 +394,9 @@ async function main() {
       "components/Chat.tsx",
     ]
       .filter((f) => /\.(ts|tsx|sql)$/.test(f) && existsSync(f))
-      // このテスト自身は検出パターンを文字列として持つため対象外。
-      .filter((f) => f !== "scripts/test-city-reference-data.ts");
+      // テストは「連携が無いこと」を確かめるために検出パターン自体を文字列として持つため対象外。
+      // 検査したいのは製品コード（lib / app / migrations / テスト以外の scripts）。
+      .filter((f) => !/^scripts\/test-/.test(f));
 
     // 「Numbeo を使わない」と書いた運用ルールのコメント（lib/knowledge.ts 等）は残してよいので、
     // 実際の連携（ホスト名・API key・client の import）が無いことだけを確認する。

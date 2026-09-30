@@ -1,0 +1,131 @@
+{
+  "_readme": [
+    "【開発・検証専用の手入力テンプレート】production では絶対に使わない。",
+    "",
+    "このファイルは、人間がブラウザで Numbeo のページを開いて目で見た数値を、手で書き写すためのもの。",
+    "取得コードは作らない（fetch / scraping / crawling / browser automation / AI エージェントによる巡回は全て禁止）。",
+    "空欄（null）のままでよい。埋まっている都市だけが SQL 生成と Chat の開発フォールバックの対象になる。",
+    "",
+    "■ 使い方",
+    "1. 人間が Numbeo の該当都市のページをブラウザで開く",
+    "2. 下記の項目の数値を目で確認する",
+    "3. この JSON に手入力する（見つからない項目は null のまま）",
+    "4. 参照したページの URL を sourceUrl に、確認した日を capturedAt に記録する",
+    "5. npx tsx scripts/generate-dev-city-snapshot-sql.ts で SQL を生成する",
+    "6. 生成された SQL を目視確認し、**開発用 DB にだけ**適用する",
+    "7. CITY_REFERENCE_DEV_SNAPSHOT=true で Chat の回答品質を確認する",
+    "",
+    "■ 注意",
+    "- ページ上の項目名が下記のキーと対応しない場合は、その項目を空のままにして報告する（推測で埋めない）。",
+    "- 数値が読めない・表示されていない項目は null のままにする。0 で埋めない。",
+    "- この数値から独自のスコア・ランキングを作らない。",
+    "- production 公開時は Numbeo の利用条件・ライセンスを改めて確認すること。",
+    "  「一度手入力したから production で使える」とは扱わない（README の該当節を参照）。"
+  ],
+  "source": "numbeo",
+  "usage": "development_only",
+  "cities": [
+    {
+      "cityKey": "sydney",
+      "sourceUrl": null,
+      "capturedAt": "2026-09-30",
+      "safety": {
+        "safetyIndex": 66.2,
+        "crimeIndex": 33.8,
+        "safetyWalkingAloneDaylight": 78.5,
+        "safetyWalkingAloneNight": 54.1
+      },
+      "cost": {
+        "costOfLivingIndex": 72.4,
+        "rentIndex": 61.3,
+        "groceriesIndex": 69.8,
+        "restaurantPriceIndex": 71.0
+      }
+    },
+    {
+      "cityKey": "melbourne",
+      "sourceUrl": null,
+      "capturedAt": null,
+      "safety": {
+        "safetyIndex": null,
+        "crimeIndex": null,
+        "safetyWalkingAloneDaylight": null,
+        "safetyWalkingAloneNight": null
+      },
+      "cost": {
+        "costOfLivingIndex": null,
+        "rentIndex": null,
+        "groceriesIndex": null,
+        "restaurantPriceIndex": null
+      }
+    },
+    {
+      "cityKey": "brisbane",
+      "sourceUrl": null,
+      "capturedAt": null,
+      "safety": {
+        "safetyIndex": null,
+        "crimeIndex": null,
+        "safetyWalkingAloneDaylight": null,
+        "safetyWalkingAloneNight": null
+      },
+      "cost": {
+        "costOfLivingIndex": null,
+        "rentIndex": null,
+        "groceriesIndex": null,
+        "restaurantPriceIndex": null
+      }
+    },
+    {
+      "cityKey": "goldcoast",
+      "sourceUrl": null,
+      "capturedAt": null,
+      "safety": {
+        "safetyIndex": null,
+        "crimeIndex": null,
+        "safetyWalkingAloneDaylight": null,
+        "safetyWalkingAloneNight": null
+      },
+      "cost": {
+        "costOfLivingIndex": null,
+        "rentIndex": null,
+        "groceriesIndex": null,
+        "restaurantPriceIndex": null
+      }
+    },
+    {
+      "cityKey": "cairns",
+      "sourceUrl": null,
+      "capturedAt": null,
+      "safety": {
+        "safetyIndex": null,
+        "crimeIndex": null,
+        "safetyWalkingAloneDaylight": null,
+        "safetyWalkingAloneNight": null
+      },
+      "cost": {
+        "costOfLivingIndex": null,
+        "rentIndex": null,
+        "groceriesIndex": null,
+        "restaurantPriceIndex": null
+      }
+    },
+    {
+      "cityKey": "perth",
+      "sourceUrl": null,
+      "capturedAt": null,
+      "safety": {
+        "safetyIndex": null,
+        "crimeIndex": null,
+        "safetyWalkingAloneDaylight": null,
+        "safetyWalkingAloneNight": null
+      },
+      "cost": {
+        "costOfLivingIndex": null,
+        "rentIndex": null,
+        "groceriesIndex": null,
+        "restaurantPriceIndex": null
+      }
+    }
+  ]
+}

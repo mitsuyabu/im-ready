@@ -17,6 +17,11 @@ import {
   buildCityReferenceNoDataContext,
 } from "@/lib/cityReferenceContext";
 import { loadCityReferenceEntries } from "@/lib/cityReferenceServer";
+import {
+  buildDevCitySnapshotContext,
+  isDevCitySnapshotEnabled,
+  loadDevCitySnapshots,
+} from "@/lib/devCitySnapshot";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanBlueprint } from "@/lib/planBlueprint";
 
@@ -98,10 +103,19 @@ async function buildCityReferenceContextForTurn(
     }
 
     const entries = await loadCityReferenceEntries(supabase, resolution.cityKeys, intent.categories);
-    if (entries.length === 0) {
-      return buildCityReferenceNoDataContext(resolution.cityKeys);
+    if (entries.length > 0) {
+      // 公的情報があればそれだけを使う（開発用の暫定データで上書きしない）。
+      return buildCityReferenceContext(entries, resolution.cityKeys);
     }
-    return buildCityReferenceContext(entries, resolution.cityKeys);
+
+    // ここから下は開発・検証時のみ。production では isDevCitySnapshotEnabled() が常に false。
+    if (isDevCitySnapshotEnabled()) {
+      const snapshots = loadDevCitySnapshots().filter((s) => resolution.cityKeys.includes(s.cityKey));
+      const devContext = buildDevCitySnapshotContext(snapshots);
+      if (devContext) return devContext;
+    }
+
+    return buildCityReferenceNoDataContext(resolution.cityKeys);
   } catch (err) {
     console.error("city reference context error:", err instanceof Error ? err.message : err);
     return null;
