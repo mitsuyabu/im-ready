@@ -29,6 +29,7 @@ import {
   buildVisaReferenceContext,
 } from "@/lib/visaReferenceContext";
 import { loadVisaReferenceEntries, parseVisaReferenceEntry } from "@/lib/visaReferenceServer";
+import { validateVisaDocument } from "@/scripts/import-visa-reference-data";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 let pass = 0;
@@ -497,9 +498,54 @@ async function main() {
     assert(!/puppeteer|playwright|cheerio|axios/i.test(importer), "取得ライブラリを使わない");
     assert(importer.includes("DB へ直接書き込まない"), "SQL を出力するだけ");
     assert(importer.includes("有効な出典がありません"), "出典の無い内容を登録しない");
-    assert(importer.includes("unit（例: hours_per_fortnight）が必須"), "単位の無い数値を弾く");
-    assert(importer.includes("currency（例: AUD）が必須"), "通貨の無い金額を弾く");
-    assert(importer.includes("0 で埋めない"), "unknown を 0 で埋めるのを弾く");
+    // 規則そのものは importer の検証関数を直接呼んで確認する（メッセージ文字列に依存しない）。
+    // 詳細な回帰テストは scripts/test-visa-importer-validation.ts にある。
+    const noUnit = validateVisaDocument("t.json", {
+      visaKey: "australia_student_500",
+      visaCode: "500",
+      visaName: "Student visa (subclass 500)",
+      entries: [
+        {
+          category: "work_rights",
+          summary: "単位の無い数値のテスト",
+          details: { limit: 48 },
+          reviewedAt: "2026-10-01",
+          sources: [
+            {
+              sourceName: "Home Affairs",
+              sourceUrl: "https://immi.homeaffairs.gov.au/x",
+              sourceType: "home_affairs",
+              accessedAt: "2026-10-01",
+            },
+          ],
+        },
+      ],
+    });
+    assert(noUnit.entries.length === 0, "単位の無い数値を弾く");
+
+    const noCurrency = validateVisaDocument("t.json", {
+      visaKey: "australia_student_500",
+      visaCode: "500",
+      visaName: "Student visa (subclass 500)",
+      entries: [
+        {
+          category: "costs",
+          summary: "通貨の無い金額のテスト",
+          details: { amount: 2500, basis: "from" },
+          reviewedAt: "2026-10-01",
+          sources: [
+            {
+              sourceName: "Home Affairs",
+              sourceUrl: "https://immi.homeaffairs.gov.au/x",
+              sourceType: "home_affairs",
+              accessedAt: "2026-10-01",
+            },
+          ],
+        },
+      ],
+    });
+    assert(noCurrency.entries.length === 0, "通貨の無い金額を弾く");
+    assert(importer.includes("0 で埋めないでください"), "unknown を 0 で埋めるのを弾く");
     assert(importer.includes("PLACEHOLDER"), "テンプレートの未記入文を弾く");
     assert(!/delete from visa_reference_data/i.test(importer), "対象外 entry を DELETE しない");
     assert(importer.includes("on conflict (visa_key, category) do update"), "upsert 方式");
