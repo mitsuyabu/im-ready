@@ -211,6 +211,11 @@ export function buildSystemPrompt(
      * （lib/cityReferenceContext.ts が組み立てる）。関係ないターンでは null で、常時は入らない。
      */
     cityReferenceContextText?: string | null;
+    /**
+     * ビザ・手続きを聞かれたターンにだけ渡される、確認済みのビザ情報のブロック
+     * （lib/visaReferenceContext.ts が組み立てる）。関係ないターンでは null。
+     */
+    visaReferenceContextText?: string | null;
   } = {},
 ): string {
   let prompt = SYSTEM_PROMPT;
@@ -268,6 +273,18 @@ ${conflictsText}`;
 以下は、本人が明言したわけではなく、これまでの会話から読み取っただけの内容です。事実として話したり、これを前提に提案したりしないでください。話題に関係するときだけ、本人に確認してください。
 
 ${options.inferredContextText}`;
+  }
+
+  if (options.visaReferenceContextText) {
+    // 知識ベース（VISA_SECTION）は制度の大枠だけを持つ安全な fallback。
+    // 確認済みのビザ情報が渡されたターンでは、そちらを正本として扱わせ、同じ話を二重に説明させない。
+    prompt += `
+
+---
+
+${options.visaReferenceContextText}
+
+この「ビザ・手続きの確認済み情報」は、上の知識ベースにあるビザの大枠よりも優先される正本です。両方に同じ話題が出てくる場合は、こちらの確認済み情報だけを使って答えてください（同じ内容を繰り返し説明しないこと）。知識ベース側にしか無い大枠は補足として使ってかまいませんが、ここにある数値や条件と矛盾する説明はしないでください。`;
   }
 
   if (options.cityReferenceContextText) {

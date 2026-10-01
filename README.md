@@ -153,6 +153,38 @@ Chat が「シドニーって安全？」「メルボルンの生活費は高い
 
 ---
 
+## ビザ・手続き情報の運用ルール
+
+Chat が「学生ビザで何時間働ける？」「セカンドってどう取るの？」のように聞かれたときだけ参照する、**人間が公式情報を確認して蓄積する**ビザ情報のレイヤー。
+
+- DB: `visa_reference_data`（1ビザ × 1カテゴリ = 1行）＋ `visa_reference_sources`（1行に複数の出典）。migration は `supabase/migrations/20261001_visa_reference_data.sql`。
+- カテゴリ（15種）: `eligibility` / `stay` / `study_rights` / `work_rights` / `same_employer` / `application` / `documents` / `costs` / `processing` / `second_third` / `specified_work` / `health_insurance` / `financial_capacity` / `genuine_student` / `arrival_preparation`
+- `reviewed_at` は **必須**。ビザは変動性が高いため、6ヶ月を超えると Chat に「再確認推奨」が付く（自動削除はしない）。
+- 数値は `details` に**単位つき**で持つ（`limit` には `unit`、`amount` には `currency`、`duration` には `durationUnit`）。単位の無い数値・通貨の無い金額は importer が弾く。`summary` の文章から数値を推測させないための仕組み。
+- **自動取得しない**。Department of Home Affairs は自動アクセスを拒否する（HTTP 403）ため、スクレイピング・ブラウザ自動化・AI エージェントによる巡回・回避策は作らない。**人間がブラウザで確認して JSON に記入する**。
+- 読み取りは sanitized view（`visa_reference_public` / `visa_reference_sources_public`）だけ。base table は anon / authenticated から一切読めず、内部メモ（`review_note` / 出典の `notes`）は view に含めない。
+- サブクラス417（Working Holiday）と462（Work and Holiday）は**別のビザ**。`visa_key` にサブクラスまで含め、同じ entry にまとめない。
+- 税務（TFN・確定申告・superannuation・working holiday maker tax）はここに入れない（ATO を一次情報とする別フェーズ）。
+
+### データを追加・更新するとき
+
+1. `data/visas/australia/_template.json` をコピーして `data/visas/australia/<visa>.json` を作る（`_` 始まりは取り込み対象外）。
+2. **人間が公式ページをブラウザで開いて**確認し、`summary`・`details`・`sources`・`reviewedAt` を記入する。確認できていない項目は entry を作らない（または `details.unverified` に記録する）。
+3. `npx tsx scripts/import-visa-reference-data.ts` を実行する。検証を通った entry だけの SQL が `supabase/seed/visa_reference_data.generated.sql` に出る。
+4. 生成された SQL を目で確認し、Supabase の SQL エディタで適用する。スクリプトは DB へ直接書き込まない。対象 entry 以外は変更しない（upsert のみ）。
+
+### 人間が Home Affairs で確認する項目
+
+一次情報は [Department of Home Affairs](https://immi.homeaffairs.gov.au/) です。以下を開いて、確認できた項目だけを登録してください。
+
+**Student visa (subclass 500)** — `eligibility` / `application`（CoE 等）/ `health_insurance`（OSHC）/ `genuine_student` / `work_rights`（単位は fortnight のまま）/ `study_rights` / `stay` / `costs`（「from」表記を保持）/ `financial_capacity`（適用開始日も）/ `documents` / `processing`（確定日数として書かない）
+
+**Working Holiday visa (subclass 417)** — `eligibility`（対象パスポートに日本が含まれるか・年齢）/ `stay` / `work_rights` / `same_employer`（制限と例外の具体条件）/ `study_rights` / `application` / `documents` / `costs` / `second_third` / `specified_work`（必要期間・対象業種・対象地域・必要な証拠）/ `processing`
+
+現状、Student 500 は Study Australia で確認できた6カテゴリのみ登録済み（一次情報での照合は未了）。**417 は1件も未登録**で、Chat は数値を推測せず「確認できていない」と答えます。
+
+---
+
 ## 開発・検証専用の都市指数 snapshot（production では使用しない）
 
 > **Numbeo snapshot is development/evaluation only. Do not deploy or use in production without confirming an appropriate Numbeo licence.**

@@ -1,0 +1,52 @@
+{
+  "_readme": [
+    "ビザリファレンス（visa_reference_data）の登録テンプレート。",
+    "このファイル自体は取り込み対象外（先頭が _ のファイルは importer が無視する）。",
+    "",
+    "使い方: このファイルをコピーして student-500.json 等を作り、**人間が公式ページをブラウザで開いて**",
+    "確認した内容だけを記入する。確認できていない項目は entry を作らない（または details.unverified に書く）。",
+    "そのあと `npx tsx scripts/import-visa-reference-data.ts` で検証済みの SQL を生成し、",
+    "内容を目で確認してから DB へ適用する（スクリプトは DB へ直接書き込まない）。",
+    "",
+    "禁止事項:",
+    "- 自動取得（fetch / scraping / crawling / browser automation / AI エージェントの巡回）はしない。",
+    "  Home Affairs は自動アクセスを拒否するため、回避策も作らない。人間がブラウザで確認する。",
+    "- 出典を確認していない内容を書かない（空のままでよい）",
+    "- 数値に単位・通貨を付けずに書かない（意味が確定しないものは登録しない）",
+    "- unknown を 0 で埋めない（null のままにする）",
+    "- サブクラス417と462を同じ entry にまとめない",
+    "- 税務（TFN・確定申告・superannuation）はここに入れない（別フェーズで ATO を一次情報に扱う）",
+    "",
+    "reviewed_at には、公式ページを実際に確認した日（YYYY-MM-DD）を入れる。",
+    "ビザは変動性が高いため、6ヶ月を超えると Chat 側で「再確認推奨」が付く。"
+  ],
+  "visaKey": "australia_student_500",
+  "visaCode": "500",
+  "visaName": "Student visa (subclass 500)",
+  "countryCode": "AU",
+  "entries": [
+    {
+      "category": "work_rights",
+      "summary": "（公式ページで確認した内容を、留学希望者向けの短い説明として日本語で書く）",
+      "details": {
+        "limit": null,
+        "unit": "hours_per_fortnight",
+        "during": "study_terms",
+        "exceptions": []
+      },
+      "reviewedAt": "2026-01-01",
+      "reviewNote": "（内部メモ。何を確認したか・未確認の理由。公開 view には出ない）",
+      "sources": [
+        {
+          "sourceName": "（例: Department of Home Affairs - Student visa (subclass 500)）",
+          "sourceUrl": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/student-500",
+          "sourceType": "home_affairs",
+          "sourcePublishedAt": null,
+          "sourceUpdatedAt": null,
+          "accessedAt": "2026-01-01",
+          "notes": "（参照した箇所。公開しない）"
+        }
+      ]
+    }
+  ]
+}

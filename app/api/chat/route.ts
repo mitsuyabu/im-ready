@@ -22,6 +22,13 @@ import {
   isDevCitySnapshotEnabled,
   loadDevCitySnapshots,
 } from "@/lib/devCitySnapshot";
+import { detectVisaIntent, resolveVisaKeysForChat } from "@/lib/visaReferenceIntent";
+import {
+  buildVisaNeedsVisaContext,
+  buildVisaNoDataContext,
+  buildVisaReferenceContext,
+} from "@/lib/visaReferenceContext";
+import { loadVisaReferenceEntries } from "@/lib/visaReferenceServer";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanBlueprint } from "@/lib/planBlueprint";
 
@@ -143,6 +150,68 @@ async function buildCityReferenceContextForTurn(
   }
 }
 
+/** Karte の該当 field が stated（かつ conflict でない）ときだけ値を返す。 */
+function statedBoolean(karte: Karte, block: "work", key: "workingHolidayInterest"): boolean | null {
+  const field = karte[block]?.[key];
+  if (!field || field.certainty !== "stated" || typeof field.value !== "boolean") return null;
+  const inConflict = (karte.handoff?.conflicts ?? []).some((c) => c.block === block && c.key === key);
+  return inConflict ? null : field.value;
+}
+
+/**
+ * ビザ・手続きを聞かれたときだけ、確認済みのビザ情報を組み立てる。
+ *
+ * - 判定は deterministic（lib/visaReferenceIntent.ts）。関係ない会話では DB へ触れない。
+ * - ビザ種別は 発言で明示 > Karte stated の順。inferred では確定せず、決まらなければ確認に回す
+ *   （My Plan にはビザの項目が無いため、現時点では渡していない）。
+ * - 確認済みデータが無ければ「数値を推測しない」コンテキストを返す。知識ベース側の
+ *   安全化済み VISA_SECTION が大枠の fallback として残る。
+ * - 例外は握り、Chat 本体は必ず継続する。
+ */
+async function buildVisaContextForTurn(
+  messages: { role: string; content: string }[],
+  karte: Karte | null,
+): Promise<string | null> {
+  try {
+    const intent = detectVisaIntent(latestUserText(messages));
+    if (!intent) return null;
+
+    const resolution = resolveVisaKeysForChat({
+      visaKeysInMessage: intent.visaKeysInMessage,
+      myPlanVisaKey: null,
+      karteStated: karte
+        ? {
+            workingHolidayInterest: statedBoolean(karte, "work", "workingHolidayInterest"),
+            // 就学の意思は、本人が明言したコース種類がある場合に stated として扱う。
+            studyIntent:
+              karte.schoolPrefs.courseType.certainty === "stated" && !!karte.schoolPrefs.courseType.value
+                ? true
+                : null,
+          }
+        : undefined,
+    });
+
+    if (resolution.kind === "needsVisa") {
+      return buildVisaNeedsVisaContext(resolution.reason);
+    }
+
+    const supabase = await createClient();
+    const entries = await loadVisaReferenceEntries(supabase, resolution.visaKeys, intent.categories);
+
+    if (entries.length === 0) {
+      return buildVisaNoDataContext(resolution.visaKeys, intent.categories);
+    }
+
+    return buildVisaReferenceContext(entries, {
+      mentionsTax: intent.mentionsTax,
+      mentionsFarmJobSearch: intent.mentionsFarmJobSearch,
+    });
+  } catch (err) {
+    console.error("visa reference context error:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest) {
   let body: unknown;
   try {
@@ -187,6 +256,9 @@ export async function POST(req: NextRequest) {
     typeof planId === "string" && planId.length > 0 ? planId : null,
   );
 
+  // ビザ・手続きを聞かれたターンだけ、確認済みのビザ情報を足す（毎ターンは入れない）。
+  const visaReferenceContextText = await buildVisaContextForTurn(messages, validKarte);
+
   const stream = anthropic.messages.stream({
     model: MODEL,
     max_tokens: 4096,
@@ -195,6 +267,7 @@ export async function POST(req: NextRequest) {
       planContext: includeKnownFacts === true,
       inferredContextText,
       cityReferenceContextText,
+      visaReferenceContextText,
     }),
     messages,
   });
