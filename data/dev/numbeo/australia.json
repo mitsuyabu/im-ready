@@ -10,7 +10,7 @@
     "1. 人間が Numbeo の該当都市のページをブラウザで開く",
     "2. 下記の項目の数値を目で確認する",
     "3. この JSON に手入力する（見つからない項目は null のまま）",
-    "4. 参照したページの URL を sourceUrl に、確認した日を capturedAt に記録する",
+    "4. 参照したページの URL を sourceUrls に記録する（治安は safety、生活費は costOfLiving）。確認した日を capturedAt に記録する",
     "5. npx tsx scripts/generate-dev-city-snapshot-sql.ts で SQL を生成する",
     "6. 生成された SQL を目視確認し、**開発用 DB にだけ**適用する",
     "7. CITY_REFERENCE_DEV_SNAPSHOT=true で Chat の回答品質を確認する",
@@ -27,7 +27,10 @@
   "cities": [
     {
       "cityKey": "sydney",
-      "sourceUrl": null,
+      "sourceUrls": {
+        "safety": "https://www.numbeo.com/crime/in/Sydney",
+        "costOfLiving": "https://www.numbeo.com/cost-of-living/in/Sydney"
+      },
       "capturedAt": "2026-09-30",
       "safety": {
         "safetyIndex": 66.2,
@@ -44,87 +47,102 @@
     },
     {
       "cityKey": "melbourne",
-      "sourceUrl": null,
-      "capturedAt": null,
+      "sourceUrls": {
+        "safety": "https://www.numbeo.com/crime/in/Melbourne",
+        "costOfLiving": "https://www.numbeo.com/cost-of-living/in/Melbourne"
+      },
+      "capturedAt": "2026-09-30",
       "safety": {
-        "safetyIndex": null,
-        "crimeIndex": null,
-        "safetyWalkingAloneDaylight": null,
-        "safetyWalkingAloneNight": null
+        "safetyIndex": 55.51,
+        "crimeIndex": 44.49,
+        "safetyWalkingAloneDaylight": 72.15,
+        "safetyWalkingAloneNight": 42.65
       },
       "cost": {
-        "costOfLivingIndex": null,
-        "rentIndex": null,
-        "groceriesIndex": null,
-        "restaurantPriceIndex": null
+        "costOfLivingIndex": 78.76,
+        "rentIndex": 40.73,
+        "groceriesIndex": 92.54,
+        "restaurantPriceIndex": 71.09
       }
     },
     {
       "cityKey": "brisbane",
-      "sourceUrl": null,
-      "capturedAt": null,
+      "sourceUrls": {
+        "safety": "https://www.numbeo.com/crime/in/Brisbane",
+        "costOfLiving": "https://www.numbeo.com/cost-of-living/in/Brisbane"
+      },
+      "capturedAt": "2026-09-30",
       "safety": {
-        "safetyIndex": null,
-        "crimeIndex": null,
-        "safetyWalkingAloneDaylight": null,
-        "safetyWalkingAloneNight": null
+        "safetyIndex": 61.76,
+        "crimeIndex": 38.24,
+        "safetyWalkingAloneDaylight": 78.26,
+        "safetyWalkingAloneNight": 49.21
       },
       "cost": {
-        "costOfLivingIndex": null,
-        "rentIndex": null,
-        "groceriesIndex": null,
-        "restaurantPriceIndex": null
+        "costOfLivingIndex": 70.23,
+        "rentIndex": 41.36,
+        "groceriesIndex": 84.74,
+        "restaurantPriceIndex": 67.51
       }
     },
     {
       "cityKey": "goldcoast",
-      "sourceUrl": null,
-      "capturedAt": null,
+      "sourceUrls": {
+        "safety": "https://www.numbeo.com/crime/in/Gold-Coast",
+        "costOfLiving": "https://www.numbeo.com/cost-of-living/in/Gold-Coast"
+      },
+      "capturedAt": "2026-09-30",
       "safety": {
-        "safetyIndex": null,
-        "crimeIndex": null,
-        "safetyWalkingAloneDaylight": null,
-        "safetyWalkingAloneNight": null
+        "safetyIndex": 52.64,
+        "crimeIndex": 47.36,
+        "safetyWalkingAloneDaylight": 71.05,
+        "safetyWalkingAloneNight": 41.26
       },
       "cost": {
-        "costOfLivingIndex": null,
-        "rentIndex": null,
-        "groceriesIndex": null,
-        "restaurantPriceIndex": null
+        "costOfLivingIndex": 77.35,
+        "rentIndex": 41.59,
+        "groceriesIndex": 90.68,
+        "restaurantPriceIndex": 77.62
       }
     },
     {
       "cityKey": "cairns",
-      "sourceUrl": null,
-      "capturedAt": null,
+      "sourceUrls": {
+        "safety": "https://www.numbeo.com/crime/in/Cairns",
+        "costOfLiving": "https://www.numbeo.com/cost-of-living/in/Cairns"
+      },
+      "capturedAt": "2026-09-30",
       "safety": {
-        "safetyIndex": null,
-        "crimeIndex": null,
+        "safetyIndex": 37.49,
+        "crimeIndex": 62.51,
         "safetyWalkingAloneDaylight": null,
         "safetyWalkingAloneNight": null
       },
       "cost": {
-        "costOfLivingIndex": null,
-        "rentIndex": null,
-        "groceriesIndex": null,
-        "restaurantPriceIndex": null
+        "costOfLivingIndex": 77.48,
+        "rentIndex": 31.28,
+        "groceriesIndex": 95.93,
+        "restaurantPriceIndex": 75.24
       }
     },
     {
       "cityKey": "perth",
-      "sourceUrl": null,
-      "capturedAt": null,
+      "sourceUrls": {
+        "safety": "https://www.numbeo.com/crime/in/Perth",
+        "costOfLiving": "https://www.numbeo.com/cost-of-living/in/Perth"
+      },
+      "capturedAt": "2026-09-30",
       "safety": {
-        "safetyIndex": null,
-        "crimeIndex": null,
-        "safetyWalkingAloneDaylight": null,
-        "safetyWalkingAloneNight": null
+        "safetyIndex": 57.93,
+        "crimeIndex": 42.07,
+        "safetyWalkingAloneDaylight": 74.73,
+        "safetyWalkingAloneNight": 41.9
       },
       "cost": {
-        "costOfLivingIndex": null,
-        "rentIndex": null,
-        "groceriesIndex": null,
-        "restaurantPriceIndex": null
+        "costOfLivingIndex": 76.41,
+        "rentIndex": 38.54,
+        "groceriesIndex": 87.94,
+        "restaurantPriceIndex": 73.13
       }
     }
   ]

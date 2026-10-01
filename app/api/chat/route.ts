@@ -103,17 +103,38 @@ async function buildCityReferenceContextForTurn(
     }
 
     const entries = await loadCityReferenceEntries(supabase, resolution.cityKeys, intent.categories);
-    if (entries.length > 0) {
-      // 公的情報があればそれだけを使う（開発用の暫定データで上書きしない）。
-      return buildCityReferenceContext(entries, resolution.cityKeys);
-    }
+    const publicContext = entries.length > 0 ? buildCityReferenceContext(entries, resolution.cityKeys) : null;
 
     // ここから下は開発・検証時のみ。production では isDevCitySnapshotEnabled() が常に false。
+    //
+    // fallback は **都市 × category 単位**で行う。公的情報がある category はそちらを使い、
+    // 公的情報が無い category だけを開発用の参考指数で補う
+    // （例: シドニーは housing / transport が公的にあるので、食費の質問のときだけ食料品の指数を補う）。
+    // 公的情報が既にある category を開発用データで上書きすることはない。
+    let devContext: string | null = null;
     if (isDevCitySnapshotEnabled()) {
-      const snapshots = loadDevCitySnapshots().filter((s) => resolution.cityKeys.includes(s.cityKey));
-      const devContext = buildDevCitySnapshotContext(snapshots);
-      if (devContext) return devContext;
+      const requests = resolution.cityKeys
+        .map((cityKey) => ({
+          cityKey,
+          categories: intent.categories.filter(
+            (category) => !entries.some((e) => e.cityKey === cityKey && e.category === category),
+          ),
+        }))
+        .filter((request) => request.categories.length > 0);
+
+      if (requests.length > 0) {
+        const cityKeysNeedingDev = new Set(requests.map((r) => r.cityKey));
+        const snapshots = loadDevCitySnapshots().filter((s) => cityKeysNeedingDev.has(s.cityKey));
+        devContext = buildDevCitySnapshotContext(snapshots, requests);
+      }
     }
+
+    if (publicContext && devContext) {
+      // 公的情報（実額・公的統計）と開発用の参考指数が混ざらないよう、見出しで型を分けて渡す。
+      return `${publicContext}\n\n---\n\n${devContext}\n\n上の「都市の参考情報」は公的・一次情報にもとづく正式なデータで、下の「参考指数」は開発・検証用の暫定データです。実額の目安は前者を優先し、後者は都市間の相対的な水準の説明にだけ使ってください。両者の数値を足したり、指数から金額を出したりしないでください。`;
+    }
+    if (publicContext) return publicContext;
+    if (devContext) return devContext;
 
     return buildCityReferenceNoDataContext(resolution.cityKeys);
   } catch (err) {

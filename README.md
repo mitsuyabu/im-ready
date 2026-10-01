@@ -187,16 +187,18 @@ Numbeo のページを開いて、以下だけを目で確認して手入力す�
 |---|---|
 | Safety | `safetyIndex` / `crimeIndex` / `safetyWalkingAloneDaylight` / `safetyWalkingAloneNight` |
 | Cost | `costOfLivingIndex` / `rentIndex` / `groceriesIndex` / `restaurantPriceIndex` |
-| メタデータ | `sourceUrl`（参照したページ）/ `capturedAt`（確認した日 YYYY-MM-DD） |
+| メタデータ | `sourceUrls.safety`（治安のページ）/ `sourceUrls.costOfLiving`（生活費のページ）/ `capturedAt`（確認した日 YYYY-MM-DD） |
 
 対象は既存6都市（`sydney` / `melbourne` / `brisbane` / `goldcoast` / `cairns` / `perth`）のみ。ページ上の項目名が上記と対応しない場合は、その項目を空のままにして報告する。
+
+数値を入れた区分には、その区分の出典 URL が必要（治安の数値があるなら `sourceUrls.safety`、生活費の数値があるなら `sourceUrls.costOfLiving`）。不足していると SQL 生成時に警告が出る。数値を入れていない区分の URL は求めない。
 
 ### 作業フロー
 
 1. 人間が Numbeo の該当都市のページをブラウザで開く
 2. 上記の項目の数値を目で確認する
 3. `data/dev/numbeo/australia.json` に手入力する
-4. 参照したページの URL を `sourceUrl` に記録する
+4. 参照したページの URL を `sourceUrls` に記録する（治安の数値は `safety`、生活費の数値は `costOfLiving`。Numbeo では治安と生活費が別ページのため用途別に持つ）
 5. 確認した日を `capturedAt` に記録する
 6. `npx tsx scripts/generate-dev-city-snapshot-sql.ts` で SQL を生成する
 7. 生成された SQL を**目視確認**する

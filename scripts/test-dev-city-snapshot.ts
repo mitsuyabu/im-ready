@@ -14,6 +14,7 @@ import {
   buildDevCitySnapshotContext,
   hasAnyDevSnapshotValue,
   isDevCitySnapshotEnabled,
+  missingDevSnapshotSourceUrls,
   loadDevCitySnapshots,
   parseDevCitySnapshotFile,
   type DevCitySnapshot,
@@ -58,7 +59,10 @@ const DEV_UNSET = { NODE_ENV: "development" };
 function snapshot(cityKey: CityKey, overrides: Partial<DevCitySnapshot> = {}): DevCitySnapshot {
   return {
     cityKey,
-    sourceUrl: "https://example.invalid/placeholder",
+    sourceUrls: {
+      safety: "https://example.invalid/placeholder-safety",
+      costOfLiving: "https://example.invalid/placeholder-cost",
+    },
     capturedAt: "2026-09-30",
     safety: {
       safetyIndex: 55,
@@ -224,8 +228,11 @@ console.log("Test 6: source metadata → numbeo として保持");
   assert(doc.source === "numbeo", "テンプレートに source がある");
   assert(doc.usage === "development_only", "テンプレートに development_only が明記されている");
   assert(
-    doc.cities.every((c: { sourceUrl?: unknown; capturedAt?: unknown }) => "sourceUrl" in c && "capturedAt" in c),
-    "都市ごとに sourceUrl と capturedAt を記録できる",
+    doc.cities.every(
+      (c: { sourceUrls?: { safety?: unknown; costOfLiving?: unknown }; capturedAt?: unknown }) =>
+        !!c.sourceUrls && "safety" in c.sourceUrls && "costOfLiving" in c.sourceUrls && "capturedAt" in c,
+    ),
+    "都市ごとに用途別の sourceUrls（safety / costOfLiving）と capturedAt を記録できる",
   );
 
   const parsed = parseDevCitySnapshotFile({ ...doc, cities: [{ ...doc.cities[0], safety: { safetyIndex: 50 } }] });
@@ -240,6 +247,43 @@ console.log("Test 6: source metadata → numbeo として保持");
   assert(context.includes("公式犯罪統計ではありません"), "公式犯罪統計として扱わせない");
   assert(context.includes("確認日: 2026-09-30"), "人間が確認した日を渡す");
   assert(!context.includes("https://"), "URL は prompt 本文に出さない");
+
+  // 入力済みの区分にだけ、その区分の出典 URL を要求する
+  const both = snapshot("perth");
+  assert(missingDevSnapshotSourceUrls(both).length === 0, "両方の URL があれば不足なし");
+
+  const noSafetyUrl = snapshot("perth", { sourceUrls: { safety: null, costOfLiving: "https://example.invalid/c" } });
+  assert(
+    missingDevSnapshotSourceUrls(noSafetyUrl).join(",") === "safety",
+    "治安の数値があるのに safety URL が無ければ不足として検出する",
+  );
+
+  const noCostUrl = snapshot("perth", { sourceUrls: { safety: "https://example.invalid/s", costOfLiving: null } });
+  assert(
+    missingDevSnapshotSourceUrls(noCostUrl).join(",") === "costOfLiving",
+    "生活費の数値があるのに costOfLiving URL が無ければ不足として検出する",
+  );
+
+  const safetyOnly = snapshot("perth", {
+    sourceUrls: { safety: "https://example.invalid/s", costOfLiving: null },
+    cost: { costOfLivingIndex: null, rentIndex: null, groceriesIndex: null, restaurantPriceIndex: null },
+  });
+  assert(
+    missingDevSnapshotSourceUrls(safetyOnly).length === 0,
+    "数値が無い区分の URL は要求しない（治安だけ入力した場合）",
+  );
+
+  const bothMissing = snapshot("perth", { sourceUrls: { safety: null, costOfLiving: null } });
+  assert(missingDevSnapshotSourceUrls(bothMissing).length === 2, "両方欠けていれば2件とも検出する");
+
+  // generator が警告として扱うこと
+  const generatorSrc = readFileSync("scripts/generate-dev-city-snapshot-sql.ts", "utf8");
+  assert(generatorSrc.includes("missingDevSnapshotSourceUrls"), "generator が不足 URL を判定する");
+  assert(generatorSrc.includes("出典メタデータの警告が"), "generator が警告件数を報告する");
+  assert(
+    generatorSrc.includes("source_url_safety") && generatorSrc.includes("source_url_cost_of_living"),
+    "生成 SQL が用途別の URL 列を持つ",
+  );
 }
 
 console.log("Test 7: 数値欠損 → 捏造しない");
@@ -369,7 +413,7 @@ console.log("Test 11: 手入力データの不変条件（人間が入れた値�
 {
   type CityRow = {
     cityKey: string;
-    sourceUrl: unknown;
+    sourceUrls: { safety: unknown; costOfLiving: unknown };
     capturedAt: unknown;
     safety: Record<string, unknown>;
     cost: Record<string, unknown>;
@@ -390,7 +434,10 @@ console.log("Test 11: 手入力データの不変条件（人間が入れた値�
   // 未入力の都市は null のまま（0 や空文字で埋めない）
   for (const city of empty) {
     assert(
-      values(city).every((v) => v === null) && city.sourceUrl === null && city.capturedAt === null,
+      values(city).every((v) => v === null) &&
+        city.sourceUrls.safety === null &&
+        city.sourceUrls.costOfLiving === null &&
+        city.capturedAt === null,
       `${city.cityKey}: 未入力の項目は null のまま`,
     );
   }
@@ -418,10 +465,18 @@ console.log("Test 11: 手入力データの不変条件（人間が入れた値�
       typeof city.capturedAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(city.capturedAt),
       `${city.cityKey}: capturedAt が YYYY-MM-DD で記録されている`,
     );
-    assert(
-      city.sourceUrl === null || typeof city.sourceUrl === "string",
-      `${city.cityKey}: sourceUrl は URL 文字列か未記入（null）`,
-    );
+    for (const [key, url] of Object.entries(city.sourceUrls)) {
+      assert(url === null || (typeof url === "string" && /^https:\/\//.test(url)), `${city.cityKey}.sourceUrls.${key}: https URL か未記入（null）`);
+    }
+    // 入力済みの区分には出典 URL が揃っていること（不足は generator が警告する）
+    const loaded = loadDevCitySnapshots(DEV_ON).find((s) => s.cityKey === city.cityKey);
+    assert(loaded !== undefined, `${city.cityKey}: 読み込める`);
+    if (loaded) {
+      assert(
+        missingDevSnapshotSourceUrls(loaded).length === 0,
+        `${city.cityKey}: 入力済みの区分の出典 URL が揃っている`,
+      );
+    }
   }
 
   // 読み込み結果が入力済みの都市数と一致する（未入力の都市は読み込まれない）

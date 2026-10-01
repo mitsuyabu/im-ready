@@ -26,6 +26,7 @@ import { resolve, join } from "node:path";
 import {
   DEV_SNAPSHOT_FILE,
   DEV_SNAPSHOT_SOURCE,
+  missingDevSnapshotSourceUrls,
   parseDevCitySnapshotFile,
   type DevCitySnapshot,
 } from "../lib/devCitySnapshot";
@@ -62,8 +63,9 @@ create table if not exists dev_snapshot.city_index_snapshot (
   city_key text primary key,
   -- 出典（現時点では numbeo のみ）。production の正式データとは別物であることを明示する。
   source text not null,
-  -- 人間が参照したページの URL と、目で確認した日。自動取得はしない。
-  source_url text,
+  -- 人間が参照したページの URL（用途別）と、目で確認した日。自動取得はしない。
+  source_url_safety text,
+  source_url_cost_of_living text,
   captured_at date,
   -- 治安（利用者アンケートに基づく指数。公的犯罪統計ではない）
   safety_index numeric,
@@ -81,21 +83,26 @@ create table if not exists dev_snapshot.city_index_snapshot (
 comment on table dev_snapshot.city_index_snapshot is
   '開発・検証専用。人間が外部サイトで一度だけ確認して手入力した指数。production では使用しない。公開 view を作らないこと。';
 
-revoke all on table dev_snapshot.city_index_snapshot from anon, authenticated;`;
+revoke all on table dev_snapshot.city_index_snapshot from anon, authenticated;
+
+-- 以前の版（1都市1URL）で作成済みの dev DB でも列が揃うようにしておく。
+alter table dev_snapshot.city_index_snapshot add column if not exists source_url_safety text;
+alter table dev_snapshot.city_index_snapshot add column if not exists source_url_cost_of_living text;`;
 
 function buildUpsert(snapshot: DevCitySnapshot): string {
   return `insert into dev_snapshot.city_index_snapshot (
-  city_key, source, source_url, captured_at,
+  city_key, source, source_url_safety, source_url_cost_of_living, captured_at,
   safety_index, crime_index, safety_walking_alone_daylight, safety_walking_alone_night,
   cost_of_living_index, rent_index, groceries_index, restaurant_price_index, inserted_at
 ) values (
-  ${sqlString(snapshot.cityKey)}, ${sqlString(DEV_SNAPSHOT_SOURCE)}, ${sqlNullableString(snapshot.sourceUrl)}, ${snapshot.capturedAt && ISO_DATE.test(snapshot.capturedAt) ? `${sqlString(snapshot.capturedAt)}::date` : "null"},
+  ${sqlString(snapshot.cityKey)}, ${sqlString(DEV_SNAPSHOT_SOURCE)}, ${sqlNullableString(snapshot.sourceUrls.safety)}, ${sqlNullableString(snapshot.sourceUrls.costOfLiving)}, ${snapshot.capturedAt && ISO_DATE.test(snapshot.capturedAt) ? `${sqlString(snapshot.capturedAt)}::date` : "null"},
   ${sqlNumber(snapshot.safety.safetyIndex)}, ${sqlNumber(snapshot.safety.crimeIndex)}, ${sqlNumber(snapshot.safety.safetyWalkingAloneDaylight)}, ${sqlNumber(snapshot.safety.safetyWalkingAloneNight)},
   ${sqlNumber(snapshot.cost.costOfLivingIndex)}, ${sqlNumber(snapshot.cost.rentIndex)}, ${sqlNumber(snapshot.cost.groceriesIndex)}, ${sqlNumber(snapshot.cost.restaurantPriceIndex)}, now()
 )
 on conflict (city_key) do update set
   source = excluded.source,
-  source_url = excluded.source_url,
+  source_url_safety = excluded.source_url_safety,
+  source_url_cost_of_living = excluded.source_url_cost_of_living,
   captured_at = excluded.captured_at,
   safety_index = excluded.safety_index,
   crime_index = excluded.crime_index,
@@ -126,11 +133,18 @@ function main() {
   const snapshots = parseDevCitySnapshotFile(parsed);
 
   // メタデータの欠落は警告（数値自体は使えるが、出典を辿れない状態は望ましくない）。
+  // 数値が入っている区分には、その区分の出典ページを要求する。
+  const URL_LABEL = { safety: "sourceUrls.safety（治安のページ）", costOfLiving: "sourceUrls.costOfLiving（生活費のページ）" };
+  let warnings = 0;
   for (const snapshot of snapshots) {
-    if (!snapshot.sourceUrl) {
-      console.warn(`  警告 ${snapshot.cityKey}: sourceUrl が未記入です（参照したページを記録してください）`);
+    for (const key of missingDevSnapshotSourceUrls(snapshot)) {
+      warnings += 1;
+      console.warn(
+        `  警告 ${snapshot.cityKey}: ${URL_LABEL[key]} が未記入です（その区分の数値が入っているため、参照したページを記録してください）`,
+      );
     }
     if (!snapshot.capturedAt || !ISO_DATE.test(snapshot.capturedAt)) {
+      warnings += 1;
       console.warn(`  警告 ${snapshot.cityKey}: capturedAt が未記入か形式が不正です（YYYY-MM-DD）`);
     }
   }
@@ -143,6 +157,10 @@ function main() {
   }
 
   console.log(`数値が入力されている都市: ${snapshots.map((s) => s.cityKey).join(", ")}`);
+
+  if (warnings > 0) {
+    console.warn(`\n出典メタデータの警告が ${warnings} 件あります（SQL 自体は生成できます）。`);
+  }
 
   if (checkOnly) {
     console.log(`--check のため SQL は出力しません（${snapshots.length}都市）。`);
