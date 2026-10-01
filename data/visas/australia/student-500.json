@@ -31,7 +31,10 @@
             "note": "コース開始後は 48 hours per fortnight を超えて働ける"
           }
         ],
-        "unverified": ["授業期間外（コースのブレイク中）の上限", "上限を超えた場合の具体的な取り扱い"]
+        "unverified": [
+          "授業期間外（コースのブレイク中）の上限",
+          "上限を超えた場合の具体的な取り扱い"
+        ]
       },
       "reviewedAt": "2026-10-01",
       "reviewNote": "Study Australia の2ページで同一の記述を確認。Home Affairs は HTTP 403 で未取得のため一次情報の照合が未了。ブレイク中の扱いは両ページに記載がなく unverified に記録した。",
@@ -60,11 +63,17 @@
       "category": "health_insurance",
       "summary": "OSHC（留学生向けの健康保険）を、オーストラリア滞在の全期間について維持する必要があります。",
       "details": {
-        "items": ["滞在の全期間について適切な健康保険を維持すること"],
-        "unverified": ["加入タイミングの要件", "家族を含める場合の扱い", "免除となるケース"]
+        "items": [
+          "滞在の全期間について適切な健康保険を維持すること"
+        ],
+        "unverified": [
+          "加入タイミングの要件",
+          "家族を含める場合の扱い",
+          "免除となるケース"
+        ]
       },
       "reviewedAt": "2026-10-01",
-      "reviewNote": "Study Australia の記述（maintain adequate health insurance for the whole of your stay）を確認。保険会社・金額は未確認。",
+      "reviewNote": "Study Australia の記述（maintain adequate health insurance for the whole of your stay）を確認。保険会社・金額は未確認。 Home Affairs は HTTP 403 で取得できず、一次情報との照合は未了。加入タイミング・家族を含める場合・免除となるケースは未確認。",
       "sources": [
         {
           "sourceName": "Study Australia - Student visa (subclass 500)",
@@ -87,10 +96,13 @@
           "そのコースを選んだ理由・留学先としてオーストラリアを選んだ理由",
           "そのコースを学ぶことでどのような利点があるか"
         ],
-        "unverified": ["回答の評価基準", "不十分と判断された場合の取り扱い"]
+        "unverified": [
+          "回答の評価基準",
+          "不十分と判断された場合の取り扱い"
+        ]
       },
       "reviewedAt": "2026-10-01",
-      "reviewNote": "Study Australia の2024年変更ページで GS が GTE を置き換えた日付（2024-03-23）と質問の趣旨を確認。",
+      "reviewNote": "Study Australia の2024年変更ページで GS が GTE を置き換えた日付（2024-03-23）と質問の趣旨を確認。 Home Affairs は HTTP 403 で取得できず、一次情報との照合は未了。回答の評価基準は未確認。",
       "sources": [
         {
           "sourceName": "Study Australia - Student and Temporary Graduate visa changes: 2024",
@@ -112,11 +124,17 @@
         "basis": "minimum",
         "per": "year",
         "effectiveFrom": "2024-05-10",
-        "items": ["単身の学生の場合の金額"],
-        "unverified": ["家族を伴う場合の金額", "学費・渡航費を含むかどうかの扱い", "資金の証明方法"]
+        "items": [
+          "単身の学生の場合の金額"
+        ],
+        "unverified": [
+          "家族を伴う場合の金額",
+          "学費・渡航費を含むかどうかの扱い",
+          "資金の証明方法"
+        ]
       },
       "reviewedAt": "2026-10-01",
-      "reviewNote": "Study Australia の2024年変更ページで金額（$29,710 for an individual student）と適用開始日（2024-05-10 以降の申請）を確認。既存の lib/data/cities.ts の値と一致。",
+      "reviewNote": "Study Australia の2024年変更ページで金額（$29,710 for an individual student）と適用開始日（2024-05-10 以降の申請）を確認。既存の lib/data/cities.ts の値と一致。 Home Affairs は HTTP 403 で取得できず、一次情報との照合は未了。家族同伴時の金額・資金の証明方法は未確認。",
       "sources": [
         {
           "sourceName": "Study Australia - Student and Temporary Graduate visa changes: 2024",
@@ -138,10 +156,14 @@
         "basis": "from",
         "per": "application",
         "effectiveFrom": "2026-07-01",
-        "unverified": ["免除の対象となる条件", "家族を含める場合の追加料金", "支払い方法"]
+        "unverified": [
+          "免除の対象となる条件",
+          "家族を含める場合の追加料金",
+          "支払い方法"
+        ]
       },
       "reviewedAt": "2026-10-01",
-      "reviewNote": "Study Australia の記述「From 1 July 2026, student visa fees are from AUD$2,500 per visa application unless you are exempt」を確認。「from（〜から）」である点を basis で保持している。確定額として扱わないこと。",
+      "reviewNote": "Study Australia の記述「From 1 July 2026, student visa fees are from AUD$2,500 per visa application unless you are exempt」を確認。「from（〜から）」である点を basis で保持している。確定額として扱わないこと。 Home Affairs は HTTP 403 で取得できず、一次情報との照合は未了。免除条件・同伴者の追加料金は未確認。",
       "sources": [
         {
           "sourceName": "Study Australia - Student visa (subclass 500)",
@@ -160,11 +182,16 @@
       "details": {
         "duration": 5,
         "durationUnit": "years_max",
-        "items": ["コース期間に応じた期間（最長5年）"],
-        "unverified": ["コース期間との具体的な対応関係", "延長・再申請の条件"]
+        "items": [
+          "コース期間に応じた期間（最長5年）"
+        ],
+        "unverified": [
+          "コース期間との具体的な対応関係",
+          "延長・再申請の条件"
+        ]
       },
       "reviewedAt": "2026-10-01",
-      "reviewNote": "Study Australia の記述（stay for the duration of your course, maximum five years）を確認。",
+      "reviewNote": "Study Australia の記述（stay for the duration of your course, maximum five years）を確認。 Home Affairs は HTTP 403 で取得できず、一次情報との照合は未了。コース期間との具体的な対応関係・延長の条件は未確認。",
       "sources": [
         {
           "sourceName": "Study Australia - Student visa (subclass 500)",
