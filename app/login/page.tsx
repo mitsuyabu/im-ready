@@ -35,7 +35,25 @@ export const metadata: Metadata = {
  * Auth周り（LoginButtonのOAuth処理・redirectTo・/auth/callback・middleware・
  * session処理・ログイン済みユーザーの/mypage redirect）は一切変更していない。
  */
-export default async function LoginPage() {
+/** development だけ、原因切り分け用に安全な種別だけを表示する（production では出さない）。 */
+const DEV_AUTH_REASONS: Record<string, string> = {
+  missing_code: "認可コードが callback に届いていません（missing_code）",
+  exchange_failed: "認可コードからセッションへの交換に失敗しました（exchange_failed）",
+  pkce_verifier_missing: "PKCE の code verifier cookie が callback に届いていません（pkce_verifier_missing）",
+  session_missing: "交換は通りましたがセッションがありません（session_missing）",
+};
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; reason?: string }>;
+}) {
+  const { error: errorParam, reason } = await searchParams;
+  const devReason =
+    process.env.NODE_ENV !== "production" && errorParam === "auth" && reason
+      ? (DEV_AUTH_REASONS[reason] ?? `原因不明の種別: ${reason}`)
+      : null;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -120,6 +138,15 @@ export default async function LoginPage() {
           </div>
 
           <p className="mt-4 text-xs text-worksheet-primary/70 sm:text-sm">初めての方も、そのまま利用できます。</p>
+
+          {/* development 限定の診断表示。production では devReason が常に null になる。 */}
+          {devReason && (
+            <p className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-left text-xs text-amber-900">
+              開発用の診断: {devReason}
+              <br />
+              詳細は dev server のコンソール（[auth/callback]）を確認してください。
+            </p>
+          )}
 
           <div className="mt-10 flex justify-center gap-4 text-xs text-worksheet-primary/60">
             <Link href="/terms" className="underline underline-offset-2 transition-colors hover:text-worksheet-primary">
