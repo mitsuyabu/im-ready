@@ -1,6 +1,6 @@
 -- visa_reference_data / visa_reference_sources の登録用 SQL
 -- scripts/import-visa-reference-data.ts が data/visas/ の JSON から生成
--- 生成: 2026-10-01T08:08:40.926Z
+-- 生成: 2026-10-01T08:51:35.574Z
 -- entry 数: 6（australia_student_500: 6）
 -- 適用方法: 内容を目で確認したうえで、Supabase の SQL エディタで実行する。
 -- 対象 entry 以外は変更しない（upsert のみ。DELETE は対象 entry の出典の入れ替えだけ）。
