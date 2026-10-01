@@ -28,6 +28,8 @@ import {
 } from "@/lib/visaReference";
 
 const SUMMARY_MAX = 600;
+/** 業種・地域などの一覧を prompt へ入れる上限件数（巨大な一覧をそのまま注入しない）。 */
+const LIST_ITEM_MAX = 12;
 const NAME_MAX = 160;
 
 /** 外部由来の文字列を1行へ畳み、見出し記号を外して長さを制限する（内容は書き換えない）。 */
@@ -100,6 +102,39 @@ function detailLines(entry: VisaReferenceEntry): string[] {
     );
   }
 
+  // セカンド・サードのように、1つの entry が複数の条件を入れ子で持つ場合。
+  // 数値は単位を落とさず、暦日の最低値が「それだけで条件を満たす」と読めないよう注記を添える。
+  for (const [key, label] of [
+    ["second", "セカンド"],
+    ["third", "サード"],
+  ] as const) {
+    const nested = entry.details[key];
+    if (!nested || typeof nested !== "object" || Array.isArray(nested)) continue;
+    const n = nested as Record<string, unknown>;
+    const parts: string[] = [];
+    if (typeof n.requiredPeriod === "number" && typeof n.requiredPeriodUnit === "string") {
+      parts.push(`必要な期間 ${n.requiredPeriod} ${asData(n.requiredPeriodUnit, 40)}`);
+    }
+    if (typeof n.minimumCalendarDays === "number") {
+      parts.push(`最低 ${n.minimumCalendarDays} calendar days`);
+    }
+    if (typeof n.calendarDaysBasis === "string") {
+      parts.push(`（${asData(n.calendarDaysBasis, 80)}）`);
+    }
+    if (typeof n.eligibleWorkOnOrAfter === "string") {
+      parts.push(`対象となる仕事は ${asData(n.eligibleWorkOnOrAfter, 20)} 以降`);
+    }
+    if (parts.length > 0) lines.push(`    - ${label}: ${parts.join(" / ")}`);
+  }
+  if (entry.details.requiresEquivalentNormalFullTimeWork === true) {
+    lines.push(
+      "    - 重要: 上の暦日数は最低ラインで、それだけでは条件を満たさない。その職種・業種のフルタイム従業員が通常その期間に働く日数・シフトに相当する勤務が必要",
+    );
+  }
+  if (entry.details.cannotCompleteInShorterTotalPeriod === true) {
+    lines.push("    - 重要: 定められた期間より短い合計期間で完了することはできない（長時間働いても短縮されない）");
+  }
+
   // 期間（滞在・就学など）。単位が無ければ出さない。
   const duration = entry.details.duration;
   const durationUnit = entry.details.durationUnit;
@@ -108,7 +143,21 @@ function detailLines(entry: VisaReferenceEntry): string[] {
   }
 
   // 箇条書きで持っている事実（必要書類のグループ・対象業種など）。
-  for (const key of ["items", "requiredDocuments", "caseDependentDocuments", "industries", "regions", "evidence", "steps"]) {
+  for (const key of [
+    "items",
+    "requiredDocuments",
+    "caseDependentDocuments",
+    "mayBeRequestedDocuments",
+    "industries",
+    "regions",
+    "areas",
+    "evidence",
+    "steps",
+    "countingRules",
+    "splitRules",
+    "timingRules",
+    "eligibilityCheckSteps",
+  ]) {
     const list = readFactList(entry.details, key);
     if (list.length === 0) continue;
     const label =
@@ -124,8 +173,41 @@ function detailLines(entry: VisaReferenceEntry): string[] {
                 ? "必要な証拠"
                 : key === "steps"
                   ? "手順"
-                  : "項目";
-    lines.push(`    - ${label}: ${list.map((v) => asData(v, 120)).join(" / ")}`);
+                  : key === "areas"
+                    ? "対象となる地域の区分"
+                    : key === "mayBeRequestedDocuments"
+                      ? "後から求められ得るもの"
+                      : key === "countingRules"
+                        ? "勤務日の数え方"
+                        : key === "splitRules"
+                          ? "分割・雇用主について"
+                          : key === "timingRules"
+                            ? "いつ行う必要があるか"
+                            : key === "eligibilityCheckSteps"
+                              ? "対象かどうかの確認手順"
+                              : "項目";
+    // 業種・地域などは公式ページに数十件〜数百件ある。prompt を肥大化させないため件数を絞り、
+    // 全件が必要な質問（特定の地域・郵便番号が対象かなど）は公式での確認へ案内させる。
+    const shown = list.slice(0, LIST_ITEM_MAX);
+    const omitted = list.length - shown.length;
+    lines.push(
+      `    - ${label}: ${shown.map((v) => asData(v, 120)).join(" / ")}${omitted > 0 ? ` ほか${omitted}件（全件はこのデータに含めていない。網羅的な判定は公式での確認が必要）` : ""}`,
+    );
+  }
+
+  // パスポート（国籍）によって異なる例外。一般ルールと混同させないため別行で、適用対象を明示する。
+  const passportExceptions = entry.details.passportExceptions;
+  if (Array.isArray(passportExceptions)) {
+    for (const raw of passportExceptions.slice(0, 4)) {
+      if (!raw || typeof raw !== "object") continue;
+      const e = raw as Record<string, unknown>;
+      const appliesTo = typeof e.appliesTo === "string" ? e.appliesTo : null;
+      const note = typeof e.note === "string" ? e.note : null;
+      if (!appliesTo || !note) continue;
+      lines.push(
+        `    - パスポート別の例外（**対象: ${asData(appliesTo, 160)}**）: ${asData(note, 240)}。この例外は対象のパスポート保持者だけのもので、他の国籍の人に当てはめて説明しないこと`,
+      );
+    }
   }
 
   // 「確認できていない」ことを明示的に持っている場合はそのまま伝える。

@@ -227,10 +227,19 @@ async function main() {
       r.categories.includes("second_third") && r.categories.includes("specified_work"),
       "second_third と specified_work の両方を取得する（片方だけでは誤解を生むため）",
     );
-    // 417 は未登録なので「データなし」コンテキストになる
-    assert(!r.usedData, "417 は未登録なのでデータは使われない");
-    assert(r.context.includes("数値を推測して答えないでください"), "捏造を禁止する");
-    assert(r.context.includes("Department of Home Affairs の最新情報"), "一次情報での確認を案内する");
+    // 2026-10-02 の人間確認で specified_work / second_third が登録されたため、データが使われる
+    assert(r.usedData, "確認済みデータが使われる");
+    assert(r.context.includes("88 calendar days"), "セカンドの最低暦日数が渡る");
+    assert(r.context.includes("179 calendar days"), "サードの最低暦日数が渡る");
+    assert(
+      r.context.includes("それだけでは条件を満たさない"),
+      "暦日数だけでは条件を満たさないことが渡る",
+    );
+    assert(
+      r.context.includes("農場で日数を働けば必ず取得できるわけではない"),
+      "「日数を働けば取れる」を否定する指示が入る",
+    );
+    assert(r.context.includes("ここに無い事実を数値で補わないでください"), "捏造を禁止する");
   }
 
   console.log("Test 6: 「ファームで88日働けば取れる？」→ 条件を説明・YES と断定しない");
@@ -419,17 +428,24 @@ async function main() {
 
   console.log("Test 15: Home Affairs 未確認値 → null・hallucination なし");
   {
-    // 417 の seed は空（entries: []）
+    // 417 は人間が確認したカテゴリだけが入っている（未確認は空のまま）
     const whv417 = SEED.filter((e) => e.visaKey === "australia_working_holiday_417");
-    assert(whv417.length === 0, "417 は1件も登録していない（Home Affairs 未確認のため）");
+    assert(whv417.length === 2, `417 は確認済みの2カテゴリだけ（実際: ${whv417.length}）`);
+    assert(
+      whv417.map((e) => e.category).sort().join(",") === "second_third,specified_work",
+      "specified_work と second_third のみ",
+    );
+    assert(
+      !whv417.some((e) => e.category === "same_employer"),
+      "未確認の same_employer は入っていない",
+    );
 
     const doc = JSON.parse(readFileSync("data/visas/australia/working-holiday-417.json", "utf8"));
-    assert(Array.isArray(doc.entries) && doc.entries.length === 0, "417 の JSON は entries が空");
     assert(
       doc._readme.join(" ").includes("推測で埋めてはいけない"),
       "417 の JSON に推測禁止が明記されている",
     );
-    assert(doc._readme.join(" ").includes("HTTP 403"), "未確認の理由が記録されている");
+    assert(doc._readme.join(" ").includes("same_employer"), "未確認カテゴリが記録されている");
 
     // 単位の無い数値・通貨の無い金額は使わない
     assert(readWorkHourLimit({ limit: 48 }) === null, "単位の無い就労時間は使わない");
@@ -609,7 +625,10 @@ async function main() {
 
   console.log("Test 20: 実 seed の不変条件");
   {
-    assert(SEED.length === 6, `Student 500 の確認済み entry が6件（実際: ${SEED.length}）`);
+    const student500 = SEED.filter((e) => e.visaKey === "australia_student_500");
+    const whv = SEED.filter((e) => e.visaKey === "australia_working_holiday_417");
+    assert(student500.length === 6, `Student 500 の確認済み entry が6件（実際: ${student500.length}）`);
+    assert(whv.length === 2, `417 の確認済み entry が2件（実際: ${whv.length}）`);
     for (const e of SEED) {
       assert(isVisaKey(e.visaKey), `${e.category}: visaKey が対象`);
       assert(isVisaCategory(e.category), `${e.category}: category が既存のもの`);

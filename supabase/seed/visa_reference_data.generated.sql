@@ -1,7 +1,7 @@
 -- visa_reference_data / visa_reference_sources の登録用 SQL
 -- scripts/import-visa-reference-data.ts が data/visas/ の JSON から生成
--- 生成: 2026-10-01T08:51:35.574Z
--- entry 数: 6（australia_student_500: 6）
+-- 生成: 2026-10-01T23:38:43.009Z
+-- entry 数: 8（australia_student_500: 6 / australia_working_holiday_417: 2）
 -- 適用方法: 内容を目で確認したうえで、Supabase の SQL エディタで実行する。
 -- 対象 entry 以外は変更しない（upsert のみ。DELETE は対象 entry の出典の入れ替えだけ）。
 
@@ -214,4 +214,74 @@ from upserted
 cross join (
   values
       ('Study Australia - Student visa (subclass 500)', 'https://www.studyaustralia.gov.au/en/plan-your-move/your-guide-to-visas/student-visa-subclass-500', 'study_australia', null::date, null::date, '2026-10-01'::date, null)
+) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);
+
+-- australia_working_holiday_417 / specified_work（確認日: 2026-10-02）
+with upserted as (
+  insert into visa_reference_data (
+    visa_key, visa_code, visa_name, country_code, category, summary, details, reviewed_at, review_note, updated_at
+  ) values (
+    'australia_working_holiday_417', '417', 'Working Holiday visa (subclass 417)', 'AU',
+    'specified_work', 'specified work は、対象となる業種（specified industry）で、かつオーストラリアの対象地域（specified area）で行う仕事です。原則として、関係するオーストラリアの法令と該当する award に従って適切に支払われている必要があります。例外として、森林火災からの復旧や、宣言された自然災害からの復旧に関わるボランティアの仕事が specified work として認められる場合があります。業種・地域・仕事内容・時期の条件がすべて関わるため、業種名や地域名だけでは対象かどうかは決まりません。', '{"requiresEligibleIndustry":true,"requiresEligibleArea":true,"generallyPaid":true,"voluntaryExceptions":["bushfire_recovery","declared_natural_disaster_recovery"],"industries":["ツーリズム・ホスピタリティ（Northern Australia または Remote and Very Remote Australia に限る。2021-06-22 以降に行った仕事が対象で、申請時期の条件もある）","植物・動物の栽培（plant and animal cultivation）","漁業・真珠養殖（fishing and pearling）","林業（tree farming and felling）","鉱業（mining）","建設業（construction）","森林火災からの復旧（bushfire recovery。2019-07-31 より後の仕事）","自然災害からの復旧（natural disaster recovery。2021-12-31 より後の仕事）","重要な COVID-19 関連業務（2020-01-31 より後の仕事。適用時期の条件が強い過去の区分）"],"areas":["Remote and Very Remote Australia","Northern Australia","Regional Australia","森林火災の宣言地域（bushfire declared areas）","自然災害の宣言地域（natural disaster declared areas）"],"postcodeListAvailableAtSource":true,"eligibilityCheckSteps":["対象となる業種か","対象となる仕事内容（activity）か","対象となる郵便番号・宣言地域か","その区分に定められた時期（effective date）の条件を満たすか"],"evidence":["シフト勤務の場合、雇用契約書を保管するよう公式に案内されている","COVID-19 関連の区分については、裏付けとなる証拠について公式に記載がある"],"unverified":["すべての specified work に共通する証拠要件（公式ページで一般的な要件としては確認できなかった）","対象となる郵便番号の具体的な一覧（公式ページに掲載はあるが、このデータには取り込んでいない）","ツーリズム・ホスピタリティの申請時期条件の具体的な内容"],"passportExceptions":[{"appliesTo":"UK パスポート保持者（2024-07-01 以降に UK パスポートで申請する場合）","note":"セカンド・サードの 417 について specified subclass 417 work の要件を満たす必要がない。**UK 限定で、日本国籍には適用しない**"}]}'::jsonb,
+    '2026-10-02'::date, 'Home Affairs の Specified subclass 417 work ページを人間が確認（accessed 2026-10-02）。業種・地域の区分・判定手順・ボランティア例外・UK パスポート例外を登録。郵便番号一覧はページに掲載があるが件数が多いため取り込まず、unverified に記録。すべての specified work に共通する一般的な証拠要件はこのページから確認できなかったため一般化していない。', now()
+  )
+  on conflict (visa_key, category) do update set
+    visa_code = excluded.visa_code,
+    visa_name = excluded.visa_name,
+    country_code = excluded.country_code,
+    summary = excluded.summary,
+    details = excluded.details,
+    reviewed_at = excluded.reviewed_at,
+    review_note = excluded.review_note,
+    updated_at = now()
+  returning id
+),
+cleared as (
+  delete from visa_reference_sources
+  where entry_id in (select id from upserted)
+  returning entry_id
+)
+insert into visa_reference_sources (
+  entry_id, source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes
+)
+select upserted.id, v.source_name, v.source_url, v.source_type, v.source_published_at, v.source_updated_at, v.accessed_at, v.notes
+from upserted
+cross join (
+  values
+      ('Australian Government Department of Home Affairs - Specified subclass 417 work', 'https://immi.homeaffairs.gov.au/what-we-do/whm-program/specified-work-conditions/specified-work-417', 'home_affairs', null::date, null::date, '2026-10-02'::date, 'specified work の定義・対象業種・対象地域の区分・UK パスポート例外・災害復旧の扱いを確認。')
+) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);
+
+-- australia_working_holiday_417 / second_third（確認日: 2026-10-02）
+with upserted as (
+  insert into visa_reference_data (
+    visa_key, visa_code, visa_name, country_code, category, summary, details, reviewed_at, review_note, updated_at
+  ) values (
+    'australia_working_holiday_417', '417', 'Working Holiday visa (subclass 417)', 'AU',
+    'second_third', 'セカンドのワーキングホリデービザには3か月、サードには6か月の specified work が必要です。Home Affairs はこの「3か月」を最短の3暦月に相当する期間（最低88 calendar days）、「6か月」を最短の6暦月に相当する期間（最低179 calendar days）と定義しています。ただし日数だけでは条件を満たさず、その職種・業種でフルタイムの従業員が通常その期間に働く日数やシフトに相当する勤務を完了している必要があります。1つの雇用主のもとで連続して働く必要はなく、複数の期間や雇用主に分かれていてもかまいませんが、3か月・6か月より短い合計期間で完了することはできません。', '{"requiredPeriod":3,"requiredPeriodUnit":"months","second":{"requiredPeriod":3,"requiredPeriodUnit":"months","minimumCalendarDays":88,"calendarDaysBasis":"3 shortest calendar months equivalent"},"third":{"requiredPeriod":6,"requiredPeriodUnit":"months","minimumCalendarDays":179,"calendarDaysBasis":"6 shortest calendar months equivalent","eligibleWorkOnOrAfter":"2019-07-01"},"requiresEquivalentNormalFullTimeWork":true,"cannotCompleteInShorterTotalPeriod":true,"colloquial":"日本語では「88日」と呼ばれることが多い","countingRules":["1 work day は、その業種・職種で標準とされる通常の1日ないし1シフトの勤務時間","同じ暦日に長時間働いても2日分には数えない（標準が5時間の日に10時間働いても1日）","有給のオーストラリアの祝日・有給の病欠・それに相当する労災休暇は、specified work の日として数えられる場合がある","無給の祝日・無給の休暇は数えられない","悪天候などで働かず、その日が無給だった場合は数えられない（天候を理由に必要期間が短縮・免除される一般的な例外はない）","シフト勤務が業種の標準で、フルタイムの有給雇用契約などに基づく変動シフトの場合、有給のロスターされた休息期間を含めて数えられるケースがある（個別の契約によるため一律ではない）"],"splitRules":["1つの連続した期間で完了する必要はない","1つの雇用主のもとで完了する必要はない","週5日の連続勤務でも、週あたりの日数を減らして長い期間で行う形でもよい","複数の別々の勤務期間に分かれていてもよい","フルタイム・パートタイム・piecework の組み合わせでもよい"],"timingRules":["セカンドを申請する場合、specified work はファーストのワーキングホリデービザを保持している間に行う","サードを申請する場合、specified work はセカンドを保持している間に行い、かつ 2019-07-01 以降の仕事である必要がある","特定の bridging visa の状況や、過去の subclass 408 の COVID 関連の取り扱いについては例外がある（複雑な個別ケースとして扱う）"],"passportExceptions":[{"appliesTo":"UK パスポート保持者（2024-07-01 以降に UK パスポートで申請する場合）","note":"セカンド・サードについて specified subclass 417 work の要件を満たす必要がない。**UK 限定で、日本国籍には適用しない**"}],"unverified":["セカンド・サードの申請資格のうち、specified work 以外の条件（年齢・滞在状況など）","bridging visa / subclass 408 の例外の具体的な条件"]}'::jsonb,
+    '2026-10-02'::date, 'Home Affairs の Specified subclass 417 work ページを人間が確認（accessed 2026-10-02）。3か月/88 calendar days、6か月/179 calendar days、2019-07-01 以降という条件、フルタイム相当の勤務日数要件、分割可能なこと、短縮不可、勤務日の数え方、有給/無給の扱い、シフト勤務、時期の原則を登録。specified work 以外の申請資格条件はこのページの対象外のため未確認。', now()
+  )
+  on conflict (visa_key, category) do update set
+    visa_code = excluded.visa_code,
+    visa_name = excluded.visa_name,
+    country_code = excluded.country_code,
+    summary = excluded.summary,
+    details = excluded.details,
+    reviewed_at = excluded.reviewed_at,
+    review_note = excluded.review_note,
+    updated_at = now()
+  returning id
+),
+cleared as (
+  delete from visa_reference_sources
+  where entry_id in (select id from upserted)
+  returning entry_id
+)
+insert into visa_reference_sources (
+  entry_id, source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes
+)
+select upserted.id, v.source_name, v.source_url, v.source_type, v.source_published_at, v.source_updated_at, v.accessed_at, v.notes
+from upserted
+cross join (
+  values
+      ('Australian Government Department of Home Affairs - Specified subclass 417 work', 'https://immi.homeaffairs.gov.au/what-we-do/whm-program/specified-work-conditions/specified-work-417', 'home_affairs', null::date, null::date, '2026-10-02'::date, 'セカンド3か月（最低88 calendar days）・サード6か月（最低179 calendar days）・フルタイム相当要件・数え方・分割の可否を確認。')
 ) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);

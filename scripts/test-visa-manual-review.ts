@@ -114,15 +114,40 @@ console.log("Test 1-10: データの不変条件は importer 本体の検証に�
   );
 }
 
-console.log("Test 11: 417 は未確認のまま空で保持されている（今回の正しい状態）");
+console.log("Test 11: 417 は人間が確認したカテゴリだけが登録され、未確認は空のまま");
 {
   const whv = docs.find((d) => d.doc.visaKey === "australia_working_holiday_417");
   assert(whv !== undefined, "417 の JSON がある");
   if (whv) {
-    assert(entriesOf(whv.doc).length === 0, "417 は1件も登録していない（Home Affairs 未確認）");
+    const categories = entriesOf(whv.doc)
+      .map((e) => String(e.category))
+      .sort();
+    // 2026-10-02 に Home Affairs の Specified subclass 417 work ページを人間が確認した範囲だけ
+    assert(categories.join(",") === "second_third,specified_work", `確認済みのカテゴリだけ（${categories.join(",")}）`);
+    for (const unconfirmed of [
+      "eligibility",
+      "stay",
+      "work_rights",
+      "same_employer",
+      "study_rights",
+      "application",
+      "documents",
+      "costs",
+      "processing",
+    ]) {
+      assert(!categories.includes(unconfirmed), `未確認の ${unconfirmed} は登録されていない`);
+    }
     const readme = JSON.stringify((whv.doc as { _readme?: string[] })._readme ?? []);
-    assert(/HTTP 403/.test(readme), "未確認の理由が記録されている");
     assert(/推測で埋めてはいけない/.test(readme), "推測禁止が明記されている");
+    assert(/same_employer/.test(readme), "same_employer が未確認であることが記録されている");
+    assert(/今回のページの対象外/.test(readme), "なぜ未確認なのかが記録されている");
+    // 確認済みカテゴリには一次情報（Home Affairs）の出典がある
+    for (const entry of entriesOf(whv.doc)) {
+      assert(
+        (entry.sources ?? []).some((s) => s.sourceType === "home_affairs"),
+        `${String(entry.category)}: 一次情報の出典を持つ`,
+      );
+    }
   }
 }
 

@@ -1,42 +1,160 @@
 {
   "_readme": [
-    "【未入力】Working Holiday visa (subclass 417) は、一次情報である Department of Home Affairs を",
-    "人間がブラウザで確認するまで **1件も登録しない**。",
+    "Working Holiday visa (subclass 417)。**人間が Home Affairs 公式ページを確認した内容だけ**を登録する。",
     "",
-    "理由: Home Affairs は自動アクセスを拒否する（HTTP 403）。Phase 1 の調査でも 417 の現行条件",
-    "（年齢・申請料・同一雇用主の制限と例外・就学期間・セカンド/サードの要件・specified work の",
-    "対象業種と地域・審査期間）はいずれも確認できなかった。推測で埋めてはいけない。",
+    "■ 2026-10-02 の人間確認で登録できた範囲",
+    "確認したページ: Specified subclass 417 work",
+    "  https://immi.homeaffairs.gov.au/what-we-do/whm-program/specified-work-conditions/specified-work-417",
+    "このページから登録したのは specified_work と second_third の2カテゴリのみ。",
     "",
-    "参考として Fair Work Ombudsman の2016年の調査報告には同一雇用主の例外が複数存在することの",
-    "記載があったが、**2016年の資料であり現行ルールの根拠には使えない**ため登録していない。",
+    "■ まだ未登録（このページには書かれていないため）",
+    "  eligibility / stay / work_rights / same_employer / study_rights / application /",
+    "  documents / costs / processing",
+    "  → それぞれ別の公式ページを人間が確認してから登録する。推測で埋めてはいけない。",
+    "  特に same_employer（同一雇用主の期間制限と例外）は**今回のページの対象外**で未確認のまま。",
     "",
-    "entries が空のため、Chat では 417 について『確認済みデータがない』として扱われ、",
-    "数値を推測せず、知識ベース側の安全な大枠 + Home Affairs での確認案内になる。",
-    "",
-    "■ 人間が Home Affairs で確認する項目（確認できたものだけ entry を作る）",
-    "  https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417",
-    "",
-    "  eligibility      … 対象となるパスポート（日本が含まれるか）／年齢の範囲／その他の申請資格",
-    "  stay             … 1回目のビザで滞在できる期間",
-    "  work_rights      … 就労の一般的な条件",
-    "  same_employer    … 同一雇用主で働ける期間の制限と、業種・地域による例外の具体条件",
-    "  study_rights     … 就学・訓練が可能な期間",
-    "  application      … 申請方法・申請できる場所・申請時の条件",
-    "  documents        … パスポート／資金の証明／状況によって必要になる書類",
-    "  costs            … 現在の申請料（金額・通貨・適用開始日）",
-    "  second_third     … セカンド・サードの申請資格",
-    "  specified_work   … 必要な期間／対象となる業種／対象となる地域／必要な証拠（給与明細等）",
-    "  processing       … 審査期間の目安（確定日数として保証しないこと）",
-    "",
-    "入力時の注意:",
-    "- サブクラス462（Work and Holiday）とは別のビザ。混同して同じ entry に入れないこと",
-    "- 「88日」という俗称を条件そのものとして書かないこと。specified work の条件を details に持たせる",
-    "- 金額には currency と適用開始日、期間には単位を必ず付けること",
-    "- 審査期間は確定日数として書かないこと"
+    "■ 登録時の注意",
+    "- サブクラス462（Work and Holiday）は別のビザ。462 の条件をこの JSON に入れない。",
+    "- UK パスポート保持者の免除は **UK 限定**。日本国籍には適用しない（passportExceptions に分離して保持）。",
+    "- 「88日」は俗称。正式条件は『3か月（最短3暦月相当・最低88 calendar days）かつ その職種の",
+    "  通常のフルタイム勤務に相当する日数・シフト』。日数だけで条件達成とは扱わない。",
+    "- 対象となる郵便番号の一覧は公式ページに掲載されているが、件数が非常に多いため**このデータには",
+    "  含めていない**（prompt の肥大化を避ける）。特定の地域が対象かの判定は公式での確認が必要。"
   ],
   "visaKey": "australia_working_holiday_417",
   "visaCode": "417",
   "visaName": "Working Holiday visa (subclass 417)",
   "countryCode": "AU",
-  "entries": []
+  "entries": [
+    {
+      "category": "specified_work",
+      "summary": "specified work は、対象となる業種（specified industry）で、かつオーストラリアの対象地域（specified area）で行う仕事です。原則として、関係するオーストラリアの法令と該当する award に従って適切に支払われている必要があります。例外として、森林火災からの復旧や、宣言された自然災害からの復旧に関わるボランティアの仕事が specified work として認められる場合があります。業種・地域・仕事内容・時期の条件がすべて関わるため、業種名や地域名だけでは対象かどうかは決まりません。",
+      "details": {
+        "requiresEligibleIndustry": true,
+        "requiresEligibleArea": true,
+        "generallyPaid": true,
+        "voluntaryExceptions": ["bushfire_recovery", "declared_natural_disaster_recovery"],
+        "industries": [
+          "ツーリズム・ホスピタリティ（Northern Australia または Remote and Very Remote Australia に限る。2021-06-22 以降に行った仕事が対象で、申請時期の条件もある）",
+          "植物・動物の栽培（plant and animal cultivation）",
+          "漁業・真珠養殖（fishing and pearling）",
+          "林業（tree farming and felling）",
+          "鉱業（mining）",
+          "建設業（construction）",
+          "森林火災からの復旧（bushfire recovery。2019-07-31 より後の仕事）",
+          "自然災害からの復旧（natural disaster recovery。2021-12-31 より後の仕事）",
+          "重要な COVID-19 関連業務（2020-01-31 より後の仕事。適用時期の条件が強い過去の区分）"
+        ],
+        "areas": [
+          "Remote and Very Remote Australia",
+          "Northern Australia",
+          "Regional Australia",
+          "森林火災の宣言地域（bushfire declared areas）",
+          "自然災害の宣言地域（natural disaster declared areas）"
+        ],
+        "postcodeListAvailableAtSource": true,
+        "eligibilityCheckSteps": [
+          "対象となる業種か",
+          "対象となる仕事内容（activity）か",
+          "対象となる郵便番号・宣言地域か",
+          "その区分に定められた時期（effective date）の条件を満たすか"
+        ],
+        "evidence": [
+          "シフト勤務の場合、雇用契約書を保管するよう公式に案内されている",
+          "COVID-19 関連の区分については、裏付けとなる証拠について公式に記載がある"
+        ],
+        "unverified": [
+          "すべての specified work に共通する証拠要件（公式ページで一般的な要件としては確認できなかった）",
+          "対象となる郵便番号の具体的な一覧（公式ページに掲載はあるが、このデータには取り込んでいない）",
+          "ツーリズム・ホスピタリティの申請時期条件の具体的な内容"
+        ],
+        "passportExceptions": [
+          {
+            "appliesTo": "UK パスポート保持者（2024-07-01 以降に UK パスポートで申請する場合）",
+            "note": "セカンド・サードの 417 について specified subclass 417 work の要件を満たす必要がない。**UK 限定で、日本国籍には適用しない**"
+          }
+        ]
+      },
+      "reviewedAt": "2026-10-02",
+      "reviewNote": "Home Affairs の Specified subclass 417 work ページを人間が確認（accessed 2026-10-02）。業種・地域の区分・判定手順・ボランティア例外・UK パスポート例外を登録。郵便番号一覧はページに掲載があるが件数が多いため取り込まず、unverified に記録。すべての specified work に共通する一般的な証拠要件はこのページから確認できなかったため一般化していない。",
+      "sources": [
+        {
+          "sourceName": "Australian Government Department of Home Affairs - Specified subclass 417 work",
+          "sourceUrl": "https://immi.homeaffairs.gov.au/what-we-do/whm-program/specified-work-conditions/specified-work-417",
+          "sourceType": "home_affairs",
+          "sourcePublishedAt": null,
+          "sourceUpdatedAt": null,
+          "accessedAt": "2026-10-02",
+          "notes": "specified work の定義・対象業種・対象地域の区分・UK パスポート例外・災害復旧の扱いを確認。"
+        }
+      ]
+    },
+    {
+      "category": "second_third",
+      "summary": "セカンドのワーキングホリデービザには3か月、サードには6か月の specified work が必要です。Home Affairs はこの「3か月」を最短の3暦月に相当する期間（最低88 calendar days）、「6か月」を最短の6暦月に相当する期間（最低179 calendar days）と定義しています。ただし日数だけでは条件を満たさず、その職種・業種でフルタイムの従業員が通常その期間に働く日数やシフトに相当する勤務を完了している必要があります。1つの雇用主のもとで連続して働く必要はなく、複数の期間や雇用主に分かれていてもかまいませんが、3か月・6か月より短い合計期間で完了することはできません。",
+      "details": {
+        "requiredPeriod": 3,
+        "requiredPeriodUnit": "months",
+        "second": {
+          "requiredPeriod": 3,
+          "requiredPeriodUnit": "months",
+          "minimumCalendarDays": 88,
+          "calendarDaysBasis": "3 shortest calendar months equivalent"
+        },
+        "third": {
+          "requiredPeriod": 6,
+          "requiredPeriodUnit": "months",
+          "minimumCalendarDays": 179,
+          "calendarDaysBasis": "6 shortest calendar months equivalent",
+          "eligibleWorkOnOrAfter": "2019-07-01"
+        },
+        "requiresEquivalentNormalFullTimeWork": true,
+        "cannotCompleteInShorterTotalPeriod": true,
+        "colloquial": "日本語では「88日」と呼ばれることが多い",
+        "countingRules": [
+          "1 work day は、その業種・職種で標準とされる通常の1日ないし1シフトの勤務時間",
+          "同じ暦日に長時間働いても2日分には数えない（標準が5時間の日に10時間働いても1日）",
+          "有給のオーストラリアの祝日・有給の病欠・それに相当する労災休暇は、specified work の日として数えられる場合がある",
+          "無給の祝日・無給の休暇は数えられない",
+          "悪天候などで働かず、その日が無給だった場合は数えられない（天候を理由に必要期間が短縮・免除される一般的な例外はない）",
+          "シフト勤務が業種の標準で、フルタイムの有給雇用契約などに基づく変動シフトの場合、有給のロスターされた休息期間を含めて数えられるケースがある（個別の契約によるため一律ではない）"
+        ],
+        "splitRules": [
+          "1つの連続した期間で完了する必要はない",
+          "1つの雇用主のもとで完了する必要はない",
+          "週5日の連続勤務でも、週あたりの日数を減らして長い期間で行う形でもよい",
+          "複数の別々の勤務期間に分かれていてもよい",
+          "フルタイム・パートタイム・piecework の組み合わせでもよい"
+        ],
+        "timingRules": [
+          "セカンドを申請する場合、specified work はファーストのワーキングホリデービザを保持している間に行う",
+          "サードを申請する場合、specified work はセカンドを保持している間に行い、かつ 2019-07-01 以降の仕事である必要がある",
+          "特定の bridging visa の状況や、過去の subclass 408 の COVID 関連の取り扱いについては例外がある（複雑な個別ケースとして扱う）"
+        ],
+        "passportExceptions": [
+          {
+            "appliesTo": "UK パスポート保持者（2024-07-01 以降に UK パスポートで申請する場合）",
+            "note": "セカンド・サードについて specified subclass 417 work の要件を満たす必要がない。**UK 限定で、日本国籍には適用しない**"
+          }
+        ],
+        "unverified": [
+          "セカンド・サードの申請資格のうち、specified work 以外の条件（年齢・滞在状況など）",
+          "bridging visa / subclass 408 の例外の具体的な条件"
+        ]
+      },
+      "reviewedAt": "2026-10-02",
+      "reviewNote": "Home Affairs の Specified subclass 417 work ページを人間が確認（accessed 2026-10-02）。3か月/88 calendar days、6か月/179 calendar days、2019-07-01 以降という条件、フルタイム相当の勤務日数要件、分割可能なこと、短縮不可、勤務日の数え方、有給/無給の扱い、シフト勤務、時期の原則を登録。specified work 以外の申請資格条件はこのページの対象外のため未確認。",
+      "sources": [
+        {
+          "sourceName": "Australian Government Department of Home Affairs - Specified subclass 417 work",
+          "sourceUrl": "https://immi.homeaffairs.gov.au/what-we-do/whm-program/specified-work-conditions/specified-work-417",
+          "sourceType": "home_affairs",
+          "sourcePublishedAt": null,
+          "sourceUpdatedAt": null,
+          "accessedAt": "2026-10-02",
+          "notes": "セカンド3か月（最低88 calendar days）・サード6か月（最低179 calendar days）・フルタイム相当要件・数え方・分割の可否を確認。"
+        }
+      ]
+    }
+  ]
 }
