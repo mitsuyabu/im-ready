@@ -434,6 +434,59 @@ async function main() {
     );
   }
 
+  console.log("一般的な「費用」だけでは生活費データを入れない（Phase 6 の実機確認で見つかった over-trigger）");
+  {
+    // 「費用」「高い」「いくらかかる」はビザ代・学費・航空券・保険の話でも出る。
+    // これだけで住居・食費・交通の相場を持ち出すと、学費の質問に家賃の話をしてしまう。
+    for (const message of [
+      "語学学校の費用はいくらですか？",
+      "学校の費用は？",
+      "学費はいくら？",
+      "授業料はいくら？",
+      "ビザ費用はいくら？",
+      "航空券はいくら？",
+      "海外旅行保険はいくら？",
+      "奨学金はいくらもらえますか？",
+      "エージェントの費用は？",
+    ]) {
+      assert(detectCityReferenceIntent(message) === null, `「${message}」→ 都市データを読まない`);
+    }
+
+    // 生活費の質問は従来どおり起動する。
+    const shouldFire: { message: string; expect: CityReferenceCategory[] }[] = [
+      { message: "シドニーの生活費はいくら？", expect: ["housing", "food", "transport"] },
+      { message: "シドニーの家賃はいくら？", expect: ["housing"] },
+      { message: "シドニーの食費は？", expect: ["food"] },
+      { message: "シドニーの交通費は？", expect: ["transport"] },
+      { message: "シドニーで1ヶ月生活するのにいくら？", expect: ["housing", "food", "transport"] },
+      { message: "シドニーの物価は高い？", expect: ["housing", "food", "transport"] },
+      { message: "メルボルンは生活しやすい？", expect: ["housing", "food", "transport"] },
+      { message: "住むのにいくらかかる？", expect: ["housing", "food", "transport"] },
+      { message: "シドニーの治安は？", expect: ["safety"] },
+    ];
+    for (const { message, expect } of shouldFire) {
+      const intent = detectCityReferenceIntent(message);
+      assert(intent !== null, `「${message}」→ 都市データを読む`);
+      for (const category of expect) {
+        assert(intent?.categories.includes(category) === true, `「${message}」→ ${category} が対象`);
+      }
+    }
+
+    // 優先順位: 生活費が明示されていれば、学校・ビザの語が混ざっていても生活費として扱う。
+    for (const message of [
+      "語学学校に通うとして、シドニーの生活費はいくら？",
+      "学生ビザでシドニーに住む場合の生活費は？",
+      "学費とは別に、シドニーの生活費はどれくらい？",
+    ]) {
+      const intent = detectCityReferenceIntent(message);
+      assert(intent !== null, `「${message}」→ 生活費の明示があるので都市データを読む`);
+      assert(
+        intent?.categories.includes("housing") === true,
+        `「${message}」→ 住居費が対象（除外ドメインより明示が優先される）`,
+      );
+    }
+  }
+
   console.log("");
   console.log(`passed: ${pass} / failed: ${fail}`);
   if (fail > 0) process.exit(1);

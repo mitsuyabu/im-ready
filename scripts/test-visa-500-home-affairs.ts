@@ -518,6 +518,39 @@ console.log("一般語だけではビザ層を起動しない（Phase 6 の実�
   }
 }
 
+console.log("滞在期間の聞き方が stay だけへ routing される（Phase 6 の prompt 肥大）");
+{
+  // 「何年いられる」という終止形しか持っておらず「何年いられますか」に一致しないため、
+  // 基本セット（eligibility / work_rights / stay）へ落ちて prompt が約3倍になっていた。
+  for (const message of [
+    "学生ビザって何年いられますか？",
+    "学生ビザは何年間ですか？",
+    "学生ビザでどのくらいいられますか？",
+    "学生ビザの滞在期間は？",
+    "学生ビザっていつまでいられますか？",
+    "学生ビザは何年滞在できますか？",
+    "学生ビザはどのくらい滞在できますか？",
+  ]) {
+    const r = simulate(message);
+    assert(
+      r.categories.join(",") === "stay",
+      `「${message}」→ stay だけへ routing される（実際: ${r.categories.join(",")}）`,
+    );
+    assert(
+      r.matched.length === 1 && r.matched[0].category === "stay",
+      `「${message}」→ stay の entry だけを読む`,
+    );
+  }
+  // ビザの語が無い言い方では、都市や一般の質問をビザへ回さない。
+  for (const message of [
+    "オーストラリアに何年住めますか？",
+    "シドニーにどのくらいいられますか？",
+    "語学学校は何ヶ月通うのがいい？",
+  ]) {
+    assert(!simulate(message).readVisaData, `「${message}」→ ビザ層を起動しない`);
+  }
+}
+
 console.log("Test 33: 日本円へ換算させない");
 {
   const ctx = contextOf("costs", "financial_capacity");

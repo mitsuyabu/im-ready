@@ -128,6 +128,24 @@ const VISA_TOPIC_GATED_KEYWORDS: { category: VisaCategory; keywords: string[] }[
     ],
   },
   {
+    category: "stay",
+    keywords: [
+      // 既存の ungated 側は「何年いられる」という終止形なので、「何年いられますか」に
+      // 一致せず基本セットへ落ちていた（prompt が約3倍に膨らむ）。活用を拾う語幹で持つ。
+      "何年いられ",
+      "何ヶ月いられ",
+      "何か月いられ",
+      "どのくらいいられ",
+      "どれくらいいられ",
+      "いつまでいられ",
+      // 「何年間」「何年滞在」はビザ以外（学校に何年間通う等）でも出るため gate 側に置く。
+      "何年間",
+      "何年滞在",
+      "何ヶ月滞在",
+      "何か月滞在",
+    ],
+  },
+  {
     // 英語力の正本は documents（englishEvidence / englishExemptions / englishScoreNote）側にある。
     // 試験名は**入力の判定語**として持つだけで、回答に固定スコアを出すためのものではない。
     category: "documents",

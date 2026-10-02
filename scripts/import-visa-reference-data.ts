@@ -744,4 +744,22 @@ function main() {
   }
 }
 
-main();
+/**
+ * **CLI として直接実行されたときだけ** main() を動かす。
+ *
+ * テスト（scripts/test-visa-*.ts）は検証の正本である validateVisaDocument を import する。
+ * module 読み込みだけで main() が走ると、テストを実行するだけで
+ * supabase/seed/visa_reference_data.generated.sql が書き換わり（生成日時コメント）、
+ * 標準出力も汚れる。pure な validator の import として不適切なので、実行経路で切り分ける。
+ *
+ * tsx / node のどちらでも成り立つよう、`process.argv[1]`（実行されたエントリ）と
+ * このファイルのパスを拡張子を外して比較する。
+ */
+function isDirectRun(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  const withoutExt = (path: string) => resolve(path).replace(/\.(ts|tsx|mts|cts|js|mjs|cjs)$/, "");
+  return withoutExt(entry) === withoutExt(__filename);
+}
+
+if (isDirectRun()) main();

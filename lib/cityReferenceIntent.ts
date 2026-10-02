@@ -45,8 +45,56 @@ const CATEGORY_KEYWORDS: { category: CityReferenceCategory; keywords: string[] }
   { category: "utilities", keywords: ["光熱費", "電気代", "ガス代", "水道", "通信費", "インターネット", "携帯"] },
 ];
 
-/** 「生活費」「物価」のような全般的な聞き方。住居・食費・交通の3つで概観を答える。 */
-const GENERAL_COST_KEYWORDS = ["生活費", "物価", "生活しやすい", "暮らしやすい", "高い", "安い", "いくらかかる", "予算", "費用"];
+/**
+ * 「生活費」「物価」のように、**生活費の話だと明示されている**聞き方。
+ * これがあれば、学費・ビザ代などの語が混ざっていても都市の生活費として扱う
+ * （例: 「語学学校に通うとして、シドニーの生活費はいくら？」）。
+ */
+const EXPLICIT_LIVING_COST_KEYWORDS = [
+  "生活費",
+  "物価",
+  "生活しやすい",
+  "暮らしやすい",
+  "生活するのに",
+  "暮らすのに",
+  "住むのに",
+  "生活する費用",
+];
+
+/**
+ * 「高い」「費用」のように、**生活費以外でも日常的に出る**聞き方。
+ * これだけで都市の生活費データを入れると、学費・ビザ代・航空券・保険の質問に対して
+ * 家賃や食費の相場を持ち出してしまう（Phase 6 の実機確認で「語学学校の費用はいくらですか？」が
+ * housing / food / transport を起動していた）。下の除外ドメインが無い場合にだけ使う。
+ */
+const GENERIC_COST_KEYWORDS = ["高い", "安い", "いくらかかる", "予算", "費用"];
+
+/**
+ * 生活費ではない「お金の話」のドメイン。
+ * 上の GENERIC_COST_KEYWORDS だけで判定しようとしている場合は、都市の生活費として扱わない。
+ * **明示的な生活費の語があるときは除外しない**（優先順位: 明示 > 除外）。
+ */
+const NON_LIVING_COST_DOMAIN_WORDS = [
+  // 学校の費用
+  "学校",
+  "学費",
+  "授業料",
+  "入学金",
+  "教材費",
+  "コース料金",
+  // ビザ・手続き
+  "ビザ",
+  "visa",
+  // 渡航
+  "航空券",
+  "飛行機",
+  "渡航費",
+  "チケット",
+  // その他
+  "保険",
+  "奨学金",
+  "エージェント",
+];
 
 const GENERAL_COST_CATEGORIES: CityReferenceCategory[] = ["housing", "food", "transport"];
 
@@ -95,9 +143,17 @@ export function detectCityReferenceIntent(latestUserMessage: string): CityRefere
   }
 
   // 「生活費は高い？」のように category が絞れない聞き方は、住居・食費・交通で概観を答える。
+  // ただし「費用」「高い」だけの場合は、学費・ビザ代・航空券などの話でないことを確認する。
   const hasSpecificCost = categories.some((c) => c !== "safety");
-  if (!hasSpecificCost && GENERAL_COST_KEYWORDS.some((k) => text.includes(k))) {
-    categories.push(...GENERAL_COST_CATEGORIES);
+  if (!hasSpecificCost) {
+    const lower = text.toLowerCase();
+    const hasExplicitLivingCost = EXPLICIT_LIVING_COST_KEYWORDS.some((k) => text.includes(k));
+    const hasGenericCost = GENERIC_COST_KEYWORDS.some((k) => text.includes(k));
+    const inOtherCostDomain = NON_LIVING_COST_DOMAIN_WORDS.some((k) => lower.includes(k.toLowerCase()));
+    // 明示的な生活費の語がある場合は、他ドメインの語が混ざっていても生活費として扱う。
+    if (hasExplicitLivingCost || (hasGenericCost && !inOtherCostDomain)) {
+      categories.push(...GENERAL_COST_CATEGORIES);
+    }
   }
 
   const unique = Array.from(new Set(categories));

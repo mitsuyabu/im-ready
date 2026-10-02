@@ -262,6 +262,17 @@ console.log("一般語の gate 追加で 417 の既存表現を壊していな�
   }
 }
 
+console.log("417 の滞在期間は未登録のままで、Student 500 の値を流用しない");
+{
+  const r = simulate("ワーホリは何年いられますか？");
+  assert(r.categories.join(",") === "stay", `stay だけへ routing される（実際: ${r.categories.join(",")}）`);
+  assert(r.matched.length === 0, "417 の stay は未登録なので entry が1件も取れない");
+  assert(
+    !r.matched.some((e) => e.visaKey === "australia_student_500"),
+    "Student 500 の滞在期間を 417 の答えに流用しない",
+  );
+}
+
 console.log("Test 17: 入国の年齢期限を捏造していない");
 {
   const d = obj("applicationAgeDeadline");
