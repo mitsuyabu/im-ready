@@ -371,6 +371,29 @@ console.log("Test 21: 一般的な証拠要件を勝手に一般化していな�
   );
 }
 
+console.log("回答ルール: 証拠をデータ以外から足させない（Phase 6.2 の実機確認）");
+{
+  // 以前は回答ルール自身が「給与明細などの証拠も必要になります」と書いていたため、
+  // curated data が一般要件として登録していない書類を Chat が必須として案内していた。
+  const ctx = buildVisaReferenceContext([toEntry("specified_work"), toEntry("second_third")], { now: NOW }) ?? "";
+  assert(
+    ctx.includes("上のデータに書かれているものだけ"),
+    "証拠は渡されたデータにあるものだけを挙げるよう指示している",
+  );
+  assert(
+    ctx.includes("足さないでください"),
+    "データに無い書類を必要と足さないよう指示している",
+  );
+  assert(
+    !/給与明細などの証拠も必要になります/.test(ctx),
+    "「給与明細などの証拠も必要」という旧ルールが残っていない",
+  );
+  assert(
+    ctx.includes("業種だけに触れて地域の条件を落とさないでください"),
+    "対象地域の条件を落とさないよう指示している",
+  );
+}
+
 console.log("");
 console.log(`passed: ${pass} / failed: ${fail}`);
 if (fail > 0) process.exit(1);

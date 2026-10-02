@@ -487,6 +487,64 @@ async function main() {
     }
   }
 
+  console.log("回答ルール: データが無い都市について相場を作らせない（Phase 6.2 の実機確認）");
+  {
+    // 実機では「シドニー固有のデータがあります」と断定し、知識ベースの週あたりの目安を
+    // 月額へ換算・範囲を広げて「シドニーの家賃」として提示していた。
+    const noData = buildCityReferenceNoDataContext(["sydney"]);
+    assert(noData.includes("推測して答えないでください"), "推測を禁止している");
+    assert(
+      noData.includes("シドニー固有の水準を断定しないでください"),
+      "その都市固有の水準を断定させない",
+    );
+    assert(
+      noData.includes("固有のデータがあります") && noData.includes("書いてはいけません"),
+      "「固有のデータがあります」「確認済みです」と書かせない",
+    );
+    assert(
+      noData.includes("「参考データでは」") && noData.includes("言い方をしないでください"),
+      "データが無いのに「参考データでは」と書かせない",
+    );
+    assert(noData.includes("以前お伝えした"), "出していない内容を既に伝えたことにさせない");
+    assert(
+      noData.includes("オーストラリア全体の一般的な目安であって、この都市の数値ではない"),
+      "一般的な目安を使う場合はその旨を添えさせる",
+    );
+    assert(
+      noData.includes("渡されている単位と範囲をそのまま") && noData.includes("換算したり"),
+      "週↔月の換算や範囲の拡大を禁止している",
+    );
+    assert(noData.includes("内部の仕組みの呼び方"), "「知識ベース」等の内部用語を書かせない");
+    assert(
+      noData.includes("州や機関の名前を推測しないでください"),
+      "州名・機関名の推測を禁止している（誤った州警察を案内しないため）",
+    );
+  }
+
+  console.log("回答ルール: 開発用の参考指数から都市ごとの金額を作らせない");
+  {
+    const requests: DevSnapshotRequest[] = [{ cityKey: "sydney", categories: ["housing", "food"] }];
+    const dev =
+      buildDevCitySnapshotContext(
+        loadDevCitySnapshots(DEV_ON).filter((snapshot) => snapshot.cityKey === "sydney"),
+        requests,
+      ) ?? "";
+    assert(dev.length > 0, "開発用 snapshot のコンテキストが組み立てられる");
+    assert(dev.includes("指数から金額を逆算しないでください"), "指数からの逆算を禁止している");
+    assert(
+      dev.includes("幅（レンジ）でも示さないでください"),
+      "都市ごとの金額を範囲でも示させない",
+    );
+    assert(
+      dev.includes("この都市の数値ではない"),
+      "一般的な目安を使う場合はその旨を添えさせる",
+    );
+    assert(
+      dev.includes("週↔月へ言い換えて都市ごとの相場として示したり"),
+      "週↔月の言い換えで都市の相場にさせない",
+    );
+  }
+
   console.log("");
   console.log(`passed: ${pass} / failed: ${fail}`);
   if (fail > 0) process.exit(1);

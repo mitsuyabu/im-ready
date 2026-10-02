@@ -335,6 +335,28 @@ console.log("Test 25: 出典メタデータ（3ページ）");
   assert(rawEntry!.reviewedAt === "2026-10-02", "reviewed_at が記録されている");
 }
 
+console.log("回答ルール: 例外を「制限の対象外」と言い換えさせない（Phase 6.2 の実機確認）");
+{
+  // 実機では「勤務地が異なる場合は6ヶ月制限の対象外になる」と説明され、
+  // 「店舗を変えればリセット」という誤解を招く形になっていた。
+  assert(
+    context.includes("6か月の制限の対象外になる") && context.includes("言い換えないでください"),
+    "例外を『制限の対象外』と言い換えないよう指示している",
+  );
+  assert(
+    context.includes("どの勤務地でも6か月を超えないこと") && context.includes("必ず同じ文に添えて"),
+    "勤務地の例外に触れるときは期間の条件を同じ文に添えるよう指示している",
+  );
+  assert(
+    context.includes("必ずリセットされる"),
+    "店舗・現場を変えればリセットされるという説明を禁止している",
+  );
+  assert(
+    context.includes("地域の条件を落として"),
+    "地域限定の例外から地域の条件を落とさないよう指示している",
+  );
+}
+
 console.log("");
 console.log(`passed: ${pass} / failed: ${fail}`);
 if (fail > 0) process.exit(1);
