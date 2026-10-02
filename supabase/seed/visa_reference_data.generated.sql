@@ -1,7 +1,7 @@
 -- visa_reference_data / visa_reference_sources の登録用 SQL
 -- scripts/import-visa-reference-data.ts が data/visas/ の JSON から生成
--- 生成: 2026-10-01T23:38:43.009Z
--- entry 数: 8（australia_student_500: 6 / australia_working_holiday_417: 2）
+-- 生成: 2026-10-01T23:53:03.966Z
+-- entry 数: 9（australia_student_500: 6 / australia_working_holiday_417: 3）
 -- 適用方法: 内容を目で確認したうえで、Supabase の SQL エディタで実行する。
 -- 対象 entry 以外は変更しない（upsert のみ。DELETE は対象 entry の出典の入れ替えだけ）。
 
@@ -214,6 +214,43 @@ from upserted
 cross join (
   values
       ('Study Australia - Student visa (subclass 500)', 'https://www.studyaustralia.gov.au/en/plan-your-move/your-guide-to-visas/student-visa-subclass-500', 'study_australia', null::date, null::date, '2026-10-01'::date, null)
+) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);
+
+-- australia_working_holiday_417 / same_employer（確認日: 2026-10-02）
+with upserted as (
+  insert into visa_reference_data (
+    visa_key, visa_code, visa_name, country_code, category, summary, details, reviewed_at, review_note, updated_at
+  ) values (
+    'australia_working_holiday_417', '417', 'Working Holiday visa (subclass 417)', 'AU',
+    'same_employer', 'ワーキングホリデー（Working Holiday Maker）のビザには condition 8547 が付され、原則として同一の雇用主で働けるのは最大6か月です。ただし現在は例外があり、勤務地が変わる場合（どの一箇所でも6か月を超えない）、オーストラリア全域での植物・動物の栽培、指定された critical sector、Northern Australia の一部業種、自然災害からの復旧の仕事などが該当します。例外に当てはまらない場合でも、条件によっては Home Affairs へ6か月を超えて働く許可を申請できます。許可が必ず認められるわけではなく、最初の6か月が終わる前に申請する必要があります。', '{"conditionNumber":8547,"appliesToVisaProgram":"Working Holiday Maker program のビザに必須の条件として付される","duration":6,"durationUnit":"months","generalRule":"同一の雇用主で働けるのは最大6か月。例外に該当する場合、または許可を得た場合を除く","employerMeaning":"employer は本人が直接働いている business / organisation として説明されている。labour hire や recruitment agency を通じて働く場合は、実際に就労する business の側が重要になるケースがある","exceptionsReviewed":true,"exceptionsExist":true,"exceptions":[{"appliesTo":"勤務地が異なる場合（different locations）","note":"同じ雇用主でも、どの一箇所でも6か月を超えないこと。「店舗を変えれば必ずリセットされる」という意味ではなく、各勤務地での期間が6か月以内である必要がある"},{"appliesTo":"植物・動物の栽培（plant and animal cultivation）","note":"オーストラリア全域が対象（地域の限定なし）"},{"appliesTo":"指定された critical sectors","note":"公式ページで案内されている対象は agriculture / food processing / health / aged care / disability care / childcare / tourism / hospitality。業種に該当するかは公式の記載で確認が必要"},{"appliesTo":"Northern Australia の一部業種","note":"fishing and pearling / tree farming and felling / construction / mining。**Northern Australia に限る**ため、オーストラリア全域の例外として扱わないこと"},{"appliesTo":"自然災害からの復旧（natural disaster recovery）","note":"オーストラリア全域が対象"}],"effectiveFrom":"2024-01-01","policyStatus":"current_policy_during_consultation","policyNote":"現在の例外の取り扱いは2024-01-01から開始され、Working Holiday program の見直し（reform consultation）が行われている間は継続すると案内されている。恒久的な制度として扱わず、将来変更され得ることを前提に説明すること","permission":{"available":true,"notGuaranteed":true,"considerations":["継続的なフルタイム就労が可能になるビザを申請済みであること","その結果を待っている状態であること","その仕事が雇用主にとって不可欠（critical）であること"],"requirement":"最初の6か月の期間が終了する前に申請する必要がある","recommendation":"申請フォームの案内では、6か月の終了まで少なくとも2週間前の提出が推奨されている","whilePendingIfSubmittedInTime":"6か月の終了前に申請済みであれば、書面での結果を受け取るまで同じ雇用主のもとで働き続けられると案内されている","ifSubmittedLate":"6か月が終了してから初めて申請した場合は、いったん就労を止めて結果を待つ必要がある"},"afterExemptionOrPermission":"例外に該当する場合、または許可が認められた場合は、同じ雇用主のもとでビザの残り期間を働けるケースがある。ただし個別のビザ条件は本人のビザで確認が必要","visaPeriodContext":["セカンドのビザでは、ファーストのビザで働いた雇用主のもとで、さらに6か月働けると案内されている","サードのビザでは、ファースト・セカンドで働いた雇用主のもとで、さらに6か月働けると案内されている","したがって「1つの会社で生涯6か月まで」という意味ではない"],"vevoGuidance":"本人の具体的なビザ条件は、ビザの grant letter または VEVO / myVEVO で確認するよう案内する。制度の一般的な説明と、本人個別の条件の確認は分けて伝えること","unverified":["employer の定義について、labour hire / recruitment agency 経由の場合の具体的な判断基準","critical sectors の各業種に該当するかどうかの詳細な定義","Northern Australia の地理的範囲の具体的な定義","許可（permission）の審査基準の詳細と、判断に要する期間"]}'::jsonb,
+    '2026-10-02'::date, 'Home Affairs の3ページを人間が確認（accessed 2026-10-02）: 6-month work limitation / work longer than 6 months / condition 8547 permission request form。原則6か月・condition 8547・現行の5つの例外・2024-01-01 開始で consultation 中という位置づけ・許可の経路と考慮事項・申請時期（要件と推奨を区別）・審査待ち中の扱い・セカンド/サードでの追加6か月を登録。employer の定義の細部、critical sectors の業種定義、Northern Australia の地理的範囲、審査基準の詳細は未確認のため unverified に記録。 なお condition 8547 は Working Holiday Maker プログラムのビザに付される条件だが、この JSON は 417 用のため他のサブクラス番号は記載していない（混同防止）。', now()
+  )
+  on conflict (visa_key, category) do update set
+    visa_code = excluded.visa_code,
+    visa_name = excluded.visa_name,
+    country_code = excluded.country_code,
+    summary = excluded.summary,
+    details = excluded.details,
+    reviewed_at = excluded.reviewed_at,
+    review_note = excluded.review_note,
+    updated_at = now()
+  returning id
+),
+cleared as (
+  delete from visa_reference_sources
+  where entry_id in (select id from upserted)
+  returning entry_id
+)
+insert into visa_reference_sources (
+  entry_id, source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes
+)
+select upserted.id, v.source_name, v.source_url, v.source_type, v.source_published_at, v.source_updated_at, v.accessed_at, v.notes
+from upserted
+cross join (
+  values
+      ('Australian Government Department of Home Affairs - 6 month work limitation', 'https://immi.homeaffairs.gov.au/what-we-do/whm-program/specified-work-conditions/6-month-work-limitation', 'home_affairs', null::date, null::date, '2026-10-02'::date, 'condition 8547 の原則6か月と現行の例外、2024-01-01 開始・consultation 中という位置づけを確認。'),
+      ('Australian Government Department of Home Affairs - Work longer than 6 months', 'https://immi.homeaffairs.gov.au/visas/already-have-a-visa/check-visa-details-and-conditions/waivers-and-permissions/work-longer-than-6-months', 'home_affairs', null::date, null::date, '2026-10-02'::date, '許可申請の経路と考慮事項、審査待ち中の扱いを確認。'),
+      ('Australian Government Department of Home Affairs - WHM condition 8547 permission request form', 'https://immi.homeaffairs.gov.au/what-we-do/whm-program/specified-work-conditions/WHM-condition-8547-permission-request-form', 'home_affairs', null::date, null::date, '2026-10-02'::date, '申請時期の推奨（6か月終了の少なくとも2週間前）を確認。要件としての「6か月終了前」とは区別して記録。')
 ) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);
 
 -- australia_working_holiday_417 / specified_work（確認日: 2026-10-02）

@@ -82,9 +82,14 @@ const NOW = new Date("2026-10-02T00:00:00Z");
 console.log("前提: importer の検証を通っている");
 {
   assert(validated.problems.length === 0, "検証エラーなし");
-  assert(validated.entries.length === 2, `2カテゴリが受理される（実際: ${validated.entries.length}）`);
+  // 2026-10-02 に specified_work / second_third（Specified subclass 417 work ページ）と
+  // same_employer（condition 8547 の3ページ）を登録済み。
+  assert(validated.entries.length === 3, `3カテゴリが受理される（実際: ${validated.entries.length}）`);
   const categories = validated.entries.map((e) => e.category).sort();
-  assert(categories.join(",") === "second_third,specified_work", "specified_work と second_third");
+  assert(
+    categories.join(",") === "same_employer,second_third,specified_work",
+    "specified_work / second_third / same_employer",
+  );
 }
 
 console.log("Test 1: specified_work が Home Affairs を出典に持つ");
@@ -272,15 +277,17 @@ console.log("Test 16: UK パスポート例外を日本へ適用しない");
   );
 }
 
-console.log("Test 17: same_employer は未確認のまま");
+console.log("Test 17: 未確認のカテゴリは空のまま（同一雇用主は別ページで登録済み）");
 {
-  assert(rawEntry("same_employer") === undefined, "same_employer は未登録");
+  // same_employer は 2026-10-02 に別の3ページ（condition 8547）を確認して登録した。
+  assert(rawEntry("same_employer") !== undefined, "same_employer は別ページの確認で登録済み");
+  // このページ（Specified subclass 417 work）の対象外のカテゴリは、今も未登録のまま。
+  for (const unconfirmed of ["eligibility", "stay", "work_rights", "study_rights", "application", "documents", "costs", "processing"]) {
+    assert(rawEntry(unconfirmed) === undefined, `未確認の ${unconfirmed} は登録されていない`);
+  }
   const readme = JSON.stringify(doc._readme ?? []);
-  assert(/same_employer/.test(readme), "未登録である旨が JSON に記録されている");
-  assert(/今回のページの対象外/.test(readme), "今回のページの対象外であることが記録されている");
-
-  const sheet = readFileSync("docs/VISA_MANUAL_REVIEW.md", "utf8");
-  assert(sheet.includes("2026-10-02 時点: 未確認のまま"), "記録シートにも未確認と残っている");
+  assert(/推測で埋めてはいけない/.test(readme), "推測禁止が記録されている");
+  assert(/eligibility \/ stay \/ work_rights/.test(readme), "未登録カテゴリの一覧が記録されている");
 }
 
 console.log("Test 18: 通常の質問で巨大な一覧を prompt へ全件注入しない");

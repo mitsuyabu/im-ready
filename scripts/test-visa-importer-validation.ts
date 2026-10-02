@@ -355,8 +355,21 @@ console.log("Test 12: 現在の working-holiday-417.json → accept（人間確�
   // 2026-10-02 の人間確認で specified_work / second_third を登録済み。
   // 未確認のカテゴリ（same_employer 等）は空のまま。
   const categories = r.entries.map((e) => e.category).sort();
-  assert(categories.join(",") === "second_third,specified_work", `確認済みの2カテゴリだけが受理される（${categories.join(",")}）`);
-  assert(!categories.includes("same_employer"), "未確認の same_employer は登録されていない");
+  assert(
+    categories.join(",") === "same_employer,second_third,specified_work",
+    `確認済みの3カテゴリだけが受理される（${categories.join(",")}）`,
+  );
+  // 未確認のカテゴリは登録されていない
+  for (const unconfirmed of ["eligibility", "stay", "work_rights", "documents", "costs", "processing"]) {
+    assert(!categories.includes(unconfirmed), `未確認の ${unconfirmed} は登録されていない`);
+  }
+  // same_employer は期間があるため、例外の記録が無ければ弾かれるルールを満たして通っている
+  const sameEmployer = r.entries.find((e) => e.category === "same_employer");
+  assert(
+    sameEmployer !== undefined &&
+      (Array.isArray(sameEmployer.details.exceptions) || sameEmployer.details.exceptionsReviewed === true),
+    "same_employer は例外の記録つきで受理されている（検証を弱めていない）",
+  );
   // 期間条件がある second_third が、specified_work の条件つきで通っている（検証を弱めていない）
   const second = r.entries.find((e) => e.category === "second_third");
   assert(second !== undefined && typeof second.details.requiredPeriod === "number", "期間条件が構造化されている");

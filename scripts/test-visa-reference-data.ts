@@ -430,15 +430,14 @@ async function main() {
   {
     // 417 は人間が確認したカテゴリだけが入っている（未確認は空のまま）
     const whv417 = SEED.filter((e) => e.visaKey === "australia_working_holiday_417");
-    assert(whv417.length === 2, `417 は確認済みの2カテゴリだけ（実際: ${whv417.length}）`);
+    assert(whv417.length === 3, `417 は確認済みの3カテゴリだけ（実際: ${whv417.length}）`);
     assert(
-      whv417.map((e) => e.category).sort().join(",") === "second_third,specified_work",
-      "specified_work と second_third のみ",
+      whv417.map((e) => e.category).sort().join(",") === "same_employer,second_third,specified_work",
+      "specified_work / second_third / same_employer のみ",
     );
-    assert(
-      !whv417.some((e) => e.category === "same_employer"),
-      "未確認の same_employer は入っていない",
-    );
+    for (const unconfirmed of ["eligibility", "stay", "work_rights", "documents", "costs", "processing"]) {
+      assert(!whv417.some((e) => e.category === unconfirmed), `未確認の ${unconfirmed} は入っていない`);
+    }
 
     const doc = JSON.parse(readFileSync("data/visas/australia/working-holiday-417.json", "utf8"));
     assert(
@@ -628,7 +627,7 @@ async function main() {
     const student500 = SEED.filter((e) => e.visaKey === "australia_student_500");
     const whv = SEED.filter((e) => e.visaKey === "australia_working_holiday_417");
     assert(student500.length === 6, `Student 500 の確認済み entry が6件（実際: ${student500.length}）`);
-    assert(whv.length === 2, `417 の確認済み entry が2件（実際: ${whv.length}）`);
+    assert(whv.length === 3, `417 の確認済み entry が3件（実際: ${whv.length}）`);
     for (const e of SEED) {
       assert(isVisaKey(e.visaKey), `${e.category}: visaKey が対象`);
       assert(isVisaCategory(e.category), `${e.category}: category が既存のもの`);

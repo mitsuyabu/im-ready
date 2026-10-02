@@ -83,6 +83,7 @@ function formatMoneyBasis(basis: string | null): string {
 function detailLines(entry: VisaReferenceEntry): string[] {
   const lines: string[] = [];
 
+  // 就労時間の上限（単位つき）。同一雇用主の期間制限などは duration 側で持つため null になる。
   const work = readWorkHourLimit(entry.details);
   if (work) {
     const during = formatDuring(work.during);
@@ -100,6 +101,78 @@ function detailLines(entry: VisaReferenceEntry): string[] {
     lines.push(
       `    - 金額: ${money.currency} ${money.amount.toLocaleString("en-US")}${per ? `／${per}` : ""}${formatMoneyBasis(money.basis)}${money.effectiveFrom ? `／適用開始: ${money.effectiveFrom}` : ""}`,
     );
+  }
+
+  // 制度条件の番号と原則。**原則と例外は必ず同じ場所に出す**（「絶対に○か月まで」という
+  // 単純化を防ぐため、原則だけが渡って例外が落ちる状態を作らない）。
+  if (typeof entry.details.conditionNumber === "number") {
+    lines.push(`    - ビザ条件の番号: ${entry.details.conditionNumber}`);
+  }
+  if (typeof entry.details.appliesToVisaProgram === "string") {
+    lines.push(`    - 適用: ${asData(entry.details.appliesToVisaProgram, 200)}`);
+  }
+  if (typeof entry.details.generalRule === "string") {
+    lines.push(`    - 原則: ${asData(entry.details.generalRule, 300)}`);
+  }
+  if (typeof entry.details.employerMeaning === "string") {
+    lines.push(`    - 「雇用主」の意味: ${asData(entry.details.employerMeaning, 300)}`);
+  }
+
+  // 例外。就労時間の entry では上の work ブロックで出しているため、そこで出していない場合だけ出す。
+  if (work === null && Array.isArray(entry.details.exceptions)) {
+    for (const raw of entry.details.exceptions.slice(0, 8)) {
+      if (!raw || typeof raw !== "object") continue;
+      const e = raw as Record<string, unknown>;
+      const appliesTo = typeof e.appliesTo === "string" ? e.appliesTo : null;
+      const note = typeof e.note === "string" ? e.note : null;
+      if (!appliesTo || !note) continue;
+      lines.push(`    - 例外: ${asData(appliesTo, 160)} … ${asData(note, 300)}`);
+    }
+  }
+
+  // 制度が現時点の取り扱いである場合（恒久的なルールとして断定させない）。
+  if (typeof entry.details.effectiveFrom === "string" && readMoneyFact(entry.details) === null) {
+    lines.push(`    - 適用開始: ${asData(entry.details.effectiveFrom, 20)}`);
+  }
+  if (typeof entry.details.policyStatus === "string" || typeof entry.details.policyNote === "string") {
+    const note = typeof entry.details.policyNote === "string" ? asData(entry.details.policyNote, 400) : "";
+    lines.push(
+      `    - 現時点の取り扱い: ${note || asData(String(entry.details.policyStatus), 120)}（恒久的な制度として断定せず、変更され得る前提で説明すること）`,
+    );
+  }
+
+  // 許可（permission）の経路。必ず「認められる保証はない」ことと、申請時期の要件/推奨の区別を出す。
+  const permission = entry.details.permission;
+  if (permission && typeof permission === "object" && !Array.isArray(permission)) {
+    const p = permission as Record<string, unknown>;
+    if (p.available === true) lines.push("    - 許可の申請: 可能（例外に該当しない場合でも申請できる）");
+    if (p.notGuaranteed === true) {
+      lines.push("    - 重要: 許可が必ず認められるとは限らない。「申請すれば延長できる」と説明しないこと");
+    }
+    if (typeof p.requirement === "string") {
+      lines.push(`    - 申請時期（要件）: ${asData(p.requirement, 240)}`);
+    }
+    if (typeof p.recommendation === "string") {
+      lines.push(`    - 申請時期（推奨。要件とは別）: ${asData(p.recommendation, 240)}`);
+    }
+    if (typeof p.whilePendingIfSubmittedInTime === "string") {
+      lines.push(`    - 期限内に申請した場合の審査待ち中: ${asData(p.whilePendingIfSubmittedInTime, 300)}`);
+    }
+    if (typeof p.ifSubmittedLate === "string") {
+      lines.push(`    - 期限を過ぎてから申請した場合: ${asData(p.ifSubmittedLate, 300)}`);
+    }
+    const considerations = Array.isArray(p.considerations)
+      ? p.considerations.filter((v): v is string => typeof v === "string")
+      : [];
+    if (considerations.length > 0) {
+      lines.push(`    - 許可の判断で考慮される点: ${considerations.slice(0, LIST_ITEM_MAX).map((v) => asData(v, 160)).join(" / ")}`);
+    }
+  }
+  if (typeof entry.details.afterExemptionOrPermission === "string") {
+    lines.push(`    - 例外に該当・許可が出た場合: ${asData(entry.details.afterExemptionOrPermission, 300)}`);
+  }
+  if (typeof entry.details.vevoGuidance === "string") {
+    lines.push(`    - 本人の条件の確認: ${asData(entry.details.vevoGuidance, 300)}`);
   }
 
   // セカンド・サードのように、1つの entry が複数の条件を入れ子で持つ場合。
@@ -157,6 +230,8 @@ function detailLines(entry: VisaReferenceEntry): string[] {
     "splitRules",
     "timingRules",
     "eligibilityCheckSteps",
+    "visaPeriodContext",
+    "considerations",
   ]) {
     const list = readFactList(entry.details, key);
     if (list.length === 0) continue;
@@ -185,7 +260,11 @@ function detailLines(entry: VisaReferenceEntry): string[] {
                             ? "いつ行う必要があるか"
                             : key === "eligibilityCheckSteps"
                               ? "対象かどうかの確認手順"
-                              : "項目";
+                              : key === "visaPeriodContext"
+                                ? "ビザの回ごとの扱い"
+                                : key === "considerations"
+                                  ? "考慮される点"
+                                  : "項目";
     // 業種・地域などは公式ページに数十件〜数百件ある。prompt を肥大化させないため件数を絞り、
     // 全件が必要な質問（特定の地域・郵便番号が対象かなど）は公式での確認へ案内させる。
     const shown = list.slice(0, LIST_ITEM_MAX);
