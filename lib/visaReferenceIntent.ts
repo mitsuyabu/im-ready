@@ -45,41 +45,64 @@ const CATEGORY_KEYWORDS: { category: VisaCategory; keywords: string[] }[] = [
 ];
 
 /**
- * 「どこから申請するか」「家族を含められるか」に直結する聞き方。
- * 2026-10-02 からの現行ルール（ほとんどの申請は国外から／417・462 保有者は国内から申請できない／
- * ほとんどの申請者は家族を含められない）は、こういう聞き方で来るのに `application` へ
- * routing されないと回答へ届かないため、別に拾う。
+ * ビザの話だと分かっている場面でだけ使う category 判定。
  *
- * ただし「配偶者」「子どもも」のような語は**ビザの話でなくても出てくる**ため、
- * 発言にビザの語がある場合だけ有効にする（ビザ以外の相談でビザデータを読まないため）。
+ * ここに置く語は、**ビザ以外の文脈でも普通に出てくる**（「いくら」「働ける」「英語」「配偶者」など）。
+ * CATEGORY_KEYWORDS に入れるとビザ以外の相談でビザデータを読んでしまうため、
+ * 発言にビザの語がある場合だけ有効にする。
+ *
+ * 入っていないと起きること（remote 反映後の実データ確認で見つかった漏れ）:
+ *   - 「学生ビザはいくらですか？」が costs へ回らず、申請料が回答に届かない
+ *   - 「学生ビザに IELTS 6.0 必要ですか？」が documents へ回らず、
+ *     「全員一律ではない／承認試験・免除の2経路」という正本が回答に届かない
+ *   - 「学生ビザでどれくらい働けますか？」が work_rights へ回らず基本セットへ落ちる
  */
-const APPLICATION_CONTEXT_KEYWORDS = [
-  // 他のビザからの切り替え
-  "切り替え",
-  "切り替わ",
-  "切替",
-  "変えられ",
-  "変更でき",
-  "変えたい",
-  // 申請場所・国内での更新
-  "国内から申請",
-  "国内で申請",
-  "現地で申請",
-  "オーストラリアで申請",
-  "オーストラリアから申請",
-  "更新でき",
-  "更新したい",
-  // 家族
-  "家族を連れ",
-  "家族も連れ",
-  "家族で行",
-  "家族を呼",
-  "呼び寄せ",
-  "帯同",
-  "配偶者",
-  "パートナーも",
-  "子どもも",
-  "子供も",
+const VISA_TOPIC_GATED_KEYWORDS: { category: VisaCategory; keywords: string[] }[] = [
+  {
+    category: "application",
+    keywords: [
+      // 他のビザからの切り替え
+      "切り替え",
+      "切り替わ",
+      "切替",
+      "変えられ",
+      "変更でき",
+      "変えたい",
+      // 申請場所・国内での更新
+      "国内から申請",
+      "国内で申請",
+      "現地で申請",
+      "オーストラリアで申請",
+      "オーストラリアから申請",
+      "更新でき",
+      "更新したい",
+      // 家族
+      "家族を連れ",
+      "家族も連れ",
+      "家族で行",
+      "家族を呼",
+      "呼び寄せ",
+      "帯同",
+      "配偶者",
+      "パートナーも",
+      "子どもも",
+      "子供も",
+    ],
+  },
+  {
+    category: "work_rights",
+    keywords: ["どれくらい働", "どのくらい働", "どれだけ働", "働けます", "働ける", "アルバイトでき", "バイトでき"],
+  },
+  {
+    category: "costs",
+    keywords: ["いくらです", "いくらかかり", "いくらぐらい", "いくらくらい", "値段", "申請の費用"],
+  },
+  {
+    // 英語力の正本は documents（englishEvidence / englishExemptions / englishScoreNote）側にある。
+    // 試験名は**入力の判定語**として持つだけで、回答に固定スコアを出すためのものではない。
+    category: "documents",
+    keywords: ["ielts", "toefl", "pte", "英語力", "英語の証明", "英語のスコア", "英語の点数", "英語試験", "english test"],
+  },
 ];
 
 /** ビザという語だけで category が絞れない場合に渡す基本セット。 */
@@ -174,13 +197,12 @@ export function detectVisaIntent(latestUserMessage: string): VisaIntent | null {
 
   if (!mentionsVisaTopic && categories.length === 0) return null;
 
-  // 申請場所・家族の聞き方は、ビザの話であることが分かる場合だけ application へ回す。
-  if (
-    mentionsVisaTopic &&
-    !categories.includes("application") &&
-    includesAny(lower, APPLICATION_CONTEXT_KEYWORDS.map((w) => w.toLowerCase()))
-  ) {
-    categories.push("application");
+  // ビザ以外でも出てくる言い方は、ビザの話だと分かる場合だけ category へ回す。
+  if (mentionsVisaTopic) {
+    for (const { category, keywords } of VISA_TOPIC_GATED_KEYWORDS) {
+      if (categories.includes(category)) continue;
+      if (includesAny(lower, keywords.map((k) => k.toLowerCase()))) categories.push(category);
+    }
   }
 
   // 「ビザについて」だけで category が絞れない場合は基本セットを使う。

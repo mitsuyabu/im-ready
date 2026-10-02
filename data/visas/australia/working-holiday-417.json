@@ -2,20 +2,29 @@
   "_readme": [
     "Working Holiday visa (subclass 417)。**人間が Home Affairs 公式ページを確認した内容だけ**を登録する。",
     "",
-    "■ 2026-10-02 の人間確認で登録できた範囲",
+    "■ 2026-10-01 の人間確認（画面確認）",
+    "確認したページ: Working Holiday visa (subclass 417)",
+    "  https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417",
+    "このページから eligibility を登録（日本のパスポートが対象・日本は18〜30歳・31歳になる前の申請提出・",
+    "締切は31歳の誕生日の前日の midnight AEST / AEDST・扶養している子どもの同伴不可・1回目の申請での過去の入国歴）。",
+    "",
+    "■ 2026-10-02 の人間確認",
     "確認したページ: Specified subclass 417 work",
     "  https://immi.homeaffairs.gov.au/what-we-do/whm-program/specified-work-conditions/specified-work-417",
-    "このページから登録したのは specified_work と second_third の2カテゴリのみ。",
+    "  → specified_work / second_third",
+    "確認したページ: 6 month work limitation / Work longer than 6 months / WHM condition 8547 permission request form",
+    "  → same_employer（condition 8547）",
     "",
-    "■ まだ未登録（このページには書かれていないため）",
-    "確認したページ（2026-10-02・same_employer）: 6 month work limitation / Work longer than 6 months / WHM condition 8547 permission request form",
-    "  eligibility / stay / work_rights / study_rights / application /",
-    "  documents / costs / processing",
-    "  → それぞれ別の公式ページを人間が確認してから登録する。推測で埋めてはいけない。",
-    "  same_employer（condition 8547）は 2026-10-02 に別の3ページを確認して登録済み。",
+    "■ まだ未登録（それぞれ別の公式ページを人間が確認してから登録する。推測で埋めてはいけない）",
+    "  stay / work_rights / study_rights / application / documents / costs / processing",
     "",
     "■ 登録時の注意",
-    "- サブクラス462（Work and Holiday）は別のビザ。462 の条件をこの JSON に入れない。",
+    "- サブクラス462（Work and Holiday）は別のビザ。462 の条件をこの JSON の entries に入れない。",
+    "  importer がこの混入を検証しているため、entries 側では「Working Holiday Maker プログラムのビザ」と",
+    "  表現し、別サブクラスの番号・制度内容は持たない。",
+    "- 年齢の 18〜30歳 は**日本のパスポート保持者について確認した値**。上限が異なる国・地域の条件を",
+    "  日本国籍の人へ当てはめない。",
+    "- 年齢条件は**申請を提出する時点**のもの。入国の期限として説明しない（入国期限は未確認）。",
     "- UK パスポート保持者の免除は **UK 限定**。日本国籍には適用しない（passportExceptions に分離して保持）。",
     "- 「88日」は俗称。正式条件は『3か月（最短3暦月相当・最低88 calendar days）かつ その職種の",
     "  通常のフルタイム勤務に相当する日数・シフト』。日数だけで条件達成とは扱わない。",
@@ -27,6 +36,57 @@
   "visaName": "Working Holiday visa (subclass 417)",
   "countryCode": "AU",
   "entries": [
+    {
+      "category": "eligibility",
+      "summary": "日本のパスポートを持つ人の場合、このビザの申請対象年齢は18〜30歳です。上限が30歳の国・地域では、31歳になる前に申請を提出する必要があり、締切は31歳の誕生日の前日の midnight（AEST / AEDST 基準）です。30歳のうちに期限内に申請していれば、結果が出る前に31歳になっても、他の条件を満たしていれば認められ得ます。年齢以外にも、パスポートの対象国・扶養している子どもを同伴しないこと・過去の WHM プログラムのビザでの入国歴などの条件があります。",
+      "details": {
+        "country": "Japan",
+        "eligiblePassport": true,
+        "eligiblePassportNote": "日本のパスポートはこのビザの対象となる国・地域の一覧に掲載されている。ただしこれは「日本国籍なら必ず取得できる」という意味ではなく、年齢・資金・健康・人物などの他の条件も満たす必要がある",
+        "minimumAge": 18,
+        "maximumAge": 30,
+        "ageCountryScope": "この 18〜30歳 は日本のパスポートを持つ人についての条件。上限が異なる国・地域もあるが、その条件を日本国籍の人に当てはめて説明しないこと",
+        "applicationAgeDeadline": {
+          "rule": "上限が30歳の国・地域では、31歳になる前に申請を提出する必要がある",
+          "deadline": "31歳の誕生日の前日の midnight",
+          "timezoneBasis": "AEST / AEDST",
+          "appliesAtLodgement": true,
+          "turningAgeAfterLodgement": "30歳のうちに期限内に申請していれば、審査結果が出る前に31歳になっても、他の条件を満たしている場合はビザが認められ得る",
+          "notAnArrivalDeadline": "これは**申請を提出する時点**の年齢条件。「30歳までに渡航しなければならない」という意味ではない。入国の期限については今回の資料で確認していないため、推測して案内しないこと"
+        },
+        "dependentChildren": {
+          "cannotBeAccompanied": true,
+          "note": "扶養している子どもを同伴することはできない",
+          "familyInSameApplication": "1回目の申請では、家族を同じ申請に含めることはできない"
+        },
+        "previousVisaDisqualifyingHistory": {
+          "appliesTo": "1回目（ファースト）の申請",
+          "rule": "過去に Working Holiday Maker プログラムのビザでオーストラリアへ入国したことがある場合は対象にならない",
+          "programScopeNote": "Working Holiday Maker プログラムには、このビザ（subclass 417）のほかに、対象の国・地域向けのもう1つのサブクラスが含まれる。もう1つのサブクラスの制度内容はこのデータでは扱わないため、本人が過去に別のサブクラスで入国している場合は、公式での確認を案内すること"
+        },
+        "primarySourceVerified": true,
+        "unverified": [
+          "入国の期限（申請時の年齢条件とは別のもの。今回の資料では確認していない）",
+          "資金要件の具体的な金額",
+          "健康・人物（character）の要件で必要になる具体的な書類",
+          "就学できる期間などの他の条件の具体値",
+          "申請料の金額"
+        ]
+      },
+      "reviewedAt": "2026-10-01",
+      "reviewNote": "2026-10-01 に人間が Home Affairs の Working Holiday visa (subclass 417) 公式ページを画面で確認した内容。日本が対象の国・地域の一覧に掲載されていること、日本は 18 to 30 years、31歳になる前の申請提出（締切は31歳の誕生日の前日の midnight AEST / AEDST）、提出後に31歳になった場合の扱い、扶養している子どもの同伴不可、1回目の申請での過去の入国歴の条件を登録した。過去の入国歴の条件はもう1つのサブクラスにも及ぶが、別サブクラスの制度情報をこの JSON へ混入させない方針（importer の分離検証）を維持するため、サブクラス番号は記録せず「Working Holiday Maker プログラムのビザ」として表現し、個別ケースは公式確認へ案内する形にした。入国の期限・資金額・申請料などは今回の画面では確認していないため unverified に残した。",
+      "sources": [
+        {
+          "sourceName": "Australian Government Department of Home Affairs - Working Holiday visa (subclass 417)",
+          "sourceUrl": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417",
+          "sourceType": "home_affairs",
+          "sourcePublishedAt": null,
+          "sourceUpdatedAt": null,
+          "accessedAt": "2026-10-01",
+          "notes": "対象となる国・地域の一覧に日本が掲載されていること、日本は 18 to 30 years であること、30歳が上限の国・地域では31歳になる前に申請を提出する必要があること（締切は31歳の誕生日の前日の midnight AEST / AEDST）、扶養している子どもを同伴できないこと、1回目の申請では過去に同じプログラムのビザで入国していないことを確認。"
+        }
+      ]
+    },
     {
       "category": "same_employer",
       "summary": "ワーキングホリデー（Working Holiday Maker）のビザには condition 8547 が付され、原則として同一の雇用主で働けるのは最大6か月です。ただし現在は例外があり、勤務地が変わる場合（どの一箇所でも6か月を超えない）、オーストラリア全域での植物・動物の栽培、指定された critical sector、Northern Australia の一部業種、自然災害からの復旧の仕事などが該当します。例外に当てはまらない場合でも、条件によっては Home Affairs へ6か月を超えて働く許可を申請できます。許可が必ず認められるわけではなく、最初の6か月が終わる前に申請する必要があります。",

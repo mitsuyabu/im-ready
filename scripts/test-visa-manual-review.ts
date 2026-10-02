@@ -122,27 +122,20 @@ console.log("Test 11: 417 は人間が確認したカテゴリだけが登録さ
     const categories = entriesOf(whv.doc)
       .map((e) => String(e.category))
       .sort();
-    // 2026-10-02 に Home Affairs の Specified subclass 417 work ページを人間が確認した範囲だけ
+    // 人間が Home Affairs の公式ページを確認した範囲だけ
+    // （2026-10-01: Working Holiday visa ページ → eligibility、
+    //   2026-10-02: Specified subclass 417 work / 8547 の3ページ → 残り3カテゴリ）
     assert(
-      categories.join(",") === "same_employer,second_third,specified_work",
+      categories.join(",") === "eligibility,same_employer,second_third,specified_work",
       `確認済みのカテゴリだけ（${categories.join(",")}）`,
     );
-    for (const unconfirmed of [
-      "eligibility",
-      "stay",
-      "work_rights",
-      "study_rights",
-      "application",
-      "documents",
-      "costs",
-      "processing",
-    ]) {
+    for (const unconfirmed of ["stay", "work_rights", "study_rights", "application", "documents", "costs", "processing"]) {
       assert(!categories.includes(unconfirmed), `未確認の ${unconfirmed} は登録されていない`);
     }
     const readme = JSON.stringify((whv.doc as { _readme?: string[] })._readme ?? []);
     assert(/推測で埋めてはいけない/.test(readme), "推測禁止が明記されている");
     assert(/same_employer/.test(readme), "same_employer の確認状況が記録されている");
-    assert(/eligibility \/ stay \/ work_rights/.test(readme), "未登録カテゴリの一覧が記録されている");
+    assert(/stay \/ work_rights \/ study_rights/.test(readme), "未登録カテゴリの一覧が記録されている");
     // 確認済みカテゴリには一次情報（Home Affairs）の出典がある
     for (const entry of entriesOf(whv.doc)) {
       assert(

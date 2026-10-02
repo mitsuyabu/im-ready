@@ -441,12 +441,12 @@ async function main() {
   {
     // 417 は人間が確認したカテゴリだけが入っている（未確認は空のまま）
     const whv417 = SEED.filter((e) => e.visaKey === "australia_working_holiday_417");
-    assert(whv417.length === 3, `417 は確認済みの3カテゴリだけ（実際: ${whv417.length}）`);
+    assert(whv417.length === 4, `417 は確認済みの4カテゴリだけ（実際: ${whv417.length}）`);
     assert(
-      whv417.map((e) => e.category).sort().join(",") === "same_employer,second_third,specified_work",
-      "specified_work / second_third / same_employer のみ",
+      whv417.map((e) => e.category).sort().join(",") === "eligibility,same_employer,second_third,specified_work",
+      "eligibility / same_employer / second_third / specified_work のみ",
     );
-    for (const unconfirmed of ["eligibility", "stay", "work_rights", "documents", "costs", "processing"]) {
+    for (const unconfirmed of ["stay", "work_rights", "study_rights", "application", "documents", "costs", "processing"]) {
       assert(!whv417.some((e) => e.category === unconfirmed), `未確認の ${unconfirmed} は入っていない`);
     }
 
@@ -645,7 +645,10 @@ async function main() {
         `Student 500: 未確認の ${absent} は登録しない`,
       );
     }
-    assert(whv.length === 3, `417 の確認済み entry が3件（実際: ${whv.length}）`);
+    assert(whv.length === 4, `417 の確認済み entry が4件（実際: ${whv.length}）`);
+    for (const absent of ["stay", "work_rights", "study_rights", "application", "documents", "costs", "processing"]) {
+      assert(!whv.some((e) => e.category === absent), `417: 未確認の ${absent} は登録しない`);
+    }
     for (const e of SEED) {
       assert(isVisaKey(e.visaKey), `${e.category}: visaKey が対象`);
       assert(isVisaCategory(e.category), `${e.category}: category が既存のもの`);

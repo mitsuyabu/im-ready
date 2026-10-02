@@ -43,23 +43,38 @@ Department of Home Affairs は自動取得を拒否する（HTTP 403。2026-10-0
 
 一次情報: https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417
 
-**現状: specified_work と second_third の2カテゴリを登録済み**（2026-10-02 に人間が Home Affairs の
-「Specified subclass 417 work」ページを確認）。それ以外のカテゴリは未確認のため未登録で、Chat は
-数値を推測せず「確認できていない」と答える。
+**現状: eligibility / same_employer / specified_work / second_third の4カテゴリを登録済み。**
+それ以外のカテゴリは未確認のため未登録で、Chat は数値を推測せず「確認できていない」と答える。
 
-確認済みページ: https://immi.homeaffairs.gov.au/what-we-do/whm-program/specified-work-conditions/specified-work-417
-（accessed_at / reviewed_at: 2026-10-02）
+確認済みページ:
+- Working Holiday visa (subclass 417) — https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417
+  （accessed_at / reviewed_at: 2026-10-01。人間が画面で確認 → eligibility）
+- Specified subclass 417 work — https://immi.homeaffairs.gov.au/what-we-do/whm-program/specified-work-conditions/specified-work-417
+  （accessed_at / reviewed_at: 2026-10-02 → specified_work / second_third）
+- 6 month work limitation / Work longer than 6 months / WHM condition 8547 permission request form
+  （accessed_at / reviewed_at: 2026-10-02 → same_employer）
 
 > 注意: サブクラス462（Work and Holiday）は**別のビザ**。462 の条件を 417 の JSON に入れない。
 
-## 1-1. eligibility
+## 1-1. eligibility（2026-10-01 確認済み）
+
+確認したページ: Department of Home Affairs「Working Holiday visa (subclass 417)」
+https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417
+（accessed_at / reviewed_at: 2026-10-01。人間が公式画面で確認）
 
 | 項目 | 確認 | 値 | 要約 | ページ箇所 | 備考 |
 |---|---|---|---|---|---|
-| 対象となるパスポート / 国に日本が含まれるか | no | | | | |
-| 年齢の要件（下限・上限） | no | | | | 国によって上限が異なる場合があるため、**日本国籍の条件**を確認する |
-| 扶養する子ども（dependent children）に関する条件 | no | | | | |
-| 1回目のビザの申請条件 | no | | | | |
+| 対象となるパスポート / 国に日本が含まれるか | **yes** | Japan / `eligiblePassport: true` | 日本は対象となる国・地域の一覧に掲載されている | Eligibility | 「日本国籍なら必ず取得できる」という意味ではない。他の条件も必要 |
+| 年齢の要件（下限・上限） | **yes** | 18〜30歳（Japan） | 日本のパスポート保持者は 18 to 30 years | 同 | **上限が異なる国・地域の条件を日本へ当てはめない**（`ageCountryScope` に明記） |
+| 申請の年齢の締切 | **yes** | 31歳の誕生日の前日の midnight | 上限が30歳の国・地域では31歳になる前に申請を提出する必要がある | 同 | **申請時点**の条件。「30歳までに渡航」ではない |
+| 締切の時刻基準 | **yes** | AEST / AEDST | 締切時刻はオーストラリア東部時間基準 | 同 | `timezoneBasis` として保持 |
+| 提出後に31歳になった場合 | **yes** | 自動的に無効にはならない | 30歳のうちに期限内に申請していれば、結果が出る前に31歳になっても他の条件を満たせば認められ得る | 同 | 「必ず認められる」とは言わない |
+| 扶養する子ども（dependent children）に関する条件 | **yes** | 同伴不可 | 扶養している子どもを同伴することはできない | 同 | 1回目の申請では家族を同じ申請に含められない |
+| 1回目のビザの申請条件（過去の入国歴） | **yes** | 過去に WHM プログラムのビザで入国していないこと | 1回目の申請では、過去に WHM プログラムのビザでオーストラリアへ入国していてはいけない | 同 | **別サブクラスの番号は 417 の entries に書かない**（importer の分離検証を維持）。範囲は `programScopeNote` で説明し、個別ケースは公式確認へ案内 |
+| 入国の期限 | no | | | | **未確認。申請の年齢条件と混同させないため `unverified` に明記** |
+| 資金要件の金額 | no | | | | |
+| 申請料の金額 | no | | | | |
+| 健康・人物（character）の具体的な書類 | no | | | | |
 
 ## 1-2. stay
 

@@ -443,6 +443,49 @@ console.log("Test 31-32: routing");
   assert(costOnly.matched.length === 1, "32. 必要最小限の entry だけ読む");
 }
 
+console.log("§9 実機確認の質問が、必要な category へ routing される");
+{
+  // remote 反映後に実データで確認したときに見つかった漏れ（costs / documents / work_rights が
+  // 基本セットへ落ちていた）を固定する。言い方を変えても正本が回答に届くこと。
+  const cases: { message: string; expect: VisaCategory[] }[] = [
+    { message: "学生ビザでどれくらい働けますか？", expect: ["work_rights"] },
+    { message: "学生ビザで何時間働けますか？", expect: ["work_rights"] },
+    { message: "学生ビザはいくらですか？", expect: ["costs"] },
+    { message: "学生ビザの申請料はいくらかかりますか？", expect: ["costs"] },
+    { message: "学生ビザにIELTS 6.0必要ですか？", expect: ["documents"] },
+    { message: "学生ビザは英語力どれくらい必要？", expect: ["documents"] },
+    { message: "学生ビザの資金証明はいくら？", expect: ["financial_capacity"] },
+    { message: "ワーホリからオーストラリア国内で学生ビザに変えられますか？", expect: ["application"] },
+    { message: "学生ビザに家族を連れていけますか？", expect: ["application"] },
+  ];
+  for (const { message, expect } of cases) {
+    const r = simulate(message);
+    for (const category of expect) {
+      assert(r.categories.includes(category), `「${message}」→ ${category} へ routing される`);
+    }
+    assert(
+      r.matched.some((e) => e.visaKey === "australia_student_500" && expect.includes(e.category)),
+      `「${message}」→ 学生ビザの ${expect.join("/")} が読み込まれる`,
+    );
+  }
+  // 英語の質問では、固定スコアではなく「全員一律ではない」正本が渡る。
+  const english = simulate("学生ビザにIELTS 6.0必要ですか？");
+  const englishCtx = buildVisaReferenceContext(english.matched, { now: NOW }) ?? "";
+  assert(englishCtx.includes("必要になる場合がある（全員一律ではない）"), "英語は全員一律ではないと渡る");
+  assert(englishCtx.includes("承認された英語試験のスコアを示す"), "承認試験の経路が渡る");
+  assert(englishCtx.includes("英語力の証明が免除される例外"), "免除の経路が渡る");
+  assert(!englishCtx.includes("IELTS"), "固定スコアは渡らない");
+  // 申請料の質問では金額が渡る。
+  const cost = simulate("学生ビザはいくらですか？");
+  const costCtx = buildVisaReferenceContext(cost.matched, { now: NOW }) ?? "";
+  assert(costCtx.includes("AUD 2,500"), "申請料の金額が渡る");
+  assert(costCtx.includes("日本円へ換算しないでください"), "円換算の禁止が渡る");
+  // ビザの語が無い場合は、これらの言い方だけでビザデータを読まない。
+  for (const message of ["IELTSのスコアはどれくらい必要？", "シドニーで働けますか？", "シドニーの家賃はどれくらい？"]) {
+    assert(!simulate(message).readVisaData, `「${message}」→ ビザデータを読まない`);
+  }
+}
+
 console.log("Test 33: 日本円へ換算させない");
 {
   const ctx = contextOf("costs", "financial_capacity");

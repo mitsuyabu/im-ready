@@ -359,15 +359,15 @@ console.log("Test 12: 現在の working-holiday-417.json → accept（人間確�
   const doc = JSON.parse(readFileSync("data/visas/australia/working-holiday-417.json", "utf8"));
   const r = validateVisaDocument("data/visas/australia/working-holiday-417.json", doc);
   assert(r.problems.length === 0, `問題なし（${showProblems(r.problems)}）`);
-  // 2026-10-02 の人間確認で specified_work / second_third を登録済み。
-  // 未確認のカテゴリ（same_employer 等）は空のまま。
+  // 2026-10-01 に eligibility、2026-10-02 に specified_work / second_third / same_employer を登録済み。
+  // 未確認のカテゴリ（stay 等）は空のまま。
   const categories = r.entries.map((e) => e.category).sort();
   assert(
-    categories.join(",") === "same_employer,second_third,specified_work",
-    `確認済みの3カテゴリだけが受理される（${categories.join(",")}）`,
+    categories.join(",") === "eligibility,same_employer,second_third,specified_work",
+    `確認済みの4カテゴリだけが受理される（${categories.join(",")}）`,
   );
   // 未確認のカテゴリは登録されていない
-  for (const unconfirmed of ["eligibility", "stay", "work_rights", "documents", "costs", "processing"]) {
+  for (const unconfirmed of ["stay", "work_rights", "study_rights", "application", "documents", "costs", "processing"]) {
     assert(!categories.includes(unconfirmed), `未確認の ${unconfirmed} は登録されていない`);
   }
   // same_employer は期間があるため、例外の記録が無ければ弾かれるルールを満たして通っている

@@ -1,7 +1,7 @@
 -- visa_reference_data / visa_reference_sources の登録用 SQL
 -- scripts/import-visa-reference-data.ts が data/visas/ の JSON から生成
--- 生成: 2026-10-02T00:43:47.058Z
--- entry 数: 14（australia_student_500: 11 / australia_working_holiday_417: 3）
+-- 生成: 2026-10-02T04:20:55.023Z
+-- entry 数: 15（australia_student_500: 11 / australia_working_holiday_417: 4）
 -- 適用方法: 内容を目で確認したうえで、Supabase の SQL エディタで実行する。
 -- 対象 entry 以外は変更しない（upsert のみ。DELETE は対象 entry の出典の入れ替えだけ）。
 
@@ -394,6 +394,41 @@ from upserted
 cross join (
   values
       ('Australian Government Department of Home Affairs - Student visa (subclass 500)', 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/student-500', 'home_affairs', null::date, null::date, '2026-10-02'::date, 'processing time guide の性質と、国外申請の優先順位（MD111 / MD115）を確認。')
+) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);
+
+-- australia_working_holiday_417 / eligibility（確認日: 2026-10-01）
+with upserted as (
+  insert into visa_reference_data (
+    visa_key, visa_code, visa_name, country_code, category, summary, details, reviewed_at, review_note, updated_at
+  ) values (
+    'australia_working_holiday_417', '417', 'Working Holiday visa (subclass 417)', 'AU',
+    'eligibility', '日本のパスポートを持つ人の場合、このビザの申請対象年齢は18〜30歳です。上限が30歳の国・地域では、31歳になる前に申請を提出する必要があり、締切は31歳の誕生日の前日の midnight（AEST / AEDST 基準）です。30歳のうちに期限内に申請していれば、結果が出る前に31歳になっても、他の条件を満たしていれば認められ得ます。年齢以外にも、パスポートの対象国・扶養している子どもを同伴しないこと・過去の WHM プログラムのビザでの入国歴などの条件があります。', '{"country":"Japan","eligiblePassport":true,"eligiblePassportNote":"日本のパスポートはこのビザの対象となる国・地域の一覧に掲載されている。ただしこれは「日本国籍なら必ず取得できる」という意味ではなく、年齢・資金・健康・人物などの他の条件も満たす必要がある","minimumAge":18,"maximumAge":30,"ageCountryScope":"この 18〜30歳 は日本のパスポートを持つ人についての条件。上限が異なる国・地域もあるが、その条件を日本国籍の人に当てはめて説明しないこと","applicationAgeDeadline":{"rule":"上限が30歳の国・地域では、31歳になる前に申請を提出する必要がある","deadline":"31歳の誕生日の前日の midnight","timezoneBasis":"AEST / AEDST","appliesAtLodgement":true,"turningAgeAfterLodgement":"30歳のうちに期限内に申請していれば、審査結果が出る前に31歳になっても、他の条件を満たしている場合はビザが認められ得る","notAnArrivalDeadline":"これは**申請を提出する時点**の年齢条件。「30歳までに渡航しなければならない」という意味ではない。入国の期限については今回の資料で確認していないため、推測して案内しないこと"},"dependentChildren":{"cannotBeAccompanied":true,"note":"扶養している子どもを同伴することはできない","familyInSameApplication":"1回目の申請では、家族を同じ申請に含めることはできない"},"previousVisaDisqualifyingHistory":{"appliesTo":"1回目（ファースト）の申請","rule":"過去に Working Holiday Maker プログラムのビザでオーストラリアへ入国したことがある場合は対象にならない","programScopeNote":"Working Holiday Maker プログラムには、このビザ（subclass 417）のほかに、対象の国・地域向けのもう1つのサブクラスが含まれる。もう1つのサブクラスの制度内容はこのデータでは扱わないため、本人が過去に別のサブクラスで入国している場合は、公式での確認を案内すること"},"primarySourceVerified":true,"unverified":["入国の期限（申請時の年齢条件とは別のもの。今回の資料では確認していない）","資金要件の具体的な金額","健康・人物（character）の要件で必要になる具体的な書類","就学できる期間などの他の条件の具体値","申請料の金額"]}'::jsonb,
+    '2026-10-01'::date, '2026-10-01 に人間が Home Affairs の Working Holiday visa (subclass 417) 公式ページを画面で確認した内容。日本が対象の国・地域の一覧に掲載されていること、日本は 18 to 30 years、31歳になる前の申請提出（締切は31歳の誕生日の前日の midnight AEST / AEDST）、提出後に31歳になった場合の扱い、扶養している子どもの同伴不可、1回目の申請での過去の入国歴の条件を登録した。過去の入国歴の条件はもう1つのサブクラスにも及ぶが、別サブクラスの制度情報をこの JSON へ混入させない方針（importer の分離検証）を維持するため、サブクラス番号は記録せず「Working Holiday Maker プログラムのビザ」として表現し、個別ケースは公式確認へ案内する形にした。入国の期限・資金額・申請料などは今回の画面では確認していないため unverified に残した。', now()
+  )
+  on conflict (visa_key, category) do update set
+    visa_code = excluded.visa_code,
+    visa_name = excluded.visa_name,
+    country_code = excluded.country_code,
+    summary = excluded.summary,
+    details = excluded.details,
+    reviewed_at = excluded.reviewed_at,
+    review_note = excluded.review_note,
+    updated_at = now()
+  returning id
+),
+cleared as (
+  delete from visa_reference_sources
+  where entry_id in (select id from upserted)
+  returning entry_id
+)
+insert into visa_reference_sources (
+  entry_id, source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes
+)
+select upserted.id, v.source_name, v.source_url, v.source_type, v.source_published_at, v.source_updated_at, v.accessed_at, v.notes
+from upserted
+cross join (
+  values
+      ('Australian Government Department of Home Affairs - Working Holiday visa (subclass 417)', 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417', 'home_affairs', null::date, null::date, '2026-10-01'::date, '対象となる国・地域の一覧に日本が掲載されていること、日本は 18 to 30 years であること、30歳が上限の国・地域では31歳になる前に申請を提出する必要があること（締切は31歳の誕生日の前日の midnight AEST / AEDST）、扶養している子どもを同伴できないこと、1回目の申請では過去に同じプログラムのビザで入国していないことを確認。')
 ) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);
 
 -- australia_working_holiday_417 / same_employer（確認日: 2026-10-02）

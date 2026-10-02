@@ -250,9 +250,69 @@ function detailLines(entry: VisaReferenceEntry): string[] {
     lines.push(`    - 家族について: ${from}${asData(entry.details.familyRule, 400)}`);
   }
 
+  // 国籍（パスポート）ごとに条件が変わるビザでは、**どの国について確認した値か**を先に出す。
+  if (typeof entry.details.country === "string") {
+    const eligible = entry.details.eligiblePassport === true;
+    const note =
+      typeof entry.details.eligiblePassportNote === "string"
+        ? asData(String(entry.details.eligiblePassportNote), 400)
+        : "";
+    lines.push(
+      `    - 確認した国・地域: ${asData(entry.details.country, 80)}${eligible ? "（このビザの対象となる国・地域の一覧に掲載されている）" : ""}${note ? `。${note}` : ""}`,
+    );
+  }
+
   // 年齢・18歳未満の福祉。学校就学者だけの条件を一般の留学希望者へ当てはめさせない。
   if (typeof entry.details.minimumAge === "number" && typeof entry.details.minimumAgeUnit === "string") {
     lines.push(`    - 最低年齢: ${entry.details.minimumAge} ${asData(entry.details.minimumAgeUnit, 20)}`);
+  }
+  // 年齢の範囲。上限が国・地域によって違うビザがあるため、どこについての値かを必ず添える。
+  if (typeof entry.details.minimumAge === "number" && typeof entry.details.maximumAge === "number") {
+    const scope =
+      typeof entry.details.ageCountryScope === "string" ? asData(String(entry.details.ageCountryScope), 400) : "";
+    lines.push(
+      `    - 申請できる年齢: ${entry.details.minimumAge}〜${entry.details.maximumAge}歳${scope ? `。${scope}` : ""}`,
+    );
+  }
+
+  // 申請の年齢の締切。**申請時点**の条件であり、入国の期限ではないことを同じ場所に出す。
+  const ageDeadline = entry.details.applicationAgeDeadline;
+  if (ageDeadline && typeof ageDeadline === "object" && !Array.isArray(ageDeadline)) {
+    const a = ageDeadline as Record<string, unknown>;
+    if (typeof a.rule === "string") {
+      const deadline = typeof a.deadline === "string" ? `／締切: ${asData(a.deadline, 120)}` : "";
+      const tz = typeof a.timezoneBasis === "string" ? `（${asData(a.timezoneBasis, 40)} 基準）` : "";
+      lines.push(`    - 申請の年齢の条件: ${asData(a.rule, 300)}${deadline}${tz}`);
+    }
+    if (typeof a.turningAgeAfterLodgement === "string") {
+      lines.push(`    - 申請後に上限の年齢を超えた場合: ${asData(a.turningAgeAfterLodgement, 300)}`);
+    }
+    if (typeof a.notAnArrivalDeadline === "string") {
+      lines.push(`    - 重要: ${asData(a.notAnArrivalDeadline, 400)}`);
+    }
+  }
+
+  // 同伴できない家族の条件。
+  const children = entry.details.dependentChildren;
+  if (children && typeof children === "object" && !Array.isArray(children)) {
+    const ch = children as Record<string, unknown>;
+    const parts: string[] = [];
+    if (typeof ch.note === "string") parts.push(asData(ch.note, 240));
+    if (typeof ch.familyInSameApplication === "string") parts.push(asData(ch.familyInSameApplication, 240));
+    if (parts.length > 0) lines.push(`    - 同伴・家族について: ${parts.join(" / ")}`);
+  }
+
+  // 過去のビザ歴による対象外条件。個別ケースは公式確認へ回す。
+  const history = entry.details.previousVisaDisqualifyingHistory;
+  if (history && typeof history === "object" && !Array.isArray(history)) {
+    const h = history as Record<string, unknown>;
+    if (typeof h.rule === "string") {
+      const appliesTo = typeof h.appliesTo === "string" ? `（対象: ${asData(h.appliesTo, 80)}）` : "";
+      lines.push(`    - 過去のビザ歴による条件${appliesTo}: ${asData(h.rule, 300)}`);
+    }
+    if (typeof h.programScopeNote === "string") {
+      lines.push(`    - 上の条件の範囲: ${asData(h.programScopeNote, 400)}`);
+    }
   }
   const schoolAgeRules = readFactList(entry.details, "schoolStudentAgeRules");
   if (schoolAgeRules.length > 0) {
