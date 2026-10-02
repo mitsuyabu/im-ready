@@ -329,20 +329,27 @@ console.log("Test 10: 48 という数値に単位が無い → reject");
   assert(noDurationUnit.entries.length === 0, "期間に単位が無ければ拒否する");
 }
 
-console.log("Test 11: 現在の student-500.json → accept（6件）");
+console.log("Test 11: 現在の student-500.json → accept（人間確認済みのカテゴリのみ）");
 {
   const doc = JSON.parse(readFileSync("data/visas/australia/student-500.json", "utf8"));
   const r = validateVisaDocument("data/visas/australia/student-500.json", doc);
   assert(r.problems.length === 0, `問題なし（${showProblems(r.problems)}）`);
-  assert(r.entries.length === 6, `6件が受理される（実際: ${r.entries.length}）`);
+  assert(r.entries.length === 11, `11件が受理される（実際: ${r.entries.length}）`);
   const categories = r.entries.map((e) => e.category).sort();
   assert(
-    categories.join(",") === "costs,financial_capacity,genuine_student,health_insurance,stay,work_rights",
-    "登録済みの6カテゴリがそのまま通る",
+    categories.join(",") ===
+      "application,costs,documents,eligibility,financial_capacity,genuine_student,health_insurance,processing,stay,study_rights,work_rights",
+    `登録済みのカテゴリがそのまま通る（${categories.join(",")}）`,
   );
-  // 一次情報が無い entry でも、照合未了が記録されていれば通る
+  // 未確認のカテゴリは登録されていない
+  for (const absent of ["same_employer", "second_third", "specified_work", "arrival_preparation"]) {
+    assert(!categories.includes(absent), `未確認の ${absent} は登録されていない`);
+  }
+  // 一次情報の出典が無い entry は、照合未了が記録されていれば通る
+  const noPrimary = r.entries.filter((e) => !e.sources.some((s) => s.sourceType === "home_affairs"));
+  assert(noPrimary.length === 1 && noPrimary[0].category === "financial_capacity", "一次照合未了は financial_capacity だけ");
   assert(
-    r.entries.every((e) => (e.reviewNote ?? "").includes("403")),
+    noPrimary.every((e) => /403|未了|一次情報/.test(e.reviewNote ?? "")),
     "一次情報未照合の記録が保持されている",
   );
 }

@@ -285,17 +285,22 @@ async function main() {
 
   console.log("Test 8: DB の category 欠損 → 安全な fallback・数値捏造なし");
   {
-    // Student 500 の documents は未登録
-    const r = simulate({ message: "学生ビザの必要書類は？" });
-    assert(r.categories.includes("documents"), "documents が対象");
+    // Student 500 の arrival_preparation は未登録
+    const r = simulate({ message: "学生ビザで行くまでに準備することは？" });
+    assert(r.categories.includes("arrival_preparation"), "arrival_preparation が対象");
     assert(!r.usedData, "未登録なのでデータは使われない");
     assert(r.context.includes("確認済みのデータがありません"), "データが無いことを伝える");
-    assert(r.context.includes("必要書類"), "どの項目が無いのかを示す");
+    assert(r.context.includes("渡航までの準備"), "どの項目が無いのかを示す");
     assert(
       r.context.includes("知識ベースに書かれている制度の大枠"),
       "fallback として知識ベースの大枠は使える旨が書かれている",
     );
     assert(r.context.includes("具体的な数値や個別の条件は断定しないでください"), "断定を禁止する");
+
+    // documents は今回 Home Affairs 一次情報で登録されたので、データが使われる側へ移った
+    const docs = simulate({ message: "学生ビザの必要書類は？" });
+    assert(docs.categories.includes("documents"), "documents が対象");
+    assert(docs.usedData, "documents は登録済みなのでデータが使われる");
   }
 
   console.log("Test 9: reviewed_at が古い → 再確認推奨が付く");
@@ -327,16 +332,22 @@ async function main() {
     );
     assert(r.context.includes("出典の URL を本文に並べないでください"), "通常は URL を並べさせない");
 
-    // 一次情報が無い場合は言い方を弱める
+    // work_rights は今回 Home Affairs 一次情報で照合したので、弱める表現は付かない
     assert(
-      r.context.includes("一次情報（Home Affairs）ではなく政府系の補助的な案内です"),
+      !r.context.includes("一次情報（Home Affairs）ではなく政府系の補助的な案内です"),
+      "一次情報で照合済みなら補助的な案内という注記は付かない",
+    );
+    // 一次情報が無い場合（financial_capacity）は言い方を弱める
+    const saOnly = simulate({ message: "学生ビザの資金証明はいくら必要？" });
+    assert(
+      saOnly.context.includes("一次情報（Home Affairs）ではなく政府系の補助的な案内です"),
       "Study Australia のみの場合は一次情報でないことを明示する",
     );
 
     const citations = buildVisaCitations([seedEntry("australia_student_500", "work_rights")!]);
-    assert(citations.length === 2, "表示用 citation を取り出せる（出典2件）");
+    assert(citations.length === 3, `表示用 citation を取り出せる（実際: ${citations.length}件）`);
     assert(citations[0].sourceUrl.startsWith("https://"), "citation に URL が含まれる");
-    assert(citations[0].reviewedAt === "2026-10-01", "citation に確認日が含まれる");
+    assert(citations[0].reviewedAt === "2026-10-02", "citation に確認日が含まれる");
   }
 
   console.log("Test 11: complex case → eligibility を保証しない");
@@ -626,7 +637,14 @@ async function main() {
   {
     const student500 = SEED.filter((e) => e.visaKey === "australia_student_500");
     const whv = SEED.filter((e) => e.visaKey === "australia_working_holiday_417");
-    assert(student500.length === 6, `Student 500 の確認済み entry が6件（実際: ${student500.length}）`);
+    assert(student500.length === 11, `Student 500 の確認済み entry が11件（実際: ${student500.length}）`);
+    // 未確認の category は登録されていないままであること
+    for (const absent of ["same_employer", "second_third", "specified_work", "arrival_preparation"]) {
+      assert(
+        !student500.some((e) => e.category === absent),
+        `Student 500: 未確認の ${absent} は登録しない`,
+      );
+    }
     assert(whv.length === 3, `417 の確認済み entry が3件（実際: ${whv.length}）`);
     for (const e of SEED) {
       assert(isVisaKey(e.visaKey), `${e.category}: visaKey が対象`);

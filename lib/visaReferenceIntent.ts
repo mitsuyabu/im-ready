@@ -44,6 +44,44 @@ const CATEGORY_KEYWORDS: { category: VisaCategory; keywords: string[] }[] = [
   { category: "arrival_preparation", keywords: ["何から始め", "渡航まで", "渡航準備", "行くまでに", "準備すること"] },
 ];
 
+/**
+ * 「どこから申請するか」「家族を含められるか」に直結する聞き方。
+ * 2026-10-02 からの現行ルール（ほとんどの申請は国外から／417・462 保有者は国内から申請できない／
+ * ほとんどの申請者は家族を含められない）は、こういう聞き方で来るのに `application` へ
+ * routing されないと回答へ届かないため、別に拾う。
+ *
+ * ただし「配偶者」「子どもも」のような語は**ビザの話でなくても出てくる**ため、
+ * 発言にビザの語がある場合だけ有効にする（ビザ以外の相談でビザデータを読まないため）。
+ */
+const APPLICATION_CONTEXT_KEYWORDS = [
+  // 他のビザからの切り替え
+  "切り替え",
+  "切り替わ",
+  "切替",
+  "変えられ",
+  "変更でき",
+  "変えたい",
+  // 申請場所・国内での更新
+  "国内から申請",
+  "国内で申請",
+  "現地で申請",
+  "オーストラリアで申請",
+  "オーストラリアから申請",
+  "更新でき",
+  "更新したい",
+  // 家族
+  "家族を連れ",
+  "家族も連れ",
+  "家族で行",
+  "家族を呼",
+  "呼び寄せ",
+  "帯同",
+  "配偶者",
+  "パートナーも",
+  "子どもも",
+  "子供も",
+];
+
 /** ビザという語だけで category が絞れない場合に渡す基本セット。 */
 const DEFAULT_CATEGORIES: VisaCategory[] = ["eligibility", "work_rights", "stay"];
 
@@ -135,6 +173,15 @@ export function detectVisaIntent(latestUserMessage: string): VisaIntent | null {
   if (mentionsTax && !mentionsVisaTopic && categories.length === 0) return null;
 
   if (!mentionsVisaTopic && categories.length === 0) return null;
+
+  // 申請場所・家族の聞き方は、ビザの話であることが分かる場合だけ application へ回す。
+  if (
+    mentionsVisaTopic &&
+    !categories.includes("application") &&
+    includesAny(lower, APPLICATION_CONTEXT_KEYWORDS.map((w) => w.toLowerCase()))
+  ) {
+    categories.push("application");
+  }
 
   // 「ビザについて」だけで category が絞れない場合は基本セットを使う。
   const resolved = categories.length > 0 ? Array.from(new Set(categories)) : [...DEFAULT_CATEGORIES];

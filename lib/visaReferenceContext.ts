@@ -30,6 +30,30 @@ import {
 const SUMMARY_MAX = 600;
 /** 業種・地域などの一覧を prompt へ入れる上限件数（巨大な一覧をそのまま注入しない）。 */
 const LIST_ITEM_MAX = 12;
+/**
+ * 例外の一覧は件数が多く、個別ケースの判断に関わるため、既定では**高レベルの数件だけ**渡す。
+ * 本人がその例外について具体的に聞いた場合に、公式で確認するよう案内させる。
+ */
+const EXEMPTION_LIST_MAX = 3;
+
+/**
+ * 既定では全件を注入しない例外リスト（key → 表示ラベル）。
+ * noteKey は「この例外は誰に当てはまらないか」を書いた補足で、**例外の一覧と必ず同じ場所に出す**
+ * （国別の特例などを、対象外の国籍の人へ当てはめて説明させないため）。
+ */
+const EXEMPTION_LISTS: { key: string; label: string; noteKey?: string }[] = [
+  { key: "onshoreApplicationExemptions", label: "国内から申請できる例外" },
+  {
+    key: "furtherStudentVisaExemptions",
+    label: "国内で次の学生ビザを申請できる例外",
+    noteKey: "furtherStudentVisaExemptionsNote",
+  },
+  { key: "familyInclusionExemptions", label: "家族を含められる例外", noteKey: "familyExemptionsNote" },
+  { key: "englishExemptions", label: "英語力の証明が免除される例外", noteKey: "englishExemptionsNote" },
+  { key: "coeExceptions", label: "CoE が不要になる例外", noteKey: "coeExceptionsNote" },
+  { key: "oshcCountryExceptions", label: "健康保険の国別の特例", noteKey: "countryExceptionsNote" },
+  { key: "costConcessions", label: "申請料が下がる対象", noteKey: "concessionsNote" },
+];
 const NAME_MAX = 160;
 
 /** 外部由来の文字列を1行へ畳み、見出し記号を外して長さを制限する（内容は書き換えない）。 */
@@ -134,6 +158,9 @@ function detailLines(entry: VisaReferenceEntry): string[] {
   if (typeof entry.details.effectiveFrom === "string" && readMoneyFact(entry.details) === null) {
     lines.push(`    - 適用開始: ${asData(entry.details.effectiveFrom, 20)}`);
   }
+  if (typeof entry.details.effectiveFromSource === "string") {
+    lines.push(`    - 適用開始日の出典: ${asData(entry.details.effectiveFromSource, 240)}`);
+  }
   if (typeof entry.details.policyStatus === "string" || typeof entry.details.policyNote === "string") {
     const note = typeof entry.details.policyNote === "string" ? asData(entry.details.policyNote, 400) : "";
     lines.push(
@@ -208,11 +235,116 @@ function detailLines(entry: VisaReferenceEntry): string[] {
     lines.push("    - 重要: 定められた期間より短い合計期間で完了することはできない（長時間働いても短縮されない）");
   }
 
+  // 制度変更の日付。古いルールと混同させないため、変更日と影響範囲を先に出す。
+  if (typeof entry.details.ruleChangeFrom === "string") {
+    const scope = readFactList(entry.details, "ruleChangeScope");
+    lines.push(
+      `    - **${asData(entry.details.ruleChangeFrom, 20)} からの現行ルール**${scope.length > 0 ? `（変わった範囲: ${scope.slice(0, LIST_ITEM_MAX).map((v) => asData(v, 120)).join(" / ")}）` : ""}。これより前の古いルールと混同して説明しないこと`,
+    );
+  }
+  if (typeof entry.details.familyRule === "string") {
+    const from =
+      typeof entry.details.familyRuleFrom === "string"
+        ? `${asData(entry.details.familyRuleFrom, 20)} からの現行ルール: `
+        : "";
+    lines.push(`    - 家族について: ${from}${asData(entry.details.familyRule, 400)}`);
+  }
+
+  // 年齢・18歳未満の福祉。学校就学者だけの条件を一般の留学希望者へ当てはめさせない。
+  if (typeof entry.details.minimumAge === "number" && typeof entry.details.minimumAgeUnit === "string") {
+    lines.push(`    - 最低年齢: ${entry.details.minimumAge} ${asData(entry.details.minimumAgeUnit, 20)}`);
+  }
+  const schoolAgeRules = readFactList(entry.details, "schoolStudentAgeRules");
+  if (schoolAgeRules.length > 0) {
+    const note =
+      typeof entry.details.schoolStudentAgeRulesNote === "string"
+        ? asData(entry.details.schoolStudentAgeRulesNote, 300)
+        : "";
+    lines.push(
+      `    - 学校（小中高）で就学する場合の学年別の年齢: ${schoolAgeRules.map((v) => asData(v, 120)).join(" / ")}${note ? `。${note}` : ""}`,
+    );
+  }
+  if (typeof entry.details.under18Welfare === "string") {
+    lines.push(`    - 18歳未満の場合: ${asData(entry.details.under18Welfare, 300)}`);
+  }
+
+  // 複数コースをつなげる場合の条件。
+  const packaged = readFactList(entry.details, "packagedCourses");
+  if (packaged.length > 0) {
+    lines.push(
+      `    - 複数のコースをつなげる場合（packaged courses）: ${packaged.slice(0, LIST_ITEM_MAX).map((v) => asData(v, 160)).join(" / ")}`,
+    );
+  }
+
+  // 英語力。**全員一律ではない**ことと、具体的なスコアを足させないことを同じ場所に出す。
+  const english = entry.details.englishEvidence;
+  if (english && typeof english === "object" && !Array.isArray(english)) {
+    const e = english as Record<string, unknown>;
+    if (e.mayBeRequired === true) {
+      const note = typeof e.note === "string" ? asData(e.note, 240) : "";
+      lines.push(`    - 英語力の証明: 必要になる場合がある（全員一律ではない）${note ? `。${note}` : ""}`);
+    }
+    const routes = readFactList(e, "routes");
+    if (routes.length > 0) {
+      lines.push(`    - 英語力を満たす方法: ${routes.map((v) => asData(v, 160)).join(" / ")}`);
+    }
+    if (e.onlineOrAtHomeTestsGenerallyNotAccepted === true) {
+      lines.push("    - 英語試験について: オンラインや自宅で受ける形式の試験は一般に認められないと案内されている");
+    }
+    if (typeof e.checkWith === "string") {
+      lines.push(`    - 英語力の要否の確認: ${asData(e.checkWith, 240)}`);
+    }
+  }
+  if (typeof entry.details.englishScoreNote === "string") {
+    lines.push(`    - 英語のスコアについて: ${asData(entry.details.englishScoreNote, 300)}`);
+  }
+
+  // 必要書類の最終確認手段。
+  if (typeof entry.details.finalCheck === "string") {
+    lines.push(`    - 最終的な確認手段: ${asData(entry.details.finalCheck, 300)}`);
+  }
+
+  // 審査期間。固定日数を持たず、保証しない形でだけ渡す。
+  if (entry.details.type === "dynamic_official_guide") {
+    lines.push(
+      "    - 審査期間: 公式の processing time guide で確認する目安であり、固定の日数はこのデータに持っていない",
+    );
+  }
+  if (entry.details.guaranteed === false) {
+    lines.push("    - 重要: 審査期間は保証ではない。「○日で出ます」「○日以内に出ます」と言わないこと");
+  }
+  if (entry.details.outsideAustraliaPrioritySystem === true) {
+    const note = typeof entry.details.directionsNote === "string" ? asData(entry.details.directionsNote, 300) : "";
+    lines.push(
+      `    - 国外からの申請には審査の優先順位の仕組みがある${note ? `。${note}` : ""}`,
+    );
+  }
+
+  // 一次情報で更新した場合の旧値。黙って消さず、更新した理由を保持する。
+  const superseded = entry.details.supersededValue;
+  if (superseded && typeof superseded === "object" && !Array.isArray(superseded)) {
+    const v = superseded as Record<string, unknown>;
+    if (typeof v.previousValue === "string") {
+      lines.push(
+        `    - 以前の登録値: ${asData(v.previousValue, 160)}（出典: ${typeof v.previousSource === "string" ? asData(v.previousSource, 120) : "不明"}）。現在は一次情報の値を正本としているため、**以前の値を答えに使わないこと**`,
+      );
+    }
+  }
+
   // 期間（滞在・就学など）。単位が無ければ出さない。
   const duration = entry.details.duration;
   const durationUnit = entry.details.durationUnit;
   if (typeof duration === "number" && Number.isFinite(duration) && typeof durationUnit === "string") {
-    lines.push(`    - 期間: ${duration} ${asData(durationUnit, 40)}`);
+    const upTo = entry.details.durationBasis === "up_to";
+    const enrolment = entry.details.enrolmentDependent === true;
+    lines.push(
+      `    - 期間: ${duration} ${asData(durationUnit, 40)}${upTo ? "（**上限**であり、全員がこの期間になるわけではない）" : ""}${enrolment ? "／就学の登録内容（enrolment）に沿って決まる" : ""}`,
+    );
+  }
+  if (typeof entry.details.primarySchoolYears1to4MaxYears === "number") {
+    lines.push(
+      `    - 小学校の Year 1〜4 で開始する子ども: 原則として最長 ${entry.details.primarySchoolYears1to4MaxYears} 年`,
+    );
   }
 
   // 箇条書きで持っている事実（必要書類のグループ・対象業種など）。
@@ -287,6 +419,31 @@ function detailLines(entry: VisaReferenceEntry): string[] {
         `    - パスポート別の例外（**対象: ${asData(appliesTo, 160)}**）: ${asData(note, 240)}。この例外は対象のパスポート保持者だけのもので、他の国籍の人に当てはめて説明しないこと`,
       );
     }
+  }
+
+  // 「このビザを持っていると国内から申請できない」は例外ではなく**制限**。
+  // 件数を切ると本人の該当ビザが隠れて誤案内になるため、確認できた分はそのまま出す。
+  const cannotOnshore = readFactList(entry.details, "cannotApplyOnshoreVisaSubclasses");
+  if (cannotOnshore.length > 0) {
+    const note =
+      typeof entry.details.cannotApplyOnshoreNote === "string"
+        ? asData(String(entry.details.cannotApplyOnshoreNote), 500)
+        : "";
+    lines.push(
+      `    - オーストラリア国内から学生ビザを申請できないビザ（確認できた範囲。完全な一覧ではない）: ${cannotOnshore.map((v) => asData(v, 120)).join(" / ")}${note ? `。${note}` : ""}`,
+    );
+  }
+
+  // 例外の一覧は高レベルだけ渡す（既定で全件注入しない）。
+  for (const { key, label, noteKey } of EXEMPTION_LISTS) {
+    const list = readFactList(entry.details, key);
+    if (list.length === 0) continue;
+    const shown = list.slice(0, EXEMPTION_LIST_MAX);
+    const omitted = list.length - shown.length;
+    const note = noteKey && typeof entry.details[noteKey] === "string" ? asData(String(entry.details[noteKey]), 300) : "";
+    lines.push(
+      `    - ${label}（全${list.length}件のうち${shown.length}件だけ記載）: ${shown.map((v) => asData(v, 160)).join(" / ")}${omitted > 0 ? ` ほか${omitted}件` : ""}。例外に当たるかは本人の状況で変わるため、当てはまると決めつけず、公式での確認を案内すること${note ? `。${note}` : ""}`,
+    );
   }
 
   // 「確認できていない」ことを明示的に持っている場合はそのまま伝える。

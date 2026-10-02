@@ -185,60 +185,108 @@ Department of Home Affairs は自動取得を拒否する（HTTP 403。2026-10-0
 # 2. Student visa (subclass 500)
 
 一次情報: https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/student-500
+人間確認日（accessed_at / reviewed_at）: 2026-10-02
+
+## 2-0. 2026-10-02 からの制度変更（最重要）
+
+| 項目 | 確認 | 内容 | 備考 |
+|---|---|---|---|
+| 申請場所 | **yes** | ほとんどの申請はオーストラリア国外から行う必要がある | 国内申請は「対象ビザの保持」＋「例外該当」の両方が必要 |
+| 国内申請できないビザ | **yes** | 417 / 462 / 485 / 600 / 601 / 651 を含む | 確認できた範囲。完全な一覧としては扱わない |
+| 家族の同時申請 | **yes** | ほとんどの申請者は家族を含められない（例外あり） | 例外は PhD / DFAT・Defence / 外国政府奨学金 / 対象の太平洋諸島・ASEAN 国籍 / 継続・進級の一定ケース |
+| 家族の後からの申請 | **yes** | subsequent entrant は現行ルールでは不可 | 「後から呼べる」と案内しないこと |
 
 ## 2-1. 既存6カテゴリの一次情報照合
 
-Phase 1 で **Study Australia**（政府系だがビザ制度の一次情報ではない）で確認した内容が登録済み。Home Affairs と照合する。
+Phase 1 で **Study Australia**（政府系だがビザ制度の一次情報ではない）で確認した内容が登録済み。Home Affairs と照合した。
 
-**一致した場合**: Home Affairs の出典を追加する（Study Australia の出典は残してよい）＋ `review_note` に照合済みと記録。
-**一致しなかった場合**: **勝手に上書きしない**。差分を記録して、どちらが現行かを判断する。
+照合の方針: 一致した場合は Home Affairs の出典を追加する（Study Australia の出典は残してよい）。一致しなかった場合は **勝手に上書きしない**。差分を記録し、どちらが現行かを判断したうえで、旧値を `supersededValue` に残して更新する（今回の `stay` がその例）。
 
-| category | 現在の登録値（Study Australia 由来） | Home Affairs で一致 | 一致しない場合の Home Affairs 側の記載 | ページ箇所 | 備考 |
-|---|---|---|---|---|---|
-| work_rights | 授業期間中 48 hours per fortnight / Masters by Research・Doctoral は例外 | no | | | ブレイク中の上限は未確認のまま |
-| health_insurance | OSHC を滞在全期間について維持 | no | | | 加入タイミング・家族・免除は未確認 |
-| genuine_student | GS requirement（2024-03-23 に GTE を置換） | no | | | 評価基準は未確認 |
-| financial_capacity | AUD 29,710 / 年・単身・2024-05-10 以降の申請 | no | | | 家族同伴時の金額は未確認 |
-| costs | AUD 2,500 **から** / 1申請・2026-07-01 以降 | no | | | 免除条件・追加料金は未確認 |
-| stay | コース期間に応じた期間（最長5年） | no | | | コース期間との対応関係は未確認 |
+| category | 現在の登録値 | Home Affairs で一致 | 差分と対応 | 備考 |
+|---|---|---|---|---|
+| work_rights | 授業期間中 48 hours per fortnight / Masters by Research・Doctoral は例外 | **yes** | 一致。Home Affairs 出典を追加し `primarySourceVerified: true` | ブレイク中の上限は**未確認のまま**（別ページのため今回未登録） |
+| health_insurance | OSHC を滞在全期間について維持 | **yes** | 一致。国別の特例（Norway / Sweden / Belgium）を `oshcCountryExceptions` として追加 | **日本国籍には適用しない**旨を note に明記 |
+| genuine_student | GS requirement（2024-03-23 に GTE を置換） | **yes** | 要件の存在は一致。2024-03-23 は Study Australia 由来のため `effectiveFromSource` で出典を分離 | 評価基準の詳細は未確認 |
+| financial_capacity | AUD 29,710 / 年・単身 | **no（照合未了）** | **金額を Home Affairs で確認できなかったため、Home Affairs 出典を追加せず `primarySourceVerified: false` のまま維持** | Gather Documents で current exact amount を人間確認するまで一次照合未了 |
+| costs | AUD 2,500 **から** / 1申請 | **yes** | 金額は一致。`effectiveFrom: 2026-07-01` は Home Affairs 未確認のため `effectiveFromSource` で明示。申請料が下がる対象（`costConcessions`）を追加 | concessions は**日本国籍へ自動適用されない** |
+| stay | コース期間に応じた期間（**最長5年**） | **no（conflict）** | **Home Affairs は「最長6年・enrolment 連動」。一次情報を正本として更新し、旧値は `supersededValue` に記録（黙って消していない）** | 小学校 Year 1〜4 は最長3年 |
 
-## 2-2. eligibility（未登録）
+### conflict の記録（stay）
 
-| 項目 | 確認 | 値 | 要約 | ページ箇所 | 備考 |
-|---|---|---|---|---|---|
-| 基本の申請資格 | no | | | | |
-| 年齢に関する要件があるか | no | | | | |
-| 扶養家族・同伴者に関する条件 | no | | | | |
+| 項目 | 内容 |
+|---|---|
+| Study Australia（旧） | up to 5 years |
+| Home Affairs（現行一次情報） | up to 6 years、在籍（enrolment）に連動 |
+| 解消方針 | 一次情報を正本とする。旧値は `supersededValue.previousValue` に残し、`resolution` に理由を記録 |
+| Study Australia 出典 | 削除せず残すが「この値の根拠ではない」と note に記録 |
 
-## 2-3. application（未登録）
+## 2-2. eligibility（登録済み）
 
-| 項目 | 確認 | 値 | 要約 | ページ箇所 | 備考 |
-|---|---|---|---|---|---|
-| CoE（Confirmation of Enrolment）の要件 | no | | | | |
-| 申請方法 | no | | | | |
-| 申請時の所在（国内／国外） | no | | | | |
+| 項目 | 確認 | 値 / 要約 | 備考 |
+|---|---|---|---|
+| genuine student であること | **yes** | 学生ビザの主な目的を理解していること | |
+| 最低年齢 | **yes** | 6歳以上 | |
+| 学校就学時の学年別年齢 | **yes** | Y9<17 / Y10<18 / Y11<19 / Y12<20 | **小中高の就学者限定。大学・専門・語学の人へ当てはめない** |
+| 18歳未満の福祉（welfare） | **yes** | 適切な福祉の手配が必要 | 認められる具体的な形式は未確認 |
+| 健康（health） | **yes** | 要件がある（申請者と同時申請の家族） | 健康診断が必要になる条件は未確認 |
+| 人物（character） | **yes** | 申請者と、16歳以上で同時申請の家族 | 警察証明書が必要になる条件は未確認 |
+| Australian Values Statement | **yes** | 18歳以上は Life in Australia を読んだうえで署名 | |
+| 政府への債務 | **yes** | 支払済みか支払いの取り決めが必要 | |
+| 過去のビザ取消・却下 | **yes** | 審査に影響し得る | 具体的な判断は未確認 |
+| 子どもの最善の利益 | **yes** | 18歳未満について考慮される | |
 
-## 2-4. study_rights（未登録）
+## 2-3. application（登録済み）
 
-| 項目 | 確認 | 値 | 要約 | ページ箇所 | 備考 |
-|---|---|---|---|---|---|
-| 就学に関する条件（コース変更・出席等） | no | | | | |
+| 項目 | 確認 | 値 / 要約 | 備考 |
+|---|---|---|---|
+| 申請方法 | **yes** | オンライン | |
+| 申請時の所在 | **yes** | 2026-10-02 から、ほとんどの申請は国外から | §2-0 参照 |
+| 国内申請の条件 | **yes** | 対象ビザの保持＋例外該当の**両方** | どちらか一方では不可 |
+| 国内申請できないビザ | **yes** | 417 / 462 / 485 / 600 / 601 / 651 | WHV からの切替は原則国外申請 |
+| 国内での further Student visa の例外 | **yes** | 6種類（最大12か月の追加 / DFAT・Defence / PhD / 小中高 / course progression / provider default） | 本人が該当するとは決めつけない |
+| 家族のルール | **yes** | §2-0 のとおり | subsequent entrant 不可 |
+| CoE | **yes** | 全就学予定コース分が必要。無い申請は invalid。決定時点でも有効が必要 | CoE 不要の例外は §2-5 |
+| OSHC | **yes** | 情報が必要。自己手配時は保険証券の番号 | |
 
-## 2-5. documents（未登録）
+## 2-4. study_rights（登録済み）
 
-| 項目 | 確認 | 値 | 要約 | ページ箇所 | 備考 |
-|---|---|---|---|---|---|
-| 一般に必要な書類 | no | | | | `generally_required` として登録 |
-| ケースによって必要な書類 | no | | | | `case_dependent` として登録 |
-| 後から求められ得る書類 | no | | | | `may_be_requested_later` として登録 |
-| 英語力の証明が必要になる条件 | no | | | | **特定のスコアを一律の基準にしない** |
+| 項目 | 確認 | 値 / 要約 | 備考 |
+|---|---|---|---|
+| コース要件 | **yes** | CRICOS 登録のフルタイムコース | |
+| 在籍の維持 | **yes** | enrolment を維持する必要がある | 維持できなかった場合の扱いは未確認 |
+| 無効な CoE | **yes** | 取消済み・修了済みのコースの CoE は無効 | |
+| packaged courses | **yes** | 全 CoE コードが必要 / コースが次へつながる / 間隔は原則2暦月未満 / 学年切替に例外 | 例外の具体条件は未確認 |
 
-## 2-6. processing（未登録）
+## 2-5. documents（登録済み）
 
-| 項目 | 確認 | 値 | 要約 | ページ箇所 | 備考 |
-|---|---|---|---|---|---|
-| 公式の審査期間の案内 | no | | | | 固定日数として保証しない |
+| 項目 | 確認 | 値 / 要約 | 備考 |
+|---|---|---|---|
+| 必要な書類 | **yes** | 全就学予定コースの CoE（または承認された代替）／必要な場合の OSHC 情報 | **パスポート等を一般知識から必須側へ追加していない** |
+| ケースによって必要な書類 | **yes** | 英語力 / 資金 / 健康 / 人物 / 18歳未満の福祉 / 家族関係 | |
+| 後から求められ得る書類 | **yes** | Home Affairs・ImmiAccount から追加要求され得る | |
+| CoE が不要になる例外 | **yes** | Foreign Affairs・Trade 奨学金 / Defence の支援（support letter）／中等教育交換留学の AASES ／修士論文採点待ちの研究学生の教育機関の手紙 | 「CoE は全員絶対必須」と断定しない |
+| 英語力が免除される例外 | **yes** | UK / USA / Canada / NZ / Ireland のパスポート等 | **日本は一覧に含まれない。日本国籍へ適用しない** |
+| 英語力の具体的スコア | **no** | — | **特定のスコアを一律の基準として登録しない（IELTS 6.0 等を固定値にしない）** |
+| 最終確認手段 | **yes** | Home Affairs の Document Checklist tool | |
 
+## 2-6. processing（登録済み）
+
+| 項目 | 確認 | 値 / 要約 | 備考 |
+|---|---|---|---|
+| 公式の審査期間の案内 | **yes** | processing time guide で目安を確認。最近決定された申請にもとづく目安で、個別申請に当てはまるものではない | `fixedDuration: null` / `guaranteed: false` |
+| 国外申請の優先順位 | **yes** | 2025-11-14 より前は MD111、以降は MD115 | **MD 番号は通常のユーザー回答には出さない** |
+| 現時点の具体的な処理期間 | **no** | — | 変動するため固定値として持たない |
+
+## 2-7. 一次情報でまだ未確認（登録しない項目）
+
+| 項目 | 理由 |
+|---|---|
+| financial_capacity の正確な金額 | Home Affairs の Gather Documents で未確認。`primarySourceVerified: false` のまま |
+| 申請者ごとの完全な必要書類の一覧 | プロフィールごとに変わる。Document Checklist tool が最終確認手段 |
+| 英語力の具体的なスコア基準 | すべての閾値を確認できていない。特定スコアを一律基準にしない |
+| 健康診断が必要になる具体的な条件 | ケースごとに決まる |
+| 警察証明書が必要になる具体的な条件 | ケースごとに決まる |
+| 授業期間外（コースのブレイク中）の就労上限 | 別の visa conditions ページの内容で、今回共有された資料に含まれない |
 ---
 
 # 3. 記入後のチェック
