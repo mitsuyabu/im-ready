@@ -486,6 +486,38 @@ console.log("§9 実機確認の質問が、必要な category へ routing さ�
   }
 }
 
+console.log("一般語だけではビザ層を起動しない（Phase 6 の実機確認で見つかった over-trigger）");
+{
+  // 「費用」「書類」「必要書類」「条件」「年齢」「資格」はビザ以外でも日常的に出る語。
+  // これらだけでビザ層が起動すると、語学学校やホームステイの質問に対して
+  // 「どのビザですか？」と聞き返してしまう。ビザの語が同時にある場合だけ起動すること。
+  for (const message of [
+    "語学学校の費用はいくらですか？",
+    "ホームステイの費用は？",
+    "学校の書類はいつ届きますか？",
+    "語学学校の必要書類は？",
+    "ホームステイの条件を教えて",
+    "奨学金の条件は？",
+    "入学の年齢制限はありますか？",
+  ]) {
+    assert(!simulate(message).readVisaData, `「${message}」→ ビザ層を起動しない`);
+  }
+  // ビザの語がある言い方は壊さない。
+  const stillWorks: { message: string; expect: VisaCategory }[] = [
+    { message: "学生ビザの費用はいくらですか？", expect: "costs" },
+    { message: "ビザ代はいくら？", expect: "costs" },
+    { message: "学生ビザの申請料は？", expect: "costs" },
+    { message: "ビザの書類は何が必要？", expect: "documents" },
+    { message: "学生ビザの必要書類は？", expect: "documents" },
+    { message: "学生ビザの条件は？", expect: "eligibility" },
+    { message: "ビザの審査期間は？", expect: "processing" },
+  ];
+  for (const { message, expect } of stillWorks) {
+    const r = simulate(message);
+    assert(r.categories.includes(expect), `「${message}」→ ${expect} へ routing される`);
+  }
+}
+
 console.log("Test 33: 日本円へ換算させない");
 {
   const ctx = contextOf("costs", "financial_capacity");

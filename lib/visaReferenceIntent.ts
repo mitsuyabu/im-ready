@@ -32,14 +32,14 @@ const CATEGORY_KEYWORDS: { category: VisaCategory; keywords: string[] }[] = [
   { category: "study_rights", keywords: ["学校に通え", "就学", "勉強できる", "語学学校に通"] },
   { category: "specified_work", keywords: ["specified work", "88日", "指定された仕事", "指定地域", "特定業種"] },
   { category: "second_third", keywords: ["セカンド", "サード", "2年目", "3年目", "二年目", "延長"] },
-  { category: "documents", keywords: ["必要書類", "何が必要", "書類", "用意するもの", "document"] },
-  { category: "costs", keywords: ["ビザ代", "申請費", "申請料", "いくらかかる", "費用", "fee"] },
+  { category: "documents", keywords: ["用意するもの", "document"] },
+  { category: "costs", keywords: ["ビザ代", "申請費", "申請料", "fee"] },
   { category: "processing", keywords: ["何日で", "どのくらいかかる", "審査期間", "発給", "processing"] },
   { category: "health_insurance", keywords: ["保険", "oshc", "健康保険"] },
   { category: "financial_capacity", keywords: ["資金", "残高", "貯金", "financial"] },
   { category: "genuine_student", keywords: ["genuine student", "gs", "gte", "本当に勉強"] },
   { category: "application", keywords: ["申請方法", "どうやって申請", "申請の流れ", "apply", "immiaccount"] },
-  { category: "eligibility", keywords: ["何歳まで", "年齢", "申請できる", "条件", "資格", "eligibility"] },
+  { category: "eligibility", keywords: ["何歳まで", "申請できる", "eligibility"] },
   { category: "stay", keywords: ["どのくらい滞在", "滞在期間", "何年いられる", "何ヶ月いられる"] },
   { category: "arrival_preparation", keywords: ["何から始め", "渡航まで", "渡航準備", "行くまでに", "準備すること"] },
 ];
@@ -95,7 +95,37 @@ const VISA_TOPIC_GATED_KEYWORDS: { category: VisaCategory; keywords: string[] }[
   },
   {
     category: "costs",
-    keywords: ["いくらです", "いくらかかり", "いくらぐらい", "いくらくらい", "値段", "申請の費用"],
+    keywords: [
+      "いくらです",
+      "いくらかかる",
+      "いくらかかり",
+      "いくらぐらい",
+      "いくらくらい",
+      "値段",
+      // 「費用」はビザ以外（語学学校・ホームステイ・渡航費）でも日常的に出る。
+      // ungated のままだと「語学学校の費用はいくらですか？」でビザ層が起動し、
+      // 「どのビザですか？」と聞き返してしまう（Phase 6 の実機確認で再現）。
+      "費用",
+    ],
+  },
+  {
+    category: "documents",
+    keywords: [
+      // 「書類」「必要書類」「何が必要」もビザ以外（学校の出願・ホームステイ）で普通に出る。
+      // 「語学学校の必要書類は？」でビザ層が起動していたため、同じ扱いにする。
+      "書類",
+      "必要書類",
+      "何が必要",
+    ],
+  },
+  {
+    category: "eligibility",
+    keywords: [
+      // 「条件」「年齢」「資格」はビザ以外（学校の入学条件・奨学金の条件）でも出る。
+      "条件",
+      "年齢",
+      "資格",
+    ],
   },
   {
     // 英語力の正本は documents（englishEvidence / englishExemptions / englishScoreNote）側にある。

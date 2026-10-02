@@ -244,6 +244,24 @@ console.log("Test 15-16: routing");
   assert(ctx.includes("31歳になる前"), "16. 31歳になる前の申請提出が渡る");
 }
 
+console.log("一般語の gate 追加で 417 の既存表現を壊していない");
+{
+  // 「セカンド取るには？」「サードビザ」はビザ名が無くても成立する既存表現。
+  for (const message of ["セカンド取るには？", "サードビザについて教えて", "88日ってなんですか？"]) {
+    const r = simulate(message);
+    assert(r.readVisaData, `「${message}」→ ビザ層が起動する`);
+    assert(
+      r.categories.includes("second_third") || r.categories.includes("specified_work"),
+      `「${message}」→ セカンド・サードの category へ routing される`,
+    );
+  }
+  // 年齢の質問はビザの語があれば eligibility へ届く。
+  for (const message of ["ワーホリって何歳まで？", "ワーホリの年齢条件を教えて", "ワーホリの資格は？"]) {
+    const r = simulate(message);
+    assert(r.categories.includes("eligibility"), `「${message}」→ eligibility へ routing される`);
+  }
+}
+
 console.log("Test 17: 入国の年齢期限を捏造していない");
 {
   const d = obj("applicationAgeDeadline");
