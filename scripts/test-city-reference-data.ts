@@ -9,6 +9,7 @@
  * （実データは出典を人間が確認したうえで data/cities/ に登録する）。
  */
 
+import { isDevCitySnapshotEnabled } from "@/lib/devCitySnapshot";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import {
   CITY_ADMIN_AREA,
@@ -566,6 +567,83 @@ async function main() {
       }
     }
   }
+
+  console.log("production では未登録 category を開発用 snapshot で補わない（Phase 7）");
+
+  {
+
+    // formal な公開データは Sydney が safety / housing / transport、Gold Coast が
+
+    // housing / food / transport / utilities のみ。未登録 category（Sydney の food、
+
+    // Gold Coast の safety）は production では「データなし」として扱い、Numbeo を使わない。
+
+    assert(!isDevCitySnapshotEnabled({ NODE_ENV: "production", CITY_REFERENCE_DEV_SNAPSHOT: "true" }),
+
+      "production ではフラグが true でも開発用 snapshot は無効");
+
+    const files = ["data/cities/australia/sydney.json", "data/cities/australia/gold-coast.json"];
+
+    const registered = new Map<string, string[]>();
+
+    for (const file of files) {
+
+      const doc = JSON.parse(readFileSync(file, "utf8"));
+
+      registered.set(doc.cityKey, (doc.entries ?? []).map((e: { category: string }) => e.category).sort());
+
+    }
+
+    assert(
+
+      (registered.get("sydney") ?? []).join(",") === "housing,safety,transport",
+
+      `Sydney の公開 category（実際: ${(registered.get("sydney") ?? []).join(",")}）`,
+
+    );
+
+    assert(
+
+      (registered.get("goldcoast") ?? []).join(",") === "food,housing,transport,utilities",
+
+      `Gold Coast の公開 category（実際: ${(registered.get("goldcoast") ?? []).join(",")}）`,
+
+    );
+
+    assert(!(registered.get("sydney") ?? []).includes("food"), "Sydney の food は未登録のまま");
+
+    assert(!(registered.get("goldcoast") ?? []).includes("safety"), "Gold Coast の safety は未登録のまま");
+
+    // 公開データに Numbeo 由来の指数が混ざっていないこと。
+
+    for (const file of files) {
+
+      const raw = readFileSync(file, "utf8");
+
+      for (const banned of ["numbeo", "safetyIndex", "crimeIndex", "costOfLivingIndex", "rentIndex", "groceriesIndex", "restaurantIndex", "dev_snapshot"]) {
+
+        assert(!new RegExp(banned, "i").test(raw), `${file}: ${banned} が混ざっていない`);
+
+      }
+
+    }
+
+    // 生成 SQL にも混ざっていないこと。
+
+    const seed = readFileSync("supabase/seed/city_reference_data.generated.sql", "utf8");
+
+    for (const banned of ["numbeo", "safetyIndex", "crimeIndex", "costOfLivingIndex", "rentIndex", "groceriesIndex", "restaurantIndex", "dev_snapshot"]) {
+
+      assert(!new RegExp(banned, "i").test(seed), `生成 SQL: ${banned} が混ざっていない`);
+
+    }
+
+    assert(!/^\s*(drop|truncate|alter|grant|revoke)\b/im.test(seed), "生成 SQL に破壊的な DDL が無い");
+
+    assert((seed.match(/on conflict \(city_key, category\)/g) ?? []).length === 7, "7件すべてが upsert");
+
+  }
+
 
   console.log("");
   console.log(`passed: ${pass} / failed: ${fail}`);

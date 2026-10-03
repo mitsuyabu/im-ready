@@ -545,6 +545,39 @@ async function main() {
     );
   }
 
+  console.log("回答ルール: 公開データの金額を改変させない（Phase 7 の実機確認）");
+  {
+    // 実機では AUD 0.50 を「AUD 1」、AUD 19.30 / 9.65 を「19 / 10」と丸めていた。
+    // 公的に決まっている運賃の改変は誤案内になるため、数値厳守を指示する。
+    const costEntry = publicEntry("sydney", "transport", {
+      summary: "1日あたりの上限は月〜木が AUD 19.30、金〜日・祝日が AUD 9.65、1週間の上限は AUD 50 です。",
+      notes: "距離帯ごとの運賃は未確認。発効日の記載なし。",
+    });
+    const ctx = buildCityReferenceContext([costEntry], ["sydney"]) ?? "";
+    assert(ctx.includes("書かれている数値をそのまま"), "渡された数値をそのまま使わせる");
+    assert(
+      ctx.includes("小数点以下を省略・四捨五入しないでください"),
+      "小数点以下の省略・四捨五入を禁止している",
+    );
+    assert(ctx.includes("1ドル未満の金額を切り上げないでください"), "1ドル未満の切り上げを禁止している");
+    assert(
+      ctx.includes("単位の言葉と金額を混同しないでください"),
+      "「1回あたり」などの単位語と金額の混同を禁止している",
+    );
+    assert(ctx.includes("乗り放題"), "1回ごとの運賃を乗り放題と言い換えさせない");
+    assert(
+      ctx.includes("週あたりの金額を月あたりへ") || ctx.includes("勝手に換算しないでください"),
+      "単位の勝手な換算を禁止している",
+    );
+    assert(
+      ctx.includes("その都市の数値ではない"),
+      "一般的な目安をこの都市の相場として語らせない",
+    );
+    assert(ctx.includes("前提や限界"), "補足の前提・限界を数値と一緒に伝えさせる");
+    // 補足（公開の注意書き）は渡るが、内部メモは渡らない。
+    assert(ctx.includes("距離帯ごとの運賃は未確認"), "公開の補足はコンテキストへ渡る");
+  }
+
   console.log("");
   console.log(`passed: ${pass} / failed: ${fail}`);
   if (fail > 0) process.exit(1);
