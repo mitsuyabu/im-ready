@@ -1,3 +1,4 @@
+import type { ChatSource } from "@/lib/referenceSources";
 import type { DisplayProposal } from "@/lib/proposal/applyResult";
 import type { ProposalSituation } from "@/lib/proposal/selectProposals";
 
@@ -16,6 +17,12 @@ export type ProposalMessageData = {
 /** 表示用のメッセージ。提案メッセージだけ、テキストの裏に構造化データ(proposalData)を持つ */
 export type DisplayMessage = ChatMessage & {
   proposalData?: ProposalMessageData;
+  /**
+   * そのターンの回答で使った確認済みリファレンスの出典（回答の下の出典パネル用）。
+   * サーバーが X-Reference-Sources ヘッダで返したものだけを入れる。
+   * 画面表示専用で、/api/chat・/api/karte へは送らない（toChatMessages で落ちる）。
+   */
+  sources?: ChatSource[];
 };
 
 export function isValidMessages(value: unknown): value is ChatMessage[] {

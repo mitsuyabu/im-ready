@@ -12,9 +12,11 @@ import { isValidMessages } from "@/lib/chat";
 import type { Karte } from "@/lib/karte";
 import { detectCityReferenceIntent, resolveCityKeysForChat } from "@/lib/cityReferenceIntent";
 import {
+  buildCityReferenceCitations,
   buildCityReferenceContext,
   buildCityReferenceNeedsCityContext,
   buildCityReferenceNoDataContext,
+  cityCitationsToSourceCandidates,
 } from "@/lib/cityReferenceContext";
 import { loadCityReferenceEntries } from "@/lib/cityReferenceServer";
 import {
@@ -24,11 +26,18 @@ import {
 } from "@/lib/devCitySnapshot";
 import { detectVisaIntent, resolveVisaKeysForChat } from "@/lib/visaReferenceIntent";
 import {
+  buildVisaCitations,
   buildVisaNeedsVisaContext,
   buildVisaNoDataContext,
   buildVisaReferenceContext,
+  visaCitationsToSourceCandidates,
 } from "@/lib/visaReferenceContext";
 import { loadVisaReferenceEntries } from "@/lib/visaReferenceServer";
+import {
+  buildChatSources,
+  CHAT_SOURCE_MAX,
+  type SourceCandidate,
+} from "@/lib/referenceSources";
 import { createClient } from "@/lib/supabase/server";
 import { loadPlanBlueprint } from "@/lib/planBlueprint";
 
@@ -84,6 +93,12 @@ async function buildCityReferenceContextForTurn(
   messages: { role: string; content: string }[],
   karte: Karte | null,
   planId: string | null,
+  /**
+   * そのターンの出典候補を集める配列（リクエストごとに新しく作って渡す）。
+   * **LLM へ渡した category の出典だけ**を入れる（DB の全 entry は出さない）。
+   * 開発用 snapshot は出典を持たないため、ここには入らない。
+   */
+  collect: SourceCandidate[],
 ): Promise<string | null> {
   try {
     const intent = detectCityReferenceIntent(latestUserText(messages));
@@ -111,6 +126,9 @@ async function buildCityReferenceContextForTurn(
 
     const entries = await loadCityReferenceEntries(supabase, resolution.cityKeys, intent.categories);
     const publicContext = entries.length > 0 ? buildCityReferenceContext(entries, resolution.cityKeys) : null;
+    if (entries.length > 0) {
+      collect.push(...cityCitationsToSourceCandidates(buildCityReferenceCitations(entries)));
+    }
 
     // ここから下は開発・検証時のみ。production では isDevCitySnapshotEnabled() が常に false。
     //
@@ -171,6 +189,7 @@ function statedBoolean(karte: Karte, block: "work", key: "workingHolidayInterest
 async function buildVisaContextForTurn(
   messages: { role: string; content: string }[],
   karte: Karte | null,
+  collect: SourceCandidate[],
 ): Promise<string | null> {
   try {
     const intent = detectVisaIntent(latestUserText(messages));
@@ -201,6 +220,8 @@ async function buildVisaContextForTurn(
     if (entries.length === 0) {
       return buildVisaNoDataContext(resolution.visaKeys, intent.categories);
     }
+
+    collect.push(...visaCitationsToSourceCandidates(buildVisaCitations(entries)));
 
     return buildVisaReferenceContext(entries, {
       mentionsTax: intent.mentionsTax,
@@ -250,14 +271,18 @@ export async function POST(req: NextRequest) {
   const inferredContextText = usePlanKarteContext ? buildInferredContextText(validKarte) : null;
 
   // 都市の治安・生活費を聞かれたターンだけ、確認済みの都市情報を足す（毎ターンは入れない）。
+  // そのターンで実際に使った確認済みリファレンスの出典候補（回答下の出典パネル用）。
+  const sourceCandidates: SourceCandidate[] = [];
+
   const cityReferenceContextText = await buildCityReferenceContextForTurn(
     messages,
     validKarte,
     typeof planId === "string" && planId.length > 0 ? planId : null,
+    sourceCandidates,
   );
 
   // ビザ・手続きを聞かれたターンだけ、確認済みのビザ情報を足す（毎ターンは入れない）。
-  const visaReferenceContextText = await buildVisaContextForTurn(messages, validKarte);
+  const visaReferenceContextText = await buildVisaContextForTurn(messages, validKarte, sourceCandidates);
 
   const stream = anthropic.messages.stream({
     model: MODEL,
@@ -324,10 +349,18 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return new Response(readable, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-cache",
-    },
-  });
+  // 出典は**レスポンスヘッダ**で返す。本文は従来どおり素のテキストストリームのままなので、
+  // 既存のクライアント（/widget・Plan Chat）の読み取り処理を変えずに追加できる。
+  // 値は非ASCIIを含むため base64 にする（ヘッダに日本語をそのまま置けない）。
+  const sources = buildChatSources(sourceCandidates, CHAT_SOURCE_MAX);
+  const headers: Record<string, string> = {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": "no-cache",
+  };
+  if (sources.length > 0) {
+    headers["X-Reference-Sources"] = Buffer.from(JSON.stringify(sources), "utf8").toString("base64");
+    headers["Access-Control-Expose-Headers"] = "X-Reference-Sources";
+  }
+
+  return new Response(readable, { headers });
 }

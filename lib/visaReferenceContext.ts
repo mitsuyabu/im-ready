@@ -13,6 +13,7 @@
  * 文章が含まれ得るため、長さを制限し改行・制御文字を1行へ畳んでから渡す。
  */
 
+import type { SourceCandidate } from "@/lib/referenceSources";
 import {
   VISA_CATEGORY_LABELS,
   VISA_META,
@@ -721,6 +722,20 @@ export type VisaCitation = {
   sourceUpdatedAt: string | null;
   reviewedAt: string;
 };
+
+/** ビザの citation を出典パネル用の候補へ寄せる。 */
+export function visaCitationsToSourceCandidates(citations: VisaCitation[]): SourceCandidate[] {
+  return citations.map((c) => ({
+    sourceName: c.sourceName,
+    sourceUrl: c.sourceUrl,
+    sourceType: c.sourceType,
+    reviewedAt: c.reviewedAt,
+    sourceUpdatedAt: c.sourceUpdatedAt,
+    // ビザ側の出典の内部メモは公開 view に無く、この型にも存在しないため渡さない。
+    note: null,
+    topic: `${c.visaLabel} / ${c.categoryLabel}`,
+  }));
+}
 
 export function buildVisaCitations(entries: VisaReferenceEntry[]): VisaCitation[] {
   const citations: VisaCitation[] = [];

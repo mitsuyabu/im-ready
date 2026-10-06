@@ -27,6 +27,8 @@ import { fallbackGradientForPlan } from "./PlanCard";
 import { getPlanCoverImage } from "@/lib/planCover";
 import { summarizeKarteForCard } from "@/lib/planCardSummary";
 import type { ChatMessage, DisplayMessage, ProposalMessageData } from "@/lib/chat";
+import SourceDisclosure from "@/components/chat/SourceDisclosure";
+import { isSafeSourceUrl, type ChatSource } from "@/lib/referenceSources";
 import {
   confirmKarte,
   flagOpenQuestions,
@@ -49,6 +51,42 @@ const isDev = process.env.NODE_ENV !== "production";
 /** /api/chat・/api/karte に送るときは role/content だけの素の形に戻す */
 function toChatMessages(list: DisplayMessage[]): ChatMessage[] {
   return list.map(({ role, content }) => ({ role, content }));
+}
+
+/**
+ * /api/chat の X-Reference-Sources ヘッダ（base64 の JSON）を読む。
+ * 本文はこれまで通り素のテキストストリームなので、読み取り処理は変えていない。
+ * 壊れていた場合は出典なしとして扱い、チャット自体は止めない。
+ */
+function readSourcesHeader(res: Response): ChatSource[] {
+  const raw = res.headers.get("X-Reference-Sources");
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(
+      new TextDecoder().decode(Uint8Array.from(atob(raw), (c) => c.charCodeAt(0))),
+    );
+    if (!Array.isArray(parsed)) return [];
+    const sources: ChatSource[] = [];
+    for (const item of parsed) {
+      if (!item || typeof item !== "object") continue;
+      const s = item as Record<string, unknown>;
+      // 画面へ出す前にクライアント側でも最低限の確認をする（https 以外は捨てる）。
+      if (typeof s.name !== "string" || typeof s.url !== "string" || typeof s.label !== "string") continue;
+      if (!isSafeSourceUrl(s.url)) continue;
+      sources.push({
+        name: s.name,
+        url: s.url,
+        label: s.label,
+        reviewedAt: typeof s.reviewedAt === "string" ? s.reviewedAt : undefined,
+        updatedAt: typeof s.updatedAt === "string" ? s.updatedAt : undefined,
+        note: typeof s.note === "string" ? s.note : undefined,
+        topic: typeof s.topic === "string" ? s.topic : undefined,
+      });
+    }
+    return sources;
+  } catch {
+    return [];
+  }
 }
 
 function formatProposalMessage(
@@ -403,6 +441,9 @@ export default function Chat({
         return;
       }
 
+      // 出典はヘッダで来るので、ストリームを読み始める前に取得できる。
+      const sources = readSourcesHeader(res);
+
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistantText = "";
@@ -417,7 +458,7 @@ export default function Chat({
         assistantText += chunk;
         setMessages([
           ...history,
-          { role: "assistant", content: assistantText },
+          { role: "assistant", content: assistantText, ...(sources.length > 0 ? { sources } : {}) },
         ]);
       }
 
@@ -625,12 +666,19 @@ export default function Chat({
             comparisonHref={planId ? `/plans/${planId}/documents/school-comparison` : undefined}
           />
         ) : (
-          <Message
-            key={i}
-            role={m.role}
-            content={m.content}
-            variant={isPlanChat ? "document" : "bubble"}
-          />
+          <div key={i}>
+            <Message
+              role={m.role}
+              content={m.content}
+              variant={isPlanChat ? "document" : "bubble"}
+            />
+            {m.role === "assistant" && m.sources && m.sources.length > 0 ? (
+              <SourceDisclosure
+                sources={m.sources}
+                className={isPlanChat ? "" : "px-1 sm:px-2"}
+              />
+            ) : null}
+          </div>
         ),
       )}
       {isSending &&
@@ -705,7 +753,12 @@ export default function Chat({
               comparisonHref={planId ? `/plans/${planId}/documents/school-comparison` : undefined}
             />
           ) : (
-            <PlanChatMessage role={m.role} content={m.content} userAvatarUrl={userAvatarUrl} />
+            <>
+              <PlanChatMessage role={m.role} content={m.content} userAvatarUrl={userAvatarUrl} />
+              {m.role === "assistant" && m.sources && m.sources.length > 0 ? (
+                <SourceDisclosure sources={m.sources} />
+              ) : null}
+            </>
           )}
           {i === firstAssistantIdx && i < messages.length - 1 && <PlanChatDivider />}
         </Fragment>
