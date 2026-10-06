@@ -5,6 +5,7 @@
  * RLSは常に有効（plans.user_id経由の所有者判定）で、service role keyは使わない。
  */
 
+import { sanitizeStoredChatSources, type ChatSource } from "@/lib/referenceSources";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   createEmptyKarte,
@@ -61,6 +62,8 @@ type ChatMessageRow = {
   role: "user" | "assistant";
   content: string;
   proposal_data: ProposalMessageData | null;
+  /** 回答下の出典パネル用。古い行には無いので null が来る。 */
+  sources?: unknown;
 };
 
 /** そのセッションの会話履歴を、作成順（created_at, idの順）で復元する */
@@ -68,18 +71,39 @@ export async function loadChatMessages(
   supabase: SupabaseClient,
   sessionId: string,
 ): Promise<DisplayMessage[]> {
-  const { data } = await supabase
+  // sources 列はあとから足した列なので、まだ適用されていない環境でも履歴が壊れないよう、
+  // 列が無い場合は sources なしで読み直す（本文の復元を出典のために失敗させない）。
+  let rows: ChatMessageRow[] | null = null;
+  const withSources = await supabase
     .from("chat_messages")
-    .select("role, content, proposal_data")
+    .select("role, content, proposal_data, sources")
     .eq("session_id", sessionId)
     .order("created_at", { ascending: true })
     .order("id", { ascending: true });
 
-  return ((data ?? []) as ChatMessageRow[]).map((row) => ({
-    role: row.role,
-    content: row.content,
-    ...(row.proposal_data ? { proposalData: row.proposal_data } : {}),
-  }));
+  if (withSources.error) {
+    console.error("chat_messages select error (sources):", withSources.error.message);
+    const fallback = await supabase
+      .from("chat_messages")
+      .select("role, content, proposal_data")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true });
+    rows = (fallback.data ?? []) as ChatMessageRow[];
+  } else {
+    rows = (withSources.data ?? []) as ChatMessageRow[];
+  }
+
+  return rows.map((row) => {
+    // 保存済みの値をそのまま信用せず、表示前に再検証する。
+    const sources = row.role === "assistant" ? sanitizeStoredChatSources(row.sources) : [];
+    return {
+      role: row.role,
+      content: row.content,
+      ...(row.proposal_data ? { proposalData: row.proposal_data } : {}),
+      ...(sources.length > 0 ? { sources } : {}),
+    };
+  });
 }
 
 /**
@@ -137,11 +161,30 @@ export async function saveChatMessage(
   role: "user" | "assistant",
   content: string,
   proposalData: ProposalMessageData | null = null,
+  /**
+   * その回答で表示した出典（assistant のときだけ）。
+   * 渡す前に buildChatSources で dedupe・件数制限済みの値を使う（生の候補は渡さない）。
+   */
+  sources: ChatSource[] | null = null,
 ): Promise<void> {
-  const { error } = await supabase
-    .from("chat_messages")
-    .insert({ session_id: sessionId, role, content, proposal_data: proposalData });
-  if (error) console.error("chat_messages insert error:", error.message);
+  const base = { session_id: sessionId, role, content, proposal_data: proposalData };
+  // 出典は assistant の回答にだけ付ける（user の発言には出典が無い）。
+  const storable = role === "assistant" ? sanitizeStoredChatSources(sources ?? []) : [];
+
+  if (storable.length === 0) {
+    const { error } = await supabase.from("chat_messages").insert(base);
+    if (error) console.error("chat_messages insert error:", error.message);
+    return;
+  }
+
+  const { error } = await supabase.from("chat_messages").insert({ ...base, sources: storable });
+  if (!error) return;
+
+  // 出典の保存に失敗しても会話自体は成立させる（列が未適用の環境を含む）。
+  // 本文だけ保存し、reload 後は出典パネルが出ないという挙動に留める。
+  console.error("chat_messages insert error (sources):", error.message);
+  const retry = await supabase.from("chat_messages").insert(base);
+  if (retry.error) console.error("chat_messages insert error:", retry.error.message);
 }
 
 export type OtherKartePatch = {

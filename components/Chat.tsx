@@ -228,9 +228,15 @@ export default function Chat({
   const latestAppliedSeqRef = useRef(0);
 
   /** planId指定時のみ chat_messages に1件保存する。/widget（planId未指定）では何もしない */
-  function persistMessage(role: "user" | "assistant", content: string, proposalData: ProposalMessageData | null = null) {
+  function persistMessage(
+    role: "user" | "assistant",
+    content: string,
+    proposalData: ProposalMessageData | null = null,
+    /** その回答で表示した出典（assistant のときだけ）。reload 後も出典パネルを復元するため保存する。 */
+    sources: ChatSource[] | null = null,
+  ) {
     if (!planId || !sessionId) return;
-    void saveChatMessage(createClient(), sessionId, role, content, proposalData);
+    void saveChatMessage(createClient(), sessionId, role, content, proposalData, sources);
   }
 
   /**
@@ -475,7 +481,8 @@ export default function Chat({
       }
 
       // ストリーミングが正常完了した時点でassistantメッセージを保存する（extractKarteの完了は待たない）
-      persistMessage("assistant", assistantText);
+      // 出典（ヘッダ由来の sanitized な値）も一緒に保存し、reload 後も同じパネルを出せるようにする。
+      persistMessage("assistant", assistantText, null, sources.length > 0 ? sources : null);
 
       // 完了したやり取りからカルテを差分更新する（バックグラウンド、失敗しても会話は継続）
       void extractKarte(

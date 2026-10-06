@@ -72,6 +72,7 @@ const SOURCE_RANK: Record<string, number> = {
 export const CHAT_SOURCE_MAX = 5;
 
 const NAME_MAX = 120;
+const LABEL_MAX = 80;
 const NOTE_MAX = 160;
 const TOPIC_MAX = 60;
 
@@ -118,6 +119,47 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function date(value: string | null | undefined): string | undefined {
   return typeof value === "string" && ISO_DATE.test(value) ? value : undefined;
+}
+
+/**
+ * 保存済み（DB）の出典を画面へ出す前に再検証する。
+ *
+ * 保存した時点では sanitized でも、**保存済みの値をそのまま信用しない**
+ * （手で書き換えられた行・古い形式・壊れた JSON で UI を壊さないため）。
+ * 検証は buildChatSources と同じ規則（https のみ・必須項目・長さ上限・件数上限・URL 重複排除）。
+ */
+export function sanitizeStoredChatSources(value: unknown, max = CHAT_SOURCE_MAX): ChatSource[] {
+  if (!Array.isArray(value)) return [];
+  const candidates: SourceCandidate[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    if (typeof row.name !== "string" || typeof row.url !== "string") continue;
+    candidates.push({
+      sourceName: row.name,
+      sourceUrl: row.url,
+      // 種別は保存していないため、保存済みラベルをそのまま使う（下で差し替える）。
+      sourceType: "__stored__",
+      reviewedAt: typeof row.reviewedAt === "string" ? row.reviewedAt : null,
+      sourceUpdatedAt: typeof row.updatedAt === "string" ? row.updatedAt : null,
+      note: typeof row.note === "string" ? row.note : null,
+      topic: typeof row.topic === "string" ? row.topic : null,
+    });
+  }
+  const labels = new Map<string, string>();
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    if (typeof row.url === "string" && typeof row.label === "string") {
+      const label = clamp(row.label, LABEL_MAX);
+      if (label && !labels.has(row.url)) labels.set(row.url, label);
+    }
+  }
+  return buildChatSources(candidates, max).map((source) => ({
+    ...source,
+    // 保存時のラベルを優先し、無ければ当たり障りのない表現にする。
+    label: labels.get(source.url) ?? sourceTypeLabel("__stored__"),
+  }));
 }
 
 /** buildChatSources の入力（ビザ・都市の citation を同じ形へ寄せたもの）。 */
