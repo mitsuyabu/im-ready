@@ -83,9 +83,15 @@ console.log("Test 3: セカンドビザを「3ヶ月働けば取れる」と読�
     "「働けば必ず取れる」と解釈されない説明がある",
   );
   assert(PROMPT.includes("88日"), "俗称「88日」に触れつつ条件を説明している");
+  // Phase 8.6: 証拠の具体名はここで挙げない方針になったため、
+  // 「条件の存在を示す」ことと「証拠は確認済みデータに限る」ことの両方を見る。
   assert(
-    PROMPT.includes("対象となる業種・地域・期間の条件") && PROMPT.includes("証拠"),
-    "業種・地域・期間・証拠という条件の存在を示している",
+    PROMPT.includes("対象となる業種・地域・期間などの条件"),
+    "業種・地域・期間という条件の存在を示している",
+  );
+  assert(
+    PROMPT.includes("必要な証拠・書類の具体名は、確認済みのデータに書かれているものだけを案内する"),
+    "証拠の具体名は確認済みデータに限ると示している",
   );
   assert(
     PROMPT.includes("このサービスでは保証できない"),
@@ -230,7 +236,52 @@ console.log("Test 13: 417 の未確認項目に固定値を置いていない");
     PROMPT.includes("年齢などの申請資格（eligibility）の条件がある"),
     "条件の存在だけを示して具体値は公式に委ねている",
   );
-  assert(PROMPT.includes("滞在期間は通常12ヶ月"), "確認済みの大枠（通常12ヶ月）は残している");
+}
+
+console.log("Test 14: 417 の未確認な具体値・書類名が常時注入の知識ベースに無い（Phase 8.6）");
+{
+  // 毎ターン注入されるこのセクションに、human-reviewed な 417 reference data で
+  // 裏づけられていない断定が残っていた（stay は entry 未登録、specified work の
+  // 一般的な証拠要件は unverified として明記されている）。別表現への置き換えも禁止。
+  assert(!/給与明細/.test(PROMPT), "1. 「給与明細が必要」と断定していない");
+  assert(!/残高証明|bank statement|通帳/i.test(PROMPT), "2. 「残高証明」等を必要書類として挙げていない");
+  assert(!/払込|雇用証明|シフト表|payslip/i.test(PROMPT), "2. その他の書類名も挙げていない");
+  assert(!/滞在期間は通常12ヶ月/.test(PROMPT), "3. 「滞在期間は通常12ヶ月」を置いていない");
+  for (const alt of ["12ヶ月", "12か月", "1年間", "通常1年", "最長1年", "およそ1年", "12 months"]) {
+    assert(!PROMPT.includes(alt), `4. 同義の固定値「${alt}」へ置き換えていない`);
+  }
+  // 417 の stay は未確認のまま（reference data 側にも entry が無い）という状態と矛盾しない
+  const whv = JSON.parse(readFileSync("data/visas/australia/working-holiday-417.json", "utf8"));
+  const categories = (whv.entries ?? []).map((e: { category: string }) => e.category);
+  assert(!categories.includes("stay"), "5. 417 の stay は reference data にも未登録のまま");
+  assert(
+    PROMPT.includes("具体的な期間は確認済みのデータが無いため、こちらから数値を示さない"),
+    "5. 期間は確認済みデータが無いことを明示している",
+  );
+  assert(
+    PROMPT.includes("確認済みのデータに書かれているものだけを案内する"),
+    "1. 書類名は確認済みデータに限る指示がある",
+  );
+  // formal data がある 4 カテゴリの大枠は壊していない
+  assert(
+    PROMPT.includes("同一雇用主のもとで働ける期間には制限があり"),
+    "6. same_employer の大枠は維持されている",
+  );
+  assert(
+    PROMPT.includes("specified work（指定された業種・地域・期間の仕事）"),
+    "6. specified_work の大枠は維持されている",
+  );
+  assert(
+    PROMPT.includes("農場で日数を働けば必ず取得できるというものではない"),
+    "6. second_third の単純化防止は維持されている",
+  );
+  assert(
+    PROMPT.includes("年齢などの申請資格（eligibility）の条件がある"),
+    "6. eligibility の大枠は維持されている",
+  );
+  // 学生ビザ側の既存記述は変えていない
+  assert(PROMPT.includes("48 hours per fortnight"), "学生ビザの就労条件は維持されている");
+  assert(PROMPT.includes("AUD$29,710"), "学生ビザの資金要件は維持されている");
 }
 
 console.log("");
