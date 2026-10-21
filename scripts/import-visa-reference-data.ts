@@ -308,6 +308,72 @@ function validateDetails(details: Record<string, unknown>, c: Collector, categor
     }
   }
 
+  // 証明方法・証拠の確認状態（evidenceStatus / evidenceGuidance）。
+  // 「未確認」を取り違えて verified 扱いにしたり、未確認なのに具体的な書類名を
+  // データへ書いてしまうのを防ぐ。financial_capacity 以外へは適用しない。
+  if (details.evidenceStatus !== undefined) {
+    const status = details.evidenceStatus;
+    if (status !== "unverified" && status !== "verified") {
+      c.add(category, "evidenceStatus", '"unverified" か "verified" のどちらかにしてください');
+      ok = false;
+    }
+    const guidance =
+      details.evidenceGuidance && typeof details.evidenceGuidance === "object" && !Array.isArray(details.evidenceGuidance)
+        ? (details.evidenceGuidance as Record<string, unknown>)
+        : null;
+    if (!guidance) {
+      c.add(category, "evidenceGuidance", "evidenceStatus を持つ場合は evidenceGuidance（オブジェクト）も必要です");
+      ok = false;
+    } else {
+      const verifiedEvidence = Array.isArray(guidance.verifiedEvidence) ? guidance.verifiedEvidence : [];
+      if (status === "unverified") {
+        // 未確認なら「確認済み」フラグを立てず、具体的な書類名も持たせない。
+        if (guidance.specificMethodsVerified !== false) {
+          c.add(
+            category,
+            "evidenceGuidance.specificMethodsVerified",
+            "evidenceStatus が unverified のときは specificMethodsVerified: false を明示してください",
+          );
+          ok = false;
+        }
+        if (guidance.doNotNameSpecificDocuments !== true) {
+          c.add(
+            category,
+            "evidenceGuidance.doNotNameSpecificDocuments",
+            "evidenceStatus が unverified のときは doNotNameSpecificDocuments: true を明示してください（回答で書類名を挙げさせないため）",
+          );
+          ok = false;
+        }
+        if (verifiedEvidence.length > 0) {
+          c.add(
+            category,
+            "evidenceGuidance.verifiedEvidence",
+            "evidenceStatus が unverified のまま、確認済みの書類名を入れることはできません",
+          );
+          ok = false;
+        }
+      } else {
+        // verified にするなら、人間が確認した書類が1件以上あり、一次情報の出典も要る。
+        if (guidance.specificMethodsVerified !== true) {
+          c.add(
+            category,
+            "evidenceGuidance.specificMethodsVerified",
+            "evidenceStatus が verified のときは specificMethodsVerified: true が必要です",
+          );
+          ok = false;
+        }
+        if (verifiedEvidence.length === 0) {
+          c.add(
+            category,
+            "evidenceGuidance.verifiedEvidence",
+            "evidenceStatus を verified にする場合は、人間が確認した書類を verifiedEvidence へ入れてください",
+          );
+          ok = false;
+        }
+      }
+    }
+  }
+
   // processing: 固定日数の保証を禁止する
   if (category === "processing") {
     if (details.guaranteed === true) {
@@ -570,6 +636,18 @@ export function validateVisaDocument(file: string, raw: unknown): VisaValidation
 
     // 一次情報（Home Affairs）が無い場合、照合が未了であることが失われていないか
     const hasPrimary = sources.some((s) => s.sourceType === "home_affairs");
+
+    // 証明方法を「確認済み」にするなら、一次情報の出典が必要
+    // （validateDetails は出典を見ないため、出典が使えるここで確認する）。
+    if (details.evidenceStatus === "verified" && !hasPrimary) {
+      c.add(
+        category,
+        "evidenceGuidance",
+        "証明方法を verified にする場合は一次情報（home_affairs）の出典が必要です",
+      );
+      continue;
+    }
+
     const reviewNote = text(entry.reviewNote);
     const unverifiedList = Array.isArray(details.unverified) ? details.unverified : [];
     if (!hasPrimary) {

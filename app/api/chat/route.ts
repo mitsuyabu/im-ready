@@ -30,6 +30,7 @@ import {
   buildVisaNeedsVisaContext,
   buildVisaNoDataContext,
   buildVisaReferenceContext,
+  buildVisaUnverifiedEvidenceContext,
   visaCitationsToSourceCandidates,
 } from "@/lib/visaReferenceContext";
 import { loadVisaReferenceEntries } from "@/lib/visaReferenceServer";
@@ -219,6 +220,41 @@ async function buildVisaContextForTurn(
 
     if (entries.length === 0) {
       return buildVisaNoDataContext(resolution.visaKeys, intent.categories);
+    }
+
+    // 資金要件の「どう証明するか」を聞かれたが、その証明方法が未確認の場合は、
+    // **推測の材料を渡さない経路**へ切り替える（金額も entry 本文も渡さない）。
+    // 判定は question intent と entry の evidenceStatus の**両方**で行う
+    // （キーワードだけで未確認と決め打ちしない）。
+    const financialEntry = entries.find((e) => e.category === "financial_capacity");
+    const evidenceUnverified =
+      financialEntry !== undefined && financialEntry.details.evidenceStatus === "unverified";
+    const asksEvidenceMethod =
+      intent.financialQuestion === "evidence_method" || intent.financialQuestion === "mixed";
+
+    if (evidenceUnverified && asksEvidenceMethod) {
+      // 渡してよい entry だけを残す。
+      //   mixed（金額も聞かれている）: 資金要件の entry も残す（金額は確認済みの候補値）
+      //   evidence_method（証明方法だけ）: 資金要件の entry は渡さない
+      //     （金額や周辺の記述が、書類名を思い浮かべる材料になるため）
+      const keepEntries =
+        intent.financialQuestion === "mixed"
+          ? entries
+          : entries.filter((e) => e.category !== "financial_capacity");
+
+      const evidenceContext = buildVisaUnverifiedEvidenceContext(resolution.visaKeys);
+      if (keepEntries.length === 0) {
+        // 資金要件しか選ばれていない場合は、未確認のコンテキストだけを渡す。
+        // 出典は付けない（「未確認」という判断に対応する確認済み出典が無いため）。
+        return evidenceContext;
+      }
+
+      collect.push(...visaCitationsToSourceCandidates(buildVisaCitations(keepEntries)));
+      const keptContext = buildVisaReferenceContext(keepEntries, {
+        mentionsTax: intent.mentionsTax,
+        mentionsFarmJobSearch: intent.mentionsFarmJobSearch,
+      });
+      return keptContext ? `${keptContext}\n\n---\n\n${evidenceContext}` : evidenceContext;
     }
 
     collect.push(...visaCitationsToSourceCandidates(buildVisaCitations(entries)));

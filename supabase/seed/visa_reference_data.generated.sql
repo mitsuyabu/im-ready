@@ -1,6 +1,6 @@
 -- visa_reference_data / visa_reference_sources の登録用 SQL
 -- scripts/import-visa-reference-data.ts が data/visas/ の JSON から生成
--- 生成: 2026-10-02T04:20:55.023Z
+-- 生成: 2026-10-21T06:30:49.523Z
 -- entry 数: 15（australia_student_500: 11 / australia_working_holiday_417: 4）
 -- 適用方法: 内容を目で確認したうえで、Supabase の SQL エディタで実行する。
 -- 対象 entry 以外は変更しない（upsert のみ。DELETE は対象 entry の出典の入れ替えだけ）。
@@ -120,8 +120,8 @@ with upserted as (
     visa_key, visa_code, visa_name, country_code, category, summary, details, reviewed_at, review_note, updated_at
   ) values (
     'australia_student_500', '500', 'Student visa (subclass 500)', 'AU',
-    'financial_capacity', '2024年5月10日以降に申請する場合、単身の学生について年間 AUD 29,710 の資金を示す必要があります。', '{"amount":29710,"currency":"AUD","basis":"minimum","per":"year","effectiveFrom":"2024-05-10","items":["単身の学生の場合の金額"],"unverified":["家族を伴う場合の金額","学費・渡航費を含むかどうかの扱い","資金の証明方法","Home Affairs での正確な金額の一次確認（今回のページでは『十分な資金が必要』と Gather Documents の参照までしか確認できていない）"],"primarySourceVerified":false}'::jsonb,
-    '2026-10-01'::date, 'Study Australia の2024年変更ページで金額（$29,710 for an individual student）と適用開始日（2024-05-10 以降の申請）を確認。既存の lib/data/cities.ts の値と一致。 Home Affairs は HTTP 403 で取得できず、一次情報との照合は未了。家族同伴時の金額・資金の証明方法は未確認。 2026-10-02: Home Affairs の Student visa ページでは『enough money が必要』『最低額は Gather Documents を参照』までしか確認できず、正確な金額の一次確認は未了。したがって primarySourceVerified は false のまま、金額は Study Australia 由来の候補として維持する。', now()
+    'financial_capacity', '2024年5月10日以降に申請する場合、単身の学生について年間 AUD 29,710 の資金を示す必要があります。', '{"amount":29710,"currency":"AUD","basis":"minimum","per":"year","effectiveFrom":"2024-05-10","items":["単身の学生の場合の金額"],"evidenceStatus":"unverified","evidenceGuidance":{"specificMethodsVerified":false,"doNotNameSpecificDocuments":true,"verifiedEvidence":[],"note":"資金要件の具体的な証明方法・必要書類は、現在の human-reviewed な Home Affairs 資料では未確認。具体的な書類名を回答に挙げない。"},"unverified":["家族を伴う場合の金額","学費・渡航費を含むかどうかの扱い","資金の証明方法","Home Affairs での正確な金額の一次確認（今回のページでは『十分な資金が必要』と Gather Documents の参照までしか確認できていない）"],"primarySourceVerified":false}'::jsonb,
+    '2026-10-01'::date, 'Study Australia の2024年変更ページで金額（$29,710 for an individual student）と適用開始日（2024-05-10 以降の申請）を確認。既存の lib/data/cities.ts の値と一致。 Home Affairs は HTTP 403 で取得できず、一次情報との照合は未了。家族同伴時の金額・資金の証明方法は未確認。 2026-10-02: Home Affairs の Student visa ページでは『enough money が必要』『最低額は Gather Documents を参照』までしか確認できず、正確な金額の一次確認は未了。したがって primarySourceVerified は false のまま、金額は Study Australia 由来の候補として維持する。 2026-10-20: 証明方法が未確認であることを details の evidenceStatus / evidenceGuidance として構造化し、Chat が機械的に判定して具体的な書類名を出さないようにした（新しい証明方法は追加していない）。', now()
   )
   on conflict (visa_key, category) do update set
     visa_code = excluded.visa_code,

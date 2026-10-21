@@ -178,6 +178,13 @@
         "items": [
           "単身の学生の場合の金額"
         ],
+        "evidenceStatus": "unverified",
+        "evidenceGuidance": {
+          "specificMethodsVerified": false,
+          "doNotNameSpecificDocuments": true,
+          "verifiedEvidence": [],
+          "note": "資金要件の具体的な証明方法・必要書類は、現在の human-reviewed な Home Affairs 資料では未確認。具体的な書類名を回答に挙げない。"
+        },
         "unverified": [
           "家族を伴う場合の金額",
           "学費・渡航費を含むかどうかの扱い",
@@ -187,7 +194,7 @@
         "primarySourceVerified": false
       },
       "reviewedAt": "2026-10-01",
-      "reviewNote": "Study Australia の2024年変更ページで金額（$29,710 for an individual student）と適用開始日（2024-05-10 以降の申請）を確認。既存の lib/data/cities.ts の値と一致。 Home Affairs は HTTP 403 で取得できず、一次情報との照合は未了。家族同伴時の金額・資金の証明方法は未確認。 2026-10-02: Home Affairs の Student visa ページでは『enough money が必要』『最低額は Gather Documents を参照』までしか確認できず、正確な金額の一次確認は未了。したがって primarySourceVerified は false のまま、金額は Study Australia 由来の候補として維持する。",
+      "reviewNote": "Study Australia の2024年変更ページで金額（$29,710 for an individual student）と適用開始日（2024-05-10 以降の申請）を確認。既存の lib/data/cities.ts の値と一致。 Home Affairs は HTTP 403 で取得できず、一次情報との照合は未了。家族同伴時の金額・資金の証明方法は未確認。 2026-10-02: Home Affairs の Student visa ページでは『enough money が必要』『最低額は Gather Documents を参照』までしか確認できず、正確な金額の一次確認は未了。したがって primarySourceVerified は false のまま、金額は Study Australia 由来の候補として維持する。 2026-10-20: 証明方法が未確認であることを details の evidenceStatus / evidenceGuidance として構造化し、Chat が機械的に判定して具体的な書類名を出さないようにした（新しい証明方法は追加していない）。",
       "sources": [
         {
           "sourceName": "Study Australia - Student and Temporary Graduate visa changes: 2024",

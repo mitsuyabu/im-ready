@@ -91,7 +91,21 @@ const VISA_TOPIC_GATED_KEYWORDS: { category: VisaCategory; keywords: string[] }[
   },
   {
     category: "work_rights",
-    keywords: ["どれくらい働", "どのくらい働", "どれだけ働", "働けます", "働ける", "アルバイトでき", "バイトでき"],
+    keywords: [
+      "どれくらい働",
+      "どのくらい働",
+      "どれだけ働",
+      "働けます",
+      "働ける",
+      // 「学生ビザで働くことができますか？」という実際の聞き方が基本セットへ落ちていたため追加。
+      // 基本セットだと eligibility / stay まで注入され、回答が別テーマへ広がりやすい。
+      "働くことができ",
+      "働くことは",
+      "働いても",
+      "就労でき",
+      "アルバイトでき",
+      "バイトでき",
+    ],
   },
   {
     category: "costs",
@@ -153,6 +167,57 @@ const VISA_TOPIC_GATED_KEYWORDS: { category: VisaCategory; keywords: string[] }[
   },
 ];
 
+/**
+ * 資金要件（financial_capacity）について、**何を聞いているか**を分ける語。
+ *
+ * 現在の curated data では「金額」は確認済みの候補値がある一方、
+ * 「どう証明するか・何を提出するか」は Home Affairs で未確認（evidenceStatus: unverified）。
+ * 同じコンテキストを渡すと、LLM が一般知識から書類名を補ってしまうため、問いの種類で分ける。
+ */
+const FINANCIAL_AMOUNT_WORDS = [
+  "いくら",
+  "金額",
+  "何円",
+  "何ドル",
+  "どれくらい必要",
+  "どのくらい必要",
+  "最低",
+  "いくら必要",
+  "必要資金",
+  "資金要件",
+];
+
+const FINANCIAL_EVIDENCE_METHOD_WORDS = [
+  "どう証明",
+  "どうやって証明",
+  "どのように証明",
+  "証明方法",
+  "証明の方法",
+  "どう示す",
+  "どうやって示す",
+  "どのように示す",
+  "示し方",
+  "何を提出",
+  "何を出せば",
+  "どんな書類",
+  "どの書類",
+  "必要書類",
+  "書類は何",
+  "提出書類",
+];
+
+/** 資金要件の問いの種類。amount / evidence_method / mixed / unspecified。 */
+export type FinancialQuestionKind = "amount" | "evidence_method" | "mixed" | "unspecified";
+
+function detectFinancialQuestionKind(lower: string): FinancialQuestionKind {
+  const amount = includesAny(lower, FINANCIAL_AMOUNT_WORDS);
+  const method = includesAny(lower, FINANCIAL_EVIDENCE_METHOD_WORDS);
+  if (amount && method) return "mixed";
+  if (method) return "evidence_method";
+  if (amount) return "amount";
+  return "unspecified";
+}
+
 /** ビザという語だけで category が絞れない場合に渡す基本セット。 */
 const DEFAULT_CATEGORIES: VisaCategory[] = ["eligibility", "work_rights", "stay"];
 
@@ -194,6 +259,12 @@ export type VisaIntent = {
   mentionsTax: boolean;
   /** ファームの仕事探しの話か（specified work と区別する）。 */
   mentionsFarmJobSearch: boolean;
+  /**
+   * 資金要件について、金額を聞いているのか証明方法を聞いているのか。
+   * categories に financial_capacity が入っているときだけ意味を持つ。
+   * 証明方法が未確認の entry では、呼び出し側がこれを見て詳細を渡さない経路へ切り替える。
+   */
+  financialQuestion: FinancialQuestionKind;
 };
 
 function includesAny(text: string, words: string[]): boolean {
@@ -247,8 +318,13 @@ export function detectVisaIntent(latestUserMessage: string): VisaIntent | null {
 
   // ビザ以外でも出てくる言い方は、ビザの話だと分かる場合だけ category へ回す。
   if (mentionsVisaTopic) {
+    // 「資金はいくら？」は資金要件の話で、申請料（costs）ではない。
+    // 一般的な「いくら」系の語だけで costs を足すと、申請料の金額が混ざって誤案内になる。
+    const asksFunds = includesAny(lower, ["資金", "残高", "貯金"]);
+    const asksApplicationFee = includesAny(lower, ["ビザ代", "申請費", "申請料", "fee"]);
     for (const { category, keywords } of VISA_TOPIC_GATED_KEYWORDS) {
       if (categories.includes(category)) continue;
+      if (category === "costs" && asksFunds && !asksApplicationFee) continue;
       if (includesAny(lower, keywords.map((k) => k.toLowerCase()))) categories.push(category);
     }
   }
@@ -269,6 +345,7 @@ export function detectVisaIntent(latestUserMessage: string): VisaIntent | null {
     categories: resolved.filter((c) => (VISA_CATEGORIES as readonly string[]).includes(c)),
     mentionsTax,
     mentionsFarmJobSearch,
+    financialQuestion: detectFinancialQuestionKind(lower),
   };
 }
 

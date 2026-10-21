@@ -376,9 +376,15 @@ console.log("回答ルール: 証拠をデータ以外から足させない（Ph
   // 以前は回答ルール自身が「給与明細などの証拠も必要になります」と書いていたため、
   // curated data が一般要件として登録していない書類を Chat が必須として案内していた。
   const ctx = buildVisaReferenceContext([toEntry("specified_work"), toEntry("second_third")], { now: NOW }) ?? "";
+  // Phase 8.3 で規則を「必ず守ること」（最優先セクション）へ昇格したため、
+  // 文言が「上のデータ」から「下のデータ」へ変わっている。両方を許容して意図だけを固定する。
   assert(
-    ctx.includes("上のデータに書かれているものだけ"),
+    ctx.includes("データに書かれているものだけ") || ctx.includes("データに出てくるものだけ"),
     "証拠は渡されたデータにあるものだけを挙げるよう指示している",
+  );
+  assert(
+    (ctx.split("## 必ず守ること")[1] ?? "").includes("書類名・証拠の名前は、下のデータに出てくるものだけ"),
+    "その指示が最優先セクションに入っている",
   );
   assert(
     ctx.includes("足さないでください"),
