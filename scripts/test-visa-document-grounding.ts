@@ -364,6 +364,124 @@ console.log("Test 12: 内部の確認状態を出典パネル・永続化へ出�
   assert(!/evidence|primarySourceVerified/.test(stored), "永続化される値にも内部状態が入らない");
 }
 
+console.log("Test 13: 417 documents は確認済み画面の範囲だけ（2026-10-23 human-review）");
+{
+  const docs = entryOf("australia_working_holiday_417", "documents");
+  const det = docs.details as Record<string, unknown>;
+
+  // 必須側は画面で「必須」と確認できた2点だけ
+  const required = readFactList(det, "requiredDocuments");
+  assert(required.length === 2, `必須は2件（実際: ${required.length}）`);
+  assert(required.some((v) => v.includes("パスポート")), "パスポートのページが必須側にある");
+  assert(required.some((v) => v.includes("出生証明書")), "出生証明書のコピーが必須側にある");
+
+  // 出生証明書の代替は「取得できない場合」に限定されており、必須側へ入っていない
+  const alt = (det.birthCertificateAlternatives ?? {}) as Record<string, unknown>;
+  assert(String(alt.appliesWhen ?? "").includes("取得することもできない"), "代替は取得できない場合に限る");
+  assert(readFactList(alt, "options").length === 3, "代替は3件");
+  assert(
+    !required.some((v) => /family book|政府が発行した身分証明書|裁判所/.test(v)),
+    "代替を必須側へ入れていない",
+  );
+
+  // 「might ask」のものは必須側ではなく mayBeRequested
+  const mayBe = readFactList(det, "mayBeRequestedDocuments");
+  assert(mayBe.some((v) => v.includes("might ask")), "人物の書類は might ask として記録されている");
+  assert(!required.some((v) => v.includes("警察")), "警察証明を必須側へ入れていない");
+
+  // 資金の証拠: 金額は usually のまま、書類名は未確認
+  const fin = (det.financialEvidence ?? {}) as Record<string, unknown>;
+  assert(fin.amount === 5000 && fin.currency === "AUD", "金額 AUD 5,000 を保持");
+  assert(fin.basis === "usually", `basis は usually（実際: ${String(fin.basis)}）`);
+  assert(
+    String(fin.amountWording ?? "").includes("usually"),
+    "公式の表現（usually）を記録している",
+  );
+  assert(String(fin.exitRequirement ?? "").includes("航空券"), "出国のための資金の要件を保持");
+  assert(fin.specificDocumentTypesVerified === false, "証明書類の種類は未確認として記録");
+
+  // 警察証明の種類の違いを落としていない
+  const ch = (det.characterDocuments ?? {}) as Record<string, unknown>;
+  const au = (ch.australianPoliceCertificate ?? {}) as Record<string, unknown>;
+  assert(String(au.accepted ?? "").includes("complete disclosure"), "受理される種類を記録");
+  assert(
+    readFactList(au, "notAccepted").some((v) => v.includes("standard disclosure")),
+    "受理されない種類（standard disclosure）を記録",
+  );
+  assert(
+    readFactList(au, "notAccepted").some((v) => v.includes("州・テリトリー")),
+    "州・テリトリー警察発行が不受理であることを記録",
+  );
+  assert(String(au.appliesWhen ?? "").includes("16歳") && String(au.appliesWhen ?? "").includes("12か月"), "豪州側の条件を記録");
+  const os = (ch.overseasPoliceCertificate ?? {}) as Record<string, unknown>;
+  assert(String(os.appliesWhen ?? "").includes("母国"), "国外側の条件（母国を含む各国）を記録");
+
+  // 認証（certified）は不要と明記されている
+  const tr = (det.translationRequirements ?? {}) as Record<string, unknown>;
+  assert(String(tr.certificationNote ?? "").includes("You do not need"), "certified 不要の文言を記録");
+  assert(String(tr.inAustralia ?? "").includes("NAATI"), "豪州内は NAATI 認定が必要");
+
+  // 健康に関する書類は作らず、未確認として残している
+  const unverified = readFactList(det, "unverified");
+  assert(
+    unverified.some((v) => v.includes("健康")),
+    "健康に関する書類が未確認として記録されている",
+  );
+  for (const group of ["requiredDocuments", "caseDependentDocuments", "mayBeRequestedDocuments"]) {
+    assert(
+      !readFactList(det, group).some((v) => /健康診断|health examination|medical examination/i.test(v)),
+      `${group} に健康診断等を作っていない`,
+    );
+  }
+
+  // Phase 8.3〜8.6 の禁止書類名が entry にもファイルにも無い
+  const serialized = JSON.stringify(docs);
+  for (const word of BANNED_DOCUMENT_WORDS) {
+    assert(!serialized.includes(word), `417 documents に「${word}」が無い`);
+  }
+  const raw = readFileSync("data/visas/australia/working-holiday-417.json", "utf8");
+  for (const word of ["給与明細", "bank statement", "残高証明", "通帳", "雇用証明", "シフト表"]) {
+    assert(!raw.includes(word), `417 の curated data に「${word}」が無い`);
+  }
+
+  // 出典は一次情報1件
+  assert(docs.sources.length === 1 && docs.sources[0].sourceType === "home_affairs", "出典は Home Affairs 1件");
+  assert(docs.sources[0].accessedAt === "2026-10-23", "確認日が記録されている");
+  assert(docs.sources[0].sourceUpdatedAt === null, "更新日は推測していない（null）");
+}
+
+console.log("Test 14: 417 documents のコンテキストが条件と種類を落とさない");
+{
+  const { data } = contextFor("ワーホリの必要書類は？");
+  for (const need of [
+    "パスポート",
+    "出生証明書",
+    "AUD 5,000",
+    "通常はこの額",
+    "航空券",
+    "We might ask you to provide",
+    "complete disclosure",
+    "standard disclosure",
+    "16歳",
+    "12か月",
+    "母国",
+    "Form 956",
+    "NAATI",
+    "You do not need",
+    "1回だけ",
+  ]) {
+    assert(data.includes(need), `「${need}」が渡る`);
+  }
+  assert(
+    data.includes("資金をどの書類で示すかは確認できていません"),
+    "資金の証明書類が未確認であることが渡る",
+  );
+  for (const word of BANNED_DOCUMENT_WORDS) {
+    assert(!data.includes(word), `データ部に「${word}」が無い`);
+  }
+  assert(!/健康診断|medical examination/i.test(data), "健康診断を作っていない");
+}
+
 console.log("");
 console.log(`passed: ${pass} / failed: ${fail}`);
 if (fail > 0) process.exit(1);

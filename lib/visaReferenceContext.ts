@@ -22,6 +22,8 @@ import {
   needsVisaReviewCaution,
   readFactList,
   readMoneyFact,
+  readStageDurationFacts,
+  readStageMoneyFacts,
   readWorkHourLimit,
   type VisaCategory,
   type VisaKey,
@@ -99,6 +101,13 @@ function formatMoneyBasis(basis: string | null): string {
       return "（最低額）";
     case "exact":
       return "（確定額）";
+    case "usually":
+      // 公式が "usually" と書いている場合。「最低額」「必ず必要」と強めないこと。
+      return "（公式の表現は「通常はこの額」。最低額や確定額として断定しないこと）";
+    case "exact_as_displayed":
+      // 画面にこの額が表示されていた、までの確認。"from" とも書かれておらず、
+      // 法的に固定された額であることも適用開始日も確認していない。
+      return "（Home Affairs の確認画面にこの額が表示されていた。「〜から」「最低額」とは書かれていない。確定額・固定額として断定しないこと）";
     default:
       return "";
   }
@@ -107,6 +116,12 @@ function formatMoneyBasis(basis: string | null): string {
 /** details から、category ごとに意味の分かる行を作る。無い値は行を作らない。 */
 function detailLines(entry: VisaReferenceEntry): string[] {
   const lines: string[] = [];
+
+  // この entry がどの申請について確認したものか。
+  // First の情報をセカンド・サードの必須要件として扱わせないため、先頭に出す。
+  if (typeof entry.details.appliesTo === "string") {
+    lines.push(`    - この情報の範囲: ${asData(entry.details.appliesTo, 240)}`);
+  }
 
   // 就労時間の上限（単位つき）。同一雇用主の期間制限などは duration 側で持つため null になる。
   const work = readWorkHourLimit(entry.details);
@@ -126,6 +141,25 @@ function detailLines(entry: VisaReferenceEntry): string[] {
     lines.push(
       `    - 金額: ${money.currency} ${money.amount.toLocaleString("en-US")}${per ? `／${per}` : ""}${formatMoneyBasis(money.basis)}${money.effectiveFrom ? `／適用開始: ${money.effectiveFrom}` : ""}`,
     );
+  }
+
+  // 申請の回ごとに金額が違う場合（417 の申請料）。
+  // 1つの代表額へ丸めると、どれかの回の金額を間違って伝えることになるため、回ごとに出す。
+  const stageMoney = readStageMoneyFacts(entry.details);
+  if (stageMoney.length > 0) {
+    const topPer = typeof entry.details.per === "string" ? entry.details.per : null;
+    const per = topPer === "application" ? "1申請あたり" : topPer === "year" ? "年あたり" : topPer ?? "";
+    for (const stage of stageMoney) {
+      lines.push(
+        `    - 金額（${stage.label}）: ${stage.currency} ${stage.amount.toLocaleString("en-US")}${per ? `／${per}` : ""}${formatMoneyBasis(stage.basis)}${stage.officialWording ? `／公式の表示: ${asData(stage.officialWording, 80)}` : ""}`,
+      );
+    }
+    const amounts = new Set(stageMoney.map((s) => `${s.currency} ${s.amount}`));
+    if (amounts.size > 1) {
+      lines.push(
+        "    - 上の金額は申請の回ごとに違う。どの回のことか指定されていない質問には、**どれか1つだけを答えにせず**、回ごとの額を簡潔に3つ示すこと（回を取り違えないこと）。3つとも渡っているので、**どの回のことかを聞き返す必要はない**",
+      );
+    }
   }
 
   // 証明方法・証拠の確認状態（entry 固有のルール）。
@@ -202,6 +236,15 @@ function detailLines(entry: VisaReferenceEntry): string[] {
   }
   if (typeof entry.details.effectiveFromSource === "string") {
     lines.push(`    - 適用開始日の出典: ${asData(entry.details.effectiveFromSource, 240)}`);
+  }
+  // 適用開始日が未確認であること自体を渡す（渡さないと、ページの更新日などから
+  // 「いつからこの額か」を補われてしまう）。
+  if (typeof entry.details.effectiveFromNote === "string") {
+    lines.push(`    - 適用開始日について: ${asData(entry.details.effectiveFromNote, 300)}`);
+  }
+  // 公式画面の書き方そのものについての注意（「〜から」と書かれているか等）。
+  if (typeof entry.details.displayNote === "string") {
+    lines.push(`    - 公式画面の書き方: ${asData(entry.details.displayNote, 300)}`);
   }
   if (typeof entry.details.policyStatus === "string" || typeof entry.details.policyNote === "string") {
     const note = typeof entry.details.policyNote === "string" ? asData(entry.details.policyNote, 400) : "";
@@ -401,6 +444,132 @@ function detailLines(entry: VisaReferenceEntry): string[] {
     lines.push(`    - 英語のスコアについて: ${asData(entry.details.englishScoreNote, 300)}`);
   }
 
+  // 出生証明書が取れない場合の代替。**通常の必須書類と同列に見せない**。
+  const birthAlt = entry.details.birthCertificateAlternatives;
+  if (birthAlt && typeof birthAlt === "object" && !Array.isArray(birthAlt)) {
+    const b = birthAlt as Record<string, unknown>;
+    const options = readFactList(b, "options");
+    if (options.length > 0) {
+      const when = typeof b.appliesWhen === "string" ? asData(b.appliesWhen, 160) : "";
+      const note = typeof b.note === "string" ? asData(b.note, 240) : "";
+      lines.push(
+        `    - 出生証明書の代わりになるもの（${when}）: ${options.map((v) => asData(v, 120)).join(" / ")}${note ? `。${note}` : ""}`,
+      );
+    }
+  }
+
+  // 名前を変更している場合の証明。公式が例示として挙げているだけなので、限定列挙に見せない。
+  const nameChange = entry.details.nameChangeEvidence;
+  if (nameChange && typeof nameChange === "object" && !Array.isArray(nameChange)) {
+    const n = nameChange as Record<string, unknown>;
+    const examples = readFactList(n, "examples");
+    if (examples.length > 0) {
+      const when = typeof n.appliesWhen === "string" ? asData(n.appliesWhen, 120) : "";
+      const wording = typeof n.officialWording === "string" ? asData(n.officialWording, 200) : "";
+      const note = typeof n.note === "string" ? asData(n.note, 200) : "";
+      lines.push(
+        `    - 名前の変更の証明（${when}）: ${examples.slice(0, LIST_ITEM_MAX).map((v) => asData(v, 120)).join(" / ")}${wording ? `。${wording}` : ""}${note ? `。${note}` : ""}`,
+      );
+    }
+  }
+
+  // 資金の証拠。金額の「公式の弱さ」と、書類名が未確認であることを同じ場所に出す。
+  const financial = entry.details.financialEvidence;
+  if (financial && typeof financial === "object" && !Array.isArray(financial)) {
+    const f = financial as Record<string, unknown>;
+    if (typeof f.requirement === "string") {
+      lines.push(`    - 資金の証拠: ${asData(f.requirement, 240)}`);
+    }
+    if (typeof f.amount === "number" && typeof f.currency === "string") {
+      const wording = typeof f.amountWording === "string" ? asData(f.amountWording, 240) : "";
+      // 金額を単独で書き写されると「最低額」と断定されやすいため、
+      // 公式の弱い表現（usually = 通常は）を数字の直前に置いて一体で渡す。
+      const prefix = f.basis === "usually" ? "通常は " : "";
+      lines.push(
+        `    - 金額の目安: ${prefix}${f.currency} ${f.amount.toLocaleString("en-US")}${formatMoneyBasis(typeof f.basis === "string" ? f.basis : null)}${wording ? `。${wording}` : ""}`,
+      );
+    }
+    if (typeof f.exitRequirement === "string") {
+      // 金額だけ答えて出国のための資金が落ちると、要件を半分しか伝えないことになる。
+      lines.push(
+        `    - 出国のための資金（金額と一緒に必ず伝えること）: ${asData(f.exitRequirement, 240)}`,
+      );
+    }
+    if (typeof f.ifNotAttached === "string") {
+      lines.push(`    - 証拠を添付しない場合: ${asData(f.ifNotAttached, 240)}`);
+    }
+    if (f.specificDocumentTypesVerified === false) {
+      lines.push(
+        `    - **資金をどの書類で示すかは確認できていません。** 書類の名前を1つも書かず、「どのような書類で示すかは今回確認できている情報では特定できません」と伝えて、公式での確認を案内してください${typeof f.note === "string" ? `。${asData(f.note, 240)}` : ""}`,
+      );
+    }
+  }
+
+  // 人物（character）の書類。全員必須に見せないこと、証明書の種類の違いを落とさないことを同じ場所に出す。
+  const character = entry.details.characterDocuments;
+  if (character && typeof character === "object" && !Array.isArray(character)) {
+    const ch = character as Record<string, unknown>;
+    if (typeof ch.officialWording === "string") {
+      lines.push(`    - 人物（character）の書類: ${asData(ch.officialWording, 240)}`);
+    }
+    const au = ch.australianPoliceCertificate;
+    if (au && typeof au === "object" && !Array.isArray(au)) {
+      const a = au as Record<string, unknown>;
+      const notAccepted = readFactList(a, "notAccepted");
+      lines.push(
+        `    - オーストラリアの警察証明: ${typeof a.appliesWhen === "string" ? asData(a.appliesWhen, 240) : ""}${typeof a.accepted === "string" ? `／受理されるもの: ${asData(a.accepted, 240)}` : ""}${notAccepted.length > 0 ? `／受理されないもの: ${notAccepted.map((v) => asData(v, 120)).join(" / ")}` : ""}${typeof a.note === "string" ? `。${asData(a.note, 200)}` : ""}`,
+      );
+    }
+    const os = ch.overseasPoliceCertificate;
+    if (os && typeof os === "object" && !Array.isArray(os)) {
+      const o = os as Record<string, unknown>;
+      lines.push(
+        `    - 国外の警察証明: ${typeof o.appliesWhen === "string" ? asData(o.appliesWhen, 240) : ""}${typeof o.note === "string" ? `。${asData(o.note, 200)}` : ""}`,
+      );
+    }
+    const mil = ch.militaryRecords;
+    if (mil && typeof mil === "object" && !Array.isArray(mil)) {
+      const m = mil as Record<string, unknown>;
+      const options = readFactList(m, "options");
+      lines.push(
+        `    - 軍の記録: ${typeof m.appliesWhen === "string" ? asData(m.appliesWhen, 160) : ""}${options.length > 0 ? `／${options.map((v) => asData(v, 80)).join(" / ")}` : ""}${typeof m.officialWording === "string" ? `。${asData(m.officialWording, 200)}` : ""}`,
+      );
+    }
+  }
+
+  // 申請の事務手続きの様式。必要書類の一覧と混同させない。
+  const forms = entry.details.administrativeForms;
+  if (forms && typeof forms === "object" && !Array.isArray(forms)) {
+    const fm = forms as Record<string, unknown>;
+    const items = readFactList(fm, "items");
+    if (items.length > 0) {
+      lines.push(
+        `    - 申請の手続きのための様式（本人の資格を示す書類ではない）: ${items.map((v) => asData(v, 200)).join(" / ")}${typeof fm.submission === "string" ? `／${asData(fm.submission, 160)}` : ""}${typeof fm.note === "string" ? `。${asData(fm.note, 200)}` : ""}`,
+      );
+    }
+  }
+
+  // 翻訳・スキャン・添付の要件。
+  const translation = entry.details.translationRequirements;
+  if (translation && typeof translation === "object" && !Array.isArray(translation)) {
+    const t = translation as Record<string, unknown>;
+    for (const [key, label] of [
+      ["rule", "翻訳"],
+      ["inAustralia", "翻訳（オーストラリア国内）"],
+      ["outsideAustralia", "翻訳（オーストラリア国外）"],
+      ["certificationNote", "認証（certified）について"],
+    ] as const) {
+      if (typeof t[key] === "string") lines.push(`    - ${label}: ${asData(String(t[key]), 400)}`);
+    }
+  }
+  const scan = readFactList(entry.details, "scanRequirements");
+  if (scan.length > 0) {
+    lines.push(`    - 書類の形式: ${scan.map((v) => asData(v, 160)).join(" / ")}`);
+  }
+  if (typeof entry.details.attachRule === "string") {
+    lines.push(`    - 添付の仕方: ${asData(entry.details.attachRule, 200)}`);
+  }
+
   // 必要書類の最終確認手段。
   if (typeof entry.details.finalCheck === "string") {
     lines.push(`    - 最終的な確認手段: ${asData(entry.details.finalCheck, 300)}`);
@@ -414,6 +583,27 @@ function detailLines(entry: VisaReferenceEntry): string[] {
   }
   if (entry.details.guaranteed === false) {
     lines.push("    - 重要: 審査期間は保証ではない。「○日で出ます」「○日以内に出ます」と言わないこと");
+  }
+  // 公式ページに表示されていた「現時点の平均の目安」。
+  // 数字だけを渡すと保証された期間として読まれるため、公式の弱い言い方（expected to be around）と
+  // 確認日・保証ではないこと・最新は guide tool で見ることを**同じ場所で**渡す。
+  const averageGuidance = entry.details.currentAverageGuidance;
+  if (averageGuidance && typeof averageGuidance === "object" && !Array.isArray(averageGuidance)) {
+    const g = averageGuidance as Record<string, unknown>;
+    const value = typeof g.value === "number" && Number.isFinite(g.value) ? g.value : null;
+    const unit = typeof g.unit === "string" ? g.unit : null;
+    if (value !== null && unit !== null) {
+      const wording = typeof g.wording === "string" ? asData(g.wording, 80) : "";
+      const official = typeof g.officialWording === "string" ? asData(g.officialWording, 200) : "";
+      const checkedAt = typeof g.checkedAt === "string" ? asData(g.checkedAt, 20) : "";
+      lines.push(
+        `    - 確認した時点で公式ページに表示されていた平均の目安: ${value} ${asData(unit, 40)}${wording ? `（公式の言い方は「${wording}」）` : ""}${checkedAt ? `。確認日: ${checkedAt}` : ""}`,
+      );
+      if (official) lines.push(`    - 公式の原文: ${official}`);
+      lines.push(
+        "    - この目安の伝え方: 「公式ページでは平均しておよそ○か月程度と案内されています」という形で、**目安として**伝えること。そのうえで、これは最近決定された申請にもとづく目安で個別の申請に当てはまる期間ではないこと、最新の目安は Home Affairs の processing time guide で確認できることを添えること",
+      );
+    }
   }
   if (entry.details.outsideAustraliaPrioritySystem === true) {
     const note = typeof entry.details.directionsNote === "string" ? asData(entry.details.directionsNote, 300) : "";
@@ -442,6 +632,62 @@ function detailLines(entry: VisaReferenceEntry): string[] {
     lines.push(
       `    - 期間: ${duration} ${asData(durationUnit, 40)}${upTo ? "（**上限**であり、全員がこの期間になるわけではない）" : ""}${enrolment ? "／就学の登録内容（enrolment）に沿って決まる" : ""}`,
     );
+  }
+  // 申請の回ごとの申請方法・申請場所（417 の application）。
+  // 1回目について確認できていることと、2回目・3回目について確認できていることは意味が違う。
+  // 同じ行にまとめると「2回目も国外からオンライン」と読まれてしまうので、必ず分けて渡す。
+  const firstStage = entry.details.first;
+  if (firstStage && typeof firstStage === "object" && !Array.isArray(firstStage)) {
+    const f = firstStage as Record<string, unknown>;
+    const parts: string[] = [];
+    if (f.online === true) parts.push("オンラインで申請する");
+    if (f.locationRequirement === "outside_australia") {
+      parts.push("申請する時点でオーストラリアの外にいる必要がある");
+    }
+    if (parts.length > 0) {
+      const official = typeof f.officialWording === "string" ? asData(f.officialWording, 200) : "";
+      lines.push(
+        `    - 1回目（ファースト）の申請について確認できていること: ${parts.join("／")}${official ? `（公式の文: ${official}）` : ""}`,
+      );
+    }
+  }
+  const secondThirdStage = entry.details.secondThird;
+  if (secondThirdStage && typeof secondThirdStage === "object" && !Array.isArray(secondThirdStage)) {
+    const st = secondThirdStage as Record<string, unknown>;
+    const condition = st.inAustraliaStatusCondition;
+    if (condition && typeof condition === "object" && !Array.isArray(condition)) {
+      const cond = condition as Record<string, unknown>;
+      const options = readFactList(cond, "options");
+      if (options.length > 0) {
+        lines.push(
+          `    - 2回目・3回目について確認できているのは、**オーストラリア国内にいる場合に満たす必要がある状態**だけ: ${options.map((o) => asData(o, 200)).join(" または ")}`,
+        );
+      }
+      if (typeof cond.officialWording === "string") {
+        lines.push(`    - その公式の文: ${asData(cond.officialWording, 240)}`);
+      }
+      if (typeof cond.scopeNote === "string") {
+        lines.push(`    - この条件の範囲（必ず一緒に伝えること）: ${asData(cond.scopeNote, 400)}`);
+      }
+    }
+  }
+
+  // 申請の回ごとの期間（417 の滞在期間）。top-level の duration は持たないため、回ごとに出す。
+  const stageDuration = readStageDurationFacts(entry.details);
+  if (stageDuration.length > 0) {
+    for (const stage of stageDuration) {
+      lines.push(
+        `    - 期間（${stage.label}）: ${stage.duration} ${asData(stage.unit, 40)}${stage.officialWording ? `／公式の表示: ${asData(stage.officialWording, 80)}` : ""}`,
+      );
+    }
+    if (entry.details.sameAcrossStages === true) {
+      lines.push(
+        "    - 上の期間は申請の回による違いがない（3つとも同じ）。**回ごとに違わないことも答えの一部**なので、「1回目・2回目・3回目のいずれも」という形で伝え、どの回のことかを聞き返さないこと",
+      );
+    }
+  }
+  if (typeof entry.details.wordingNote === "string") {
+    lines.push(`    - 公式の表現について: ${asData(entry.details.wordingNote, 400)}`);
   }
   if (typeof entry.details.primarySchoolYears1to4MaxYears === "number") {
     lines.push(
@@ -562,7 +808,9 @@ function detailLines(entry: VisaReferenceEntry): string[] {
 function sourceLine(entry: VisaReferenceEntry): string {
   const parts = entry.sources.slice(0, 4).map((s) => {
     const updated = s.sourceUpdatedAt ?? s.sourcePublishedAt;
-    return `${asData(s.sourceName, NAME_MAX)}（${VISA_SOURCE_TYPE_LABELS[s.sourceType]}${updated ? `・${updated}` : ""}）${s.sourceUrl}`;
+    // 日付を裸で置くと、その日付が「この条件の適用開始日」だと読まれてしまう。
+    // これは**ページ全体の更新日**なので、そう書いて渡す。
+    return `${asData(s.sourceName, NAME_MAX)}（${VISA_SOURCE_TYPE_LABELS[s.sourceType]}${updated ? `・ページ更新日: ${updated}（各条件の適用開始日ではない）` : ""}）${s.sourceUrl}`;
   });
   return `    - 出典: ${parts.join(" / ")}`;
 }

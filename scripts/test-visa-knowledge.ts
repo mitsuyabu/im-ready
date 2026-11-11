@@ -250,10 +250,14 @@ console.log("Test 14: 417 の未確認な具体値・書類名が常時注入の
   for (const alt of ["12ヶ月", "12か月", "1年間", "通常1年", "最長1年", "およそ1年", "12 months"]) {
     assert(!PROMPT.includes(alt), `4. 同義の固定値「${alt}」へ置き換えていない`);
   }
-  // 417 の stay は未確認のまま（reference data 側にも entry が無い）という状態と矛盾しない
+  // 417 の stay は reference data 側にだけ持ち、**常時注入のこのセクションには置かない**
+  // （聞かれたターンだけ出典つきで渡す。常時注入すると出典なしの固定値になる）。
   const whv = JSON.parse(readFileSync("data/visas/australia/working-holiday-417.json", "utf8"));
-  const categories = (whv.entries ?? []).map((e: { category: string }) => e.category);
-  assert(!categories.includes("stay"), "5. 417 の stay は reference data にも未登録のまま");
+  const entries = (whv.entries ?? []) as { category: string; details?: Record<string, unknown> }[];
+  const stay = entries.find((e) => e.category === "stay");
+  assert(stay !== undefined, "5. 417 の stay は reference data 側に登録されている");
+  const first = (stay?.details?.first ?? {}) as Record<string, unknown>;
+  assert(first.duration === 12 && first.durationUnit === "months", "5. その値は 12 months（単位つき）");
   assert(
     PROMPT.includes("具体的な期間は確認済みのデータが無いため、こちらから数値を示さない"),
     "5. 期間は確認済みデータが無いことを明示している",

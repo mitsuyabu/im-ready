@@ -19,7 +19,15 @@ import {
 } from "@/lib/visaReferenceContext";
 import { buildChatSources, sanitizeStoredChatSources } from "@/lib/referenceSources";
 import { detectVisaIntent, resolveVisaKeysForChat } from "@/lib/visaReferenceIntent";
-import type { VisaCategory, VisaKey, VisaReferenceEntry } from "@/lib/visaReference";
+import {
+  hasFinancialEvidence,
+  hasUnverifiedFinancialEvidence,
+  readFactList,
+  withoutUnverifiedFinancialEvidence,
+  type VisaCategory,
+  type VisaKey,
+  type VisaReferenceEntry,
+} from "@/lib/visaReference";
 
 let pass = 0;
 let fail = 0;
@@ -101,20 +109,32 @@ function project(message: string, seed: VisaReferenceEntry[] = SEED): Projected 
   if (resolution.kind !== "resolved") {
     return { kind: "needsVisa", categories: intent.categories, context: "", sourceCount: 0, usedEntries: [] };
   }
-  const entries = seed.filter(
+  const loaded = seed.filter(
     (e) => resolution.visaKeys.includes(e.visaKey) && intent.categories.includes(e.category),
   );
+  // 資金の質問のために足した documents entry は、資金の情報を持つものだけ使う。
+  const entries = intent.asksDocuments
+    ? loaded
+    : loaded.filter((e) => e.category !== "documents" || hasFinancialEvidence(e));
   const financialEntry = entries.find((e) => e.category === "financial_capacity");
-  const evidenceUnverified =
+  const financialStateUnverified =
     financialEntry !== undefined && financialEntry.details.evidenceStatus === "unverified";
+  const entryEvidenceUnverified = entries.some(hasUnverifiedFinancialEvidence);
   const asksEvidenceMethod =
     intent.financialQuestion === "evidence_method" || intent.financialQuestion === "mixed";
+  const asksAmount = intent.financialQuestion === "amount" || intent.financialQuestion === "mixed";
 
-  if (evidenceUnverified && asksEvidenceMethod) {
-    const keep =
-      intent.financialQuestion === "mixed"
-        ? entries
-        : entries.filter((e) => e.category !== "financial_capacity");
+  if (
+    (financialStateUnverified && asksEvidenceMethod) ||
+    (entryEvidenceUnverified && (asksEvidenceMethod || !asksAmount))
+  ) {
+    const keep = entries
+      .filter(
+        (e) =>
+          !(financialStateUnverified && intent.financialQuestion === "evidence_method") ||
+          e.category !== "financial_capacity",
+      )
+      .map((e) => (asksAmount ? e : withoutUnverifiedFinancialEvidence(e)));
     const evidenceContext = buildVisaUnverifiedEvidenceContext(resolution.visaKeys);
     if (keep.length === 0) {
       return {
@@ -311,6 +331,194 @@ console.log("Test 12: 内部の確認状態を永続化しない");
   for (const word of ["evidenceStatus", "evidenceGuidance", "specificMethodsVerified", "verifiedEvidence"]) {
     assert(!stored.includes(word), `永続化される値に「${word}」が無い`);
   }
+}
+
+console.log("Test 13: 417 documents の未確認 financialEvidence（金額を聞かれていなければ渡さない）");
+{
+  // 書類そのものを聞かれたターン: 確認済みの必要書類は渡し、未確認の financialEvidence は外す
+  for (const q of [
+    "ワーホリの申請に必要な書類を教えてください",
+    "ワーホリの必要書類を教えてください",
+    "ワーホリの申請で、資金があることはどの書類で示せばいいですか？",
+  ]) {
+    const p = project(q);
+    // 禁止語はプロンプトの禁止リストにも出るため、データ部だけを見る。
+    const data = p.context.split("## データ")[1] ?? "";
+    assert(p.usedEntries.includes("documents"), `「${q}」: documents entry は渡す`);
+    assert(
+      data.includes("パスポート") && data.includes("出生証明書"),
+      `「${q}」: 確認済みの必要書類は残る`,
+    );
+    assert(
+      !data.includes("Enough money for your stay"),
+      `「${q}」: 未確認の financialEvidence は渡さない`,
+    );
+    assert(
+      !data.includes("資金をどの書類で示すかは確認できていません"),
+      `「${q}」: 「どの書類か不明」という記述そのものを渡さない`,
+    );
+    assert(
+      p.context.includes("現在確認できている情報では特定できません"),
+      `「${q}」: 未確認であることは未確認経路の文面で伝える`,
+    );
+    for (const w of BANNED) {
+      assert(!data.includes(w), `「${q}」: データ部に「${w}」が無い`);
+    }
+  }
+
+  // 金額を聞かれたターンでは、確認済みの金額を含む block を落とさない
+  const docs = SEED.filter(
+    (e) => e.visaKey === "australia_working_holiday_417" && e.category === "documents",
+  );
+  assert(docs.length === 1, "417 documents entry が seed にある");
+  assert(hasUnverifiedFinancialEvidence(docs[0]), "financialEvidence は未確認と判定される");
+  const stripped = withoutUnverifiedFinancialEvidence(docs[0]);
+  assert(stripped.details.financialEvidence === undefined, "射影で financialEvidence が外れる");
+  assert(
+    readFactList(stripped.details, "requiredDocuments").length === 2,
+    "射影しても必要書類は残る",
+  );
+  assert(docs[0].details.financialEvidence !== undefined, "元の entry は書き換えない");
+  const kept = buildVisaReferenceContext([docs[0]], {}) ?? "";
+  assert(kept.includes("AUD 5,000"), "金額を残す経路では AUD 5,000 が渡る");
+  assert(kept.includes("通常はこの額"), "基準が usually であることも渡る");
+}
+
+console.log("Test 14-A: 資金の金額質問が 417 documents へ届く");
+{
+  for (const q of [
+    "ワーホリの資金はいくら必要？",
+    "ワーホリはいくら持っていればいい？",
+    "オーストラリアのワーホリで必要なお金はいくら？",
+  ]) {
+    const p = project(q);
+    assert(p.categories.includes("documents"), `「${q}」: documents へ routing される`);
+    assert(p.usedEntries.includes("documents"), `「${q}」: documents entry を使う`);
+    const data = p.context.split("## データ")[1] ?? "";
+    assert(data.includes("AUD 5,000"), `「${q}」: AUD 5,000 が渡る`);
+    assert(data.includes("通常はこの額"), `「${q}」: basis が usually として渡る`);
+    assert(
+      !data.includes("最低 AUD") && !data.includes("最低額です") && !data.includes("最低5,000"),
+      `「${q}」: 「最低」へ変換していない`,
+    );
+    assert(data.includes("航空券"), `「${q}」: 出国の資金・航空券の要件が渡る`);
+    for (const w of BANNED) {
+      assert(!data.includes(w), `「${q}」: データ部に「${w}」が無い`);
+    }
+  }
+}
+
+console.log("Test 14-B: 申請料の質問は資金（AUD 5,000）へ誤 routing しない");
+{
+  for (const q of ["ワーホリのビザはいくら？", "417の申請料はいくら？", "ワーホリビザの費用は？"]) {
+    const p = project(q);
+    assert(!p.usedEntries.includes("documents"), `「${q}」: documents entry を使わない`);
+    assert(!p.context.includes("AUD 5,000"), `「${q}」: AUD 5,000 が渡らない`);
+  }
+  // 申請料の語がある場合は costs 側へ回り、資金要件へは回さない。
+  const fee = project("417の申請料はいくら？");
+  assert(fee.categories.includes("costs"), "申請料は costs へ routing される");
+  assert(!fee.categories.includes("financial_capacity"), "申請料は資金要件へ回さない");
+}
+
+console.log("Test 14-C: 証明方法の質問は documents へ届くが未確認 block は渡さない");
+{
+  for (const q of [
+    "ワーホリの資金は何の書類で証明する？",
+    "ワーホリの資金証明には何を提出しますか？",
+    "ワーホリの資金はどの書類で示せばいいですか？",
+  ]) {
+    const p = project(q);
+    assert(p.usedEntries.includes("documents"), `「${q}」: documents entry を使う`);
+    const data = p.context.split("## データ")[1] ?? "";
+    assert(
+      !data.includes("資金をどの書類で示すかは確認できていません"),
+      `「${q}」: 未確認の financialEvidence block は渡さない`,
+    );
+    assert(
+      p.context.includes("現在確認できている情報では特定できません"),
+      `「${q}」: 未確認であることは未確認経路の文面で伝える`,
+    );
+    for (const w of BANNED) {
+      assert(!data.includes(w), `「${q}」: データ部に「${w}」が無い`);
+    }
+  }
+}
+
+console.log("Test 14-D: mixed は金額を答えつつ証明書類は未確認のまま");
+{
+  const q = "ワーホリではいくら資金が必要で、何の書類で証明しますか？";
+  const p = project(q);
+  assert(p.kind.startsWith("mixed"), `mixed と判定される（実際: ${p.kind}）`);
+  const data = p.context.split("## データ")[1] ?? "";
+  assert(data.includes("AUD 5,000"), "金額は渡る");
+  assert(data.includes("通常はこの額"), "basis が usually として渡る");
+  assert(
+    p.context.includes("現在確認できている情報では特定できません"),
+    "証明書類が未確認であることも渡る",
+  );
+  for (const w of BANNED) {
+    assert(!data.includes(w), `データ部に「${w}」が無い`);
+  }
+}
+
+console.log("Test 14-E: 警察証明・character の質問が documents へ届く");
+{
+  for (const q of [
+    "ワーホリで警察証明は必要？",
+    "ワーホリで police certificate は必要？",
+    "ワーホリで無犯罪証明は必要？",
+  ]) {
+    const p = project(q);
+    assert(p.categories.includes("documents"), `「${q}」: documents へ routing される`);
+    const data = p.context.split("## データ")[1] ?? "";
+    assert(data.includes("might ask"), `「${q}」: 「might ask」の表現が渡る`);
+    assert(data.includes("complete disclosure"), `「${q}」: 受理される種類が渡る`);
+    assert(data.includes("standard disclosure"), `「${q}」: 受理されない種類が渡る`);
+    assert(data.includes("母国"), `「${q}」: 国外側の条件が渡る`);
+  }
+}
+
+console.log("Test 14-F: ビザと無関係な警察の話では起動しない");
+{
+  for (const q of [
+    "シドニーで警察に行くときはどうすればいい？",
+    "警察の電話番号は？",
+    "現地で警察に相談したいです",
+    "警察官になるにはどうすればいい？",
+  ]) {
+    const p = project(q);
+    assert(p.kind === "none", `「${q}」: ビザ層が起動しない（実際: ${p.kind}）`);
+  }
+}
+
+console.log("Test 14-G: Student 500 の資金質問は 417 の変更で壊れない");
+{
+  // 500 の documents は資金と無関係なので、資金質問では使わない。
+  const amount = project("学生ビザの資金はいくら必要ですか？");
+  assert(amount.categories.includes("documents"), "500 でも documents へ routing はされる");
+  assert(!amount.usedEntries.includes("documents"), "資金の情報を持たない documents entry は使わない");
+  assert(amount.usedEntries.includes("financial_capacity"), "資金要件 entry を使う");
+
+  // 証明方法だけを聞かれた場合は、未確認の文面だけを渡す（Phase 8.5 の経路を維持）。
+  const method = project("学生ビザの資金はどう証明しますか？");
+  assert(method.usedEntries.length === 0, `未確認の文面だけを渡す（実際: ${method.usedEntries.join(",")}）`);
+  assert(method.sourceCount === 0, "出典は付けない");
+  const methodData = method.context.split("## データ")[1] ?? "";
+  for (const w of BANNED) {
+    assert(!methodData.includes(w), `「${w}」が渡らない`);
+  }
+}
+
+console.log("Test 14-H: First visa の範囲であることが渡る");
+{
+  const p = project("ワーホリの必要書類は？");
+  const data = p.context.split("## データ")[1] ?? "";
+  assert(data.includes("First Working Holiday visa"), "First の情報であることが渡る");
+  assert(
+    data.includes("セカンド・サードの申請で追加・変更される書類は、この画面では確認していない"),
+    "セカンド・サードは未確認であることが渡る",
+  );
 }
 
 console.log("");

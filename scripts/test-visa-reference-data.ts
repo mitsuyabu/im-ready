@@ -10,6 +10,7 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import {
   VISA_CATEGORIES,
+  VISA_CATEGORY_LABELS,
   VISA_META,
   isVisaCategory,
   isVisaKey,
@@ -20,6 +21,8 @@ import {
   type VisaCategory,
   type VisaKey,
   type VisaReferenceEntry,
+  hasFinancialEvidence,
+  onlyFinancialEvidence,
 } from "@/lib/visaReference";
 import { detectVisaIntent, extractVisaKeysFromText, resolveVisaKeysForChat } from "@/lib/visaReferenceIntent";
 import {
@@ -146,9 +149,18 @@ function simulate(input: {
   }
 
   const all = input.entries ?? SEED;
-  const matched = all.filter(
+  const loaded = all.filter(
     (e) => resolution.visaKeys.includes(e.visaKey) && intent.categories.includes(e.category),
   );
+  // route と同じ射影: 資金の質問で足した documents entry は資金の情報を持つものだけ使い、
+  // 資金だけを聞かれたターンでは資金の情報へ絞る。
+  const usable = intent.asksDocuments
+    ? loaded
+    : loaded.filter((e) => e.category !== "documents" || hasFinancialEvidence(e));
+  const matched =
+    !intent.asksDocuments && intent.financialQuestion !== "unspecified"
+      ? usable.map(onlyFinancialEvidence)
+      : usable;
   if (matched.length === 0) {
     return {
       context: buildVisaNoDataContext(resolution.visaKeys, intent.categories),
@@ -441,12 +453,13 @@ async function main() {
   {
     // 417 は人間が確認したカテゴリだけが入っている（未確認は空のまま）
     const whv417 = SEED.filter((e) => e.visaKey === "australia_working_holiday_417");
-    assert(whv417.length === 4, `417 は確認済みの4カテゴリだけ（実際: ${whv417.length}）`);
+    assert(whv417.length === 9, `417 は確認済みの9カテゴリだけ（実際: ${whv417.length}）`);
     assert(
-      whv417.map((e) => e.category).sort().join(",") === "eligibility,same_employer,second_third,specified_work",
-      "eligibility / same_employer / second_third / specified_work のみ",
+      whv417.map((e) => e.category).sort().join(",") ===
+        "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay",
+      "application / costs / documents / eligibility / processing / same_employer / second_third / specified_work / stay のみ",
     );
-    for (const unconfirmed of ["stay", "work_rights", "study_rights", "application", "documents", "costs", "processing"]) {
+    for (const unconfirmed of ["work_rights", "study_rights"]) {
       assert(!whv417.some((e) => e.category === unconfirmed), `未確認の ${unconfirmed} は入っていない`);
     }
 
@@ -645,8 +658,8 @@ async function main() {
         `Student 500: 未確認の ${absent} は登録しない`,
       );
     }
-    assert(whv.length === 4, `417 の確認済み entry が4件（実際: ${whv.length}）`);
-    for (const absent of ["stay", "work_rights", "study_rights", "application", "documents", "costs", "processing"]) {
+    assert(whv.length === 9, `417 の確認済み entry が9件（実際: ${whv.length}）`);
+    for (const absent of ["work_rights", "study_rights"]) {
       assert(!whv.some((e) => e.category === absent), `417: 未確認の ${absent} は登録しない`);
     }
     for (const e of SEED) {
@@ -662,6 +675,155 @@ async function main() {
       assert(!needsVisaReviewCaution(e, NOW), `${e.category}: 確認日が新しい`);
     }
     assert(VISA_CATEGORIES.length === 15, "category は15種類");
+  }
+
+  console.log("Test 17: 417 の stay / costs / processing / application が正しい質問へ届く");
+  {
+    // どの質問がどの category へ回るか（Phase 5 の routing 監査を回帰として固定する）
+    const cases: { message: string; categories: string; entries: string[] }[] = [
+      { message: "ワーホリは何年いられる？", categories: "stay", entries: ["stay"] },
+      { message: "ワーホリはどのくらい滞在できますか？", categories: "stay", entries: ["stay"] },
+      { message: "ワーホリのビザはいくら？", categories: "costs", entries: ["costs"] },
+      { message: "ワーホリの申請料はいくら？", categories: "costs", entries: ["costs"] },
+      { message: "417のビザ代はいくら？", categories: "costs", entries: ["costs"] },
+      { message: "ワーホリビザの費用は？", categories: "costs", entries: ["costs"] },
+      { message: "ワーホリの審査期間は？", categories: "processing", entries: ["processing"] },
+      { message: "ワーホリはどこから申請する？", categories: "application", entries: ["application"] },
+      { message: "最初のワーホリはどこから申請しますか？", categories: "application", entries: ["application"] },
+    ];
+    for (const c of cases) {
+      const r = simulate({ message: c.message });
+      assert(
+        r.categories.join(",") === c.categories,
+        `「${c.message}」→ ${c.categories}（実際: ${r.categories.join(",")}）`,
+      );
+      assert(r.visaKeys.join(",") === "australia_working_holiday_417", `「${c.message}」→ 417 のデータを読む`);
+      for (const category of c.entries) {
+        const label = VISA_CATEGORY_LABELS[category as VisaCategory];
+        assert(r.context.includes(label), `「${c.message}」→ ${category} の情報が渡る`);
+      }
+    }
+
+    // 資金要件（AUD 5,000）と申請料（AUD 840 / 1,000）を混同しない
+    const funds = simulate({ message: "ワーホリの資金はいくら必要？" });
+    assert(funds.context.includes("5,000"), "資金の質問には AUD 5,000 が渡る");
+    assert(!funds.context.includes("840"), "資金の質問に申請料（840）が混ざらない");
+    const fee = simulate({ message: "ワーホリのビザはいくら？" });
+    assert(fee.context.includes("840") && fee.context.includes("1,000"), "申請料の質問には 840 と 1,000 が渡る");
+    assert(!fee.context.includes("5,000"), "申請料の質問に資金要件（5,000）が混ざらない");
+
+    // 学生ビザの金額・資金と 417 を取り違えない
+    const student500Fee = simulate({ message: "学生ビザはいくら？" });
+    assert(student500Fee.visaKeys.join(",") === "australia_student_500", "「学生ビザはいくら？」→ 500 のデータ");
+    assert(student500Fee.context.includes("2,500"), "500 の申請料（From AUD 2,500）が渡る");
+    assert(!student500Fee.context.includes("840"), "417 の申請料が混ざらない");
+    const student500Funds = simulate({ message: "学生ビザの資金はいくら？" });
+    assert(
+      student500Funds.categories.includes("financial_capacity"),
+      "「学生ビザの資金はいくら？」→ financial_capacity へ回る",
+    );
+    assert(!student500Funds.context.includes("840"), "500 の資金の質問に 417 の申請料が混ざらない");
+  }
+
+  console.log("Test 18: 新しい4カテゴリが未確認事項を強めていない");
+  {
+    const whv = SEED.filter((e) => e.visaKey === "australia_working_holiday_417");
+    const byCategory = (category: string) => whv.find((e) => e.category === category)!;
+
+    // costs: 回ごとの額が取り違えられていない／from・minimum へ強めていない
+    const costs = byCategory("costs").details as Record<string, unknown>;
+    const stageAmount = (stage: string) =>
+      ((costs[stage] as Record<string, unknown>) ?? {}) as Record<string, unknown>;
+    assert(stageAmount("first").amount === 840, "costs: 1回目は AUD 840");
+    assert(stageAmount("second").amount === 1000, "costs: 2回目は AUD 1,000");
+    assert(stageAmount("third").amount === 1000, "costs: 3回目は AUD 1,000");
+    for (const stage of ["first", "second", "third"]) {
+      assert(stageAmount(stage).currency === "AUD", `costs: ${stage} の通貨が AUD`);
+      assert(
+        stageAmount(stage).basis === "exact_as_displayed",
+        `costs: ${stage} の basis が exact_as_displayed（from / minimum / exact へ強めない）`,
+      );
+    }
+    assert(costs.effectiveFrom === null, "costs: 適用開始日は未確認のまま null");
+    assert(
+      typeof costs.effectiveFromNote === "string" && (costs.effectiveFromNote as string).includes("2024-12-09"),
+      "costs: ページの Last updated を適用開始日として使わない旨が記録されている",
+    );
+    for (const forbidden of ["surcharge", "paymentFee", "additionalApplicantCharge", "costConcessions"]) {
+      assert(costs[forbidden] === undefined, `costs: 未確認の ${forbidden} を持たない`);
+    }
+    const costsContext = simulate({ message: "ワーホリのビザはいくら？" }).context;
+    // from / minimum / exact の表示（formatMoneyBasis が付ける括弧書き）になっていないこと。
+    // 「「〜から」「最低額」とは書かれていない」という**注記のほう**は入っていてよい。
+    for (const strongerBasis of ["（この額“から”。状況により上がる）", "（最低額）", "（確定額）"]) {
+      assert(!costsContext.includes(strongerBasis), `costs: ${strongerBasis} として渡さない`);
+    }
+    assert(
+      costsContext.includes("確定額・固定額として断定しないこと"),
+      "costs: 画面表示までの確認であることが渡る",
+    );
+
+    // stay: up to / exact のどちらとも決めていない
+    const stay = byCategory("stay").details as Record<string, unknown>;
+    for (const stage of ["first", "second", "third"]) {
+      const s = stay[stage] as Record<string, unknown>;
+      assert(s.duration === 12 && s.durationUnit === "months", `stay: ${stage} は 12 months`);
+    }
+    assert(stay.durationBasis === undefined, "stay: durationBasis は設定しない（up to / exact が未確認）");
+    assert(stay.startRule === undefined, "stay: 起算点（startRule）を作らない");
+    assert(stay.travelRights === undefined, "stay: travel / re-entry を作らない");
+    const stayContext = simulate({ message: "ワーホリは何年いられる？" }).context;
+    assert(!stayContext.includes("**上限**"), "stay: 上限として渡さない");
+
+    // processing: 固定日数・保証を持たない
+    const processing = byCategory("processing").details as Record<string, unknown>;
+    assert(processing.type === "dynamic_official_guide", "processing: 動的な案内として持つ");
+    assert(processing.fixedDuration === null, "processing: 固定日数を持たない");
+    assert(processing.guaranteed === false, "processing: 保証しない");
+    const guidance = processing.currentAverageGuidance as Record<string, unknown>;
+    assert(guidance.value === 3 && guidance.unit === "months", "processing: 現在の目安は約3か月");
+    assert(guidance.wording === "expected to be around", "processing: 公式の弱い言い方を保持する");
+    assert(typeof guidance.checkedAt === "string", "processing: 目安の確認日を持つ");
+    assert(processing.percentile === undefined, "processing: percentile を作らない");
+    assert(processing.outsideAustraliaPrioritySystem === undefined, "processing: 優先順位の仕組みを作らない");
+    const processingContext = simulate({ message: "ワーホリの審査期間は？" }).context;
+    assert(processingContext.includes("保証ではない"), "processing: 保証ではないことが渡る");
+    assert(!/3\s*か月以内|3\s*ヶ月以内/.test(processingContext), "processing: 「3か月以内」として渡さない");
+
+    // application: First と Second / Third を混ぜない
+    const application = byCategory("application").details as Record<string, unknown>;
+    const first = application.first as Record<string, unknown>;
+    assert(first.online === true, "application: 1回目はオンライン申請");
+    assert(first.locationRequirement === "outside_australia", "application: 1回目は国外から");
+    const secondThird = application.secondThird as Record<string, unknown>;
+    assert(secondThird.locationRequirement === undefined, "application: 2回目・3回目の申請場所は持たない");
+    assert(secondThird.online === undefined, "application: 2回目・3回目のオンライン要件は持たない");
+    const condition = secondThird.inAustraliaStatusCondition as Record<string, unknown>;
+    assert(
+      Array.isArray(condition.options) && (condition.options as unknown[]).length === 2,
+      "application: 国内在留条件は2つの状態を両方持つ",
+    );
+    assert(typeof condition.scopeNote === "string", "application: 条件の範囲の注記を持つ");
+    const applicationContext = simulate({ message: "セカンドワーホリはオーストラリア国内から申請できますか？" }).context;
+    assert(
+      applicationContext.includes("オーストラリア国内にいる場合に満たす必要がある状態"),
+      "application: 「国内にいる場合の状態」であることが渡る",
+    );
+    assert(
+      applicationContext.includes("申請場所の"),
+      "application: 申請場所のルールへ一般化しない注記が渡る",
+    );
+
+    // 既存 entry の正本を複製していない（specified work の期間・同一雇用主・年齢）
+    for (const category of ["costs", "stay", "processing", "application"]) {
+      const serialized = JSON.stringify(byCategory(category).details);
+      for (const duplicated of ["88", "179", "8547", "18〜30"]) {
+        assert(
+          !serialized.includes(duplicated),
+          `${category}: 既存 entry が正本の値（${duplicated}）を複製していない`,
+        );
+      }
+    }
   }
 
   console.log("");

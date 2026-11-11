@@ -242,9 +242,146 @@ export function readMoneyFact(details: Record<string, unknown>): MoneyFact | nul
   };
 }
 
+/* ------------------------------------------------------------------ */
+/* 申請の回（First / Second / Third）ごとに値が違う場合                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 申請の回を表す key。417 の申請料・滞在期間は、公式ページが
+ * First / Second / Third のカードに分けて表示している。
+ */
+export const VISA_STAGE_KEYS = ["first", "second", "third"] as const;
+
+export type VisaStageKey = (typeof VISA_STAGE_KEYS)[number];
+
+/** prompt に出すときの回の呼び方。回を取り違えさせないため日本語の呼称も添える。 */
+export const VISA_STAGE_LABELS: Record<VisaStageKey, string> = {
+  first: "1回目（ファースト）",
+  second: "2回目（セカンド）",
+  third: "3回目（サード）",
+};
+
+export type StageMoneyFact = MoneyFact & {
+  stage: VisaStageKey;
+  label: string;
+  /** 公式画面の表示そのまま（例: "Cost AUD 840.00"）。 */
+  officialWording: string | null;
+};
+
+/**
+ * 回ごとの金額を読む。
+ *
+ * readMoneyFact は details の top-level しか見ない。417 の申請料は First と
+ * Second / Third で額が違うため、top-level の1つの amount では表せない
+ * （1つに丸めると、どれかの回の金額を間違って伝えることになる）。
+ * 回ごとの object をそのまま読み、ラベルを付けて返す。
+ */
+export function readStageMoneyFacts(details: Record<string, unknown>): StageMoneyFact[] {
+  const facts: StageMoneyFact[] = [];
+  for (const stage of VISA_STAGE_KEYS) {
+    const raw = details[stage];
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) continue;
+    const money = readMoneyFact(raw as Record<string, unknown>);
+    if (money === null) continue;
+    const wording = (raw as Record<string, unknown>).officialWording;
+    facts.push({
+      ...money,
+      stage,
+      label: VISA_STAGE_LABELS[stage],
+      officialWording: typeof wording === "string" ? wording : null,
+    });
+  }
+  return facts;
+}
+
+export type StageDurationFact = {
+  stage: VisaStageKey;
+  label: string;
+  duration: number;
+  /** 'months' 等。prompt では必ずこの単位で表示する。 */
+  unit: string;
+  /** 公式画面の表示そのまま（例: "Stay 12 months"）。 */
+  officialWording: string | null;
+};
+
+/**
+ * 回ごとの期間を読む。
+ *
+ * 単位の無い数値は使わない。durationBasis は**ここでは読まない**
+ * （「上限なのか確定値なのか」が公式画面で確認できていない場合に、
+ *   読み取り側が勝手にどちらかへ寄せないようにするため）。
+ */
+export function readStageDurationFacts(details: Record<string, unknown>): StageDurationFact[] {
+  const facts: StageDurationFact[] = [];
+  for (const stage of VISA_STAGE_KEYS) {
+    const raw = details[stage];
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) continue;
+    const stageDetails = raw as Record<string, unknown>;
+    const duration =
+      typeof stageDetails.duration === "number" && Number.isFinite(stageDetails.duration)
+        ? stageDetails.duration
+        : null;
+    const unit =
+      typeof stageDetails.durationUnit === "string" && stageDetails.durationUnit.length > 0
+        ? stageDetails.durationUnit
+        : null;
+    if (duration === null || unit === null) continue;
+    const wording = stageDetails.officialWording;
+    facts.push({
+      stage,
+      label: VISA_STAGE_LABELS[stage],
+      duration,
+      unit,
+      officialWording: typeof wording === "string" ? wording : null,
+    });
+  }
+  return facts;
+}
+
 /** 箇条書きで渡したい事実（必要書類のグループ等）。 */
 export function readFactList(details: Record<string, unknown>, key: string): string[] {
   const value = details[key];
   if (!Array.isArray(value)) return [];
   return value.filter((v): v is string => typeof v === "string" && v.trim().length > 0).map((v) => v.trim());
+}
+
+/** 資金の要件（金額・出国の資金）を持つ entry かどうか。 */
+export function hasFinancialEvidence(entry: VisaReferenceEntry): boolean {
+  const value = entry.details.financialEvidence;
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * 資金だけを聞かれたターン向けに、entry を資金の情報へ絞った写しを返す。
+ * 書類一覧や人物（character）の書類まで渡すと、資金の質問への答えがそこから離れてしまう。
+ * 絞るだけで、文章を作り直すことはしない。
+ */
+export function onlyFinancialEvidence(entry: VisaReferenceEntry): VisaReferenceEntry {
+  if (!hasFinancialEvidence(entry)) return entry;
+  const details: Record<string, unknown> = { financialEvidence: entry.details.financialEvidence };
+  if (typeof entry.details.appliesTo === "string") details.appliesTo = entry.details.appliesTo;
+  return { ...entry, details };
+}
+
+/**
+ * 「資金をどの書類で示すか」が未確認の entry かどうか。
+ * documents entry の financialEvidence.specificDocumentTypesVerified が false の場合に true。
+ */
+export function hasUnverifiedFinancialEvidence(entry: VisaReferenceEntry): boolean {
+  const value = entry.details.financialEvidence;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  return (value as Record<string, unknown>).specificDocumentTypesVerified === false;
+}
+
+/**
+ * 未確認の financialEvidence を entry から外した写しを返す。
+ * 「どの書類で示すかは確認できていない」という記述そのものが、
+ * 証明方法を聞かれたターンでは書類名を思い浮かべる材料になるため、
+ * その経路では渡さない（確認済みの必要書類は残す）。
+ */
+export function withoutUnverifiedFinancialEvidence(entry: VisaReferenceEntry): VisaReferenceEntry {
+  if (!hasUnverifiedFinancialEvidence(entry)) return entry;
+  const details = { ...entry.details };
+  delete details.financialEvidence;
+  return { ...entry, details };
 }

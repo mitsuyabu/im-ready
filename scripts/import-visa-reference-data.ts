@@ -138,7 +138,16 @@ function nullableDate(value: unknown, c: Collector, category: string | null, fie
 const CONCRETE_VALUE_KEYS = ["limit", "amount", "duration", "requiredPeriod"];
 
 /** 金額の基準として許す値。 */
-const MONEY_BASIS = ["exact", "from", "minimum"];
+// "usually" は Home Affairs が "This is usually AUD 5,000." のように書いている場合用。
+// 「最低額（minimum）」へ言い換えると意味が強くなるため、原文の弱さを保てる値として持つ。
+// "exact_as_displayed" は「公式画面にこの額が表示されていた」ところまでしか確認していない場合用。
+// 417 の申請料は "Cost AUD 840.00" と表示されるだけで、"from" とも書かれておらず、
+// 法的に固定された確定額（exact）であることも適用開始日も確認できていない。
+// exact へ寄せると「正確に AUD 840 です」と断定させてしまうため、別の値として持つ。
+const MONEY_BASIS = ["exact", "from", "minimum", "usually", "exact_as_displayed"];
+
+/** 申請の回ごとに値を持つ field（First / Second / Third）。 */
+const STAGE_KEYS = ["first", "second", "third"];
 
 /** 「88日」のような俗称だけを正式条件として保存することを禁止するための判定。 */
 const COLLOQUIAL_88 = /^\s*88\s*(days?|日)\s*$/i;
@@ -195,6 +204,44 @@ function validateDetails(details: Record<string, unknown>, c: Collector, categor
     } else if (!text(details.durationUnit) && !text(details.unit)) {
       c.add(category, "duration", "期間を入れるなら durationUnit（例: months / years_max）が必須です");
       ok = false;
+    }
+  }
+
+  // 申請の回ごとの値（first / second / third）。top-level の amount / duration と同じ厳しさで見る。
+  // 回ごとに値が違う entry（417 の申請料）では top-level に1つの数値を置けないため、
+  // ここを緩めると「通貨の無い金額」「単位の無い期間」が回ごとの object に入り込める。
+  for (const stage of STAGE_KEYS) {
+    const raw = details[stage];
+    if (raw === null || raw === undefined) continue;
+    if (typeof raw !== "object" || Array.isArray(raw)) continue;
+    const stageDetails = raw as Record<string, unknown>;
+    if (stageDetails.amount !== null && stageDetails.amount !== undefined) {
+      const amount = stageDetails.amount;
+      if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
+        c.add(category, `${stage}.amount`, "0 より大きい数値にしてください（未確認なら field 自体を省く）");
+        ok = false;
+      }
+      const currency = text(stageDetails.currency);
+      if (!currency || !/^[A-Z]{3}$/.test(currency)) {
+        c.add(category, `${stage}.currency`, "金額を入れるなら通貨コード（例: AUD）が必須です");
+        ok = false;
+      }
+      const basis = text(stageDetails.basis);
+      if (!basis || !MONEY_BASIS.includes(basis)) {
+        c.add(category, `${stage}.basis`, `金額の基準を ${MONEY_BASIS.join(" / ")} のいずれかで指定してください`);
+        ok = false;
+      }
+    }
+    if (stageDetails.duration !== null && stageDetails.duration !== undefined) {
+      const duration = stageDetails.duration;
+      if (typeof duration !== "number" || !Number.isFinite(duration) || duration <= 0) {
+        c.add(category, `${stage}.duration`, "0 より大きい数値にしてください（未確認なら field 自体を省く）");
+        ok = false;
+      }
+      if (!text(stageDetails.durationUnit)) {
+        c.add(category, `${stage}.duration`, "期間を入れるなら durationUnit（例: months）が必須です");
+        ok = false;
+      }
     }
   }
 
@@ -374,6 +421,51 @@ function validateDetails(details: Record<string, unknown>, c: Collector, categor
     }
   }
 
+  // costs: 「画面に表示されていた額」を確定額へ強めない／適用開始日を根拠なしに持たない
+  if (category === "costs") {
+    // 適用開始日は、どこで確認したのかが分からないと「ページの Last updated」を
+    // 流用した値と区別できない。根拠の記録を必須にする。
+    if (details.effectiveFrom !== null && details.effectiveFrom !== undefined) {
+      if (!text(details.effectiveFromSource)) {
+        c.add(
+          category,
+          "effectiveFrom",
+          "適用開始日を持つなら effectiveFromSource（どこで確認した日付か）が必須です（ページ全体の Last updated を流用しないため）",
+        );
+        ok = false;
+      }
+    }
+    // exact_as_displayed（画面にこの額が表示されていた、までの確認）を
+    // 確定額・固定額として断定する表現と同居させない。
+    const bases = [text(details.basis)];
+    for (const stage of STAGE_KEYS) {
+      const raw = details[stage];
+      if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+        bases.push(text((raw as Record<string, unknown>).basis));
+      }
+    }
+    if (bases.includes("exact_as_displayed")) {
+      // 「確定額として断定しないこと」のような**注意書き**では、この語がむしろ必要になる。
+      // 値として書いているかどうかを見たいので、注意書き用の field は対象から外す。
+      const guidanceKey = /note|wording|unverified|guidance|scope|caution/i;
+      for (const [key, value] of Object.entries(details)) {
+        if (guidanceKey.test(key)) continue;
+        if (value === null || value === undefined) continue;
+        const serialized = typeof value === "string" ? value : JSON.stringify(value);
+        for (const strengthened of ["確定額", "固定額", "正確に", "ちょうど", "必ずこの額"]) {
+          if (!serialized.includes(strengthened)) continue;
+          c.add(
+            category,
+            key,
+            `basis が exact_as_displayed（画面表示までの確認）なのに「${strengthened}」と書いています`,
+          );
+          ok = false;
+          break;
+        }
+      }
+    }
+  }
+
   // processing: 固定日数の保証を禁止する
   if (category === "processing") {
     if (details.guaranteed === true) {
@@ -387,6 +479,119 @@ function validateDetails(details: Record<string, unknown>, c: Collector, categor
         "固定日数を保証値として持てません（動的な案内なら type: \"dynamic_official_guide\" と fixedDuration: null）",
       );
       ok = false;
+    }
+    // 公式ページに表示されていた「現時点の平均の目安」。
+    // 固定の処理期間ではないので、確認日と公式の言い方を必ず一緒に持つ
+    // （どちらかが欠けると、保証された日数として読まれてしまう）。
+    const guidance = details.currentAverageGuidance;
+    if (guidance !== null && guidance !== undefined) {
+      if (typeof guidance !== "object" || Array.isArray(guidance)) {
+        c.add(category, "currentAverageGuidance", "オブジェクトにしてください");
+        ok = false;
+      } else {
+        const g = guidance as Record<string, unknown>;
+        if (typeof g.value !== "number" || !Number.isFinite(g.value) || g.value <= 0) {
+          c.add(category, "currentAverageGuidance.value", "0 より大きい数値にしてください");
+          ok = false;
+        }
+        if (!text(g.unit)) {
+          c.add(category, "currentAverageGuidance.unit", "単位（例: months）が必須です");
+          ok = false;
+        }
+        const wording = text(g.wording);
+        if (!wording) {
+          c.add(
+            category,
+            "currentAverageGuidance.wording",
+            "公式の言い方（例: expected to be around）が必須です（目安であることを落とさないため）",
+          );
+          ok = false;
+        } else if (/保証|guarantee|必ず|以内|within/i.test(wording)) {
+          c.add(
+            category,
+            "currentAverageGuidance.wording",
+            "保証と読める言い方は使えません（公式ページの表現のまま記録してください）",
+          );
+          ok = false;
+        }
+        const checkedAt = text(g.checkedAt);
+        if (!checkedAt || !ISO_DATE.test(checkedAt)) {
+          c.add(
+            category,
+            "currentAverageGuidance.checkedAt",
+            "いつ画面で確認した目安か（YYYY-MM-DD）が必須です",
+          );
+          ok = false;
+        }
+        if (details.guaranteed !== false) {
+          c.add(
+            category,
+            "currentAverageGuidance",
+            "現時点の目安を持つなら guaranteed: false を明示してください",
+          );
+          ok = false;
+        }
+      }
+    }
+  }
+
+  // application: 「国内にいる場合に満たす状態」を「申請場所のルール」へ広げさせない
+  if (category === "application") {
+    const secondThird = details.secondThird;
+    if (secondThird !== null && secondThird !== undefined) {
+      if (typeof secondThird !== "object" || Array.isArray(secondThird)) {
+        c.add(category, "secondThird", "オブジェクトにしてください");
+        ok = false;
+      } else {
+        const st = secondThird as Record<string, unknown>;
+        // 申請場所・申請方法は 2回目・3回目については確認できていない。
+        // ここに持たせると「国内から申請できる」「オンラインで申請する」と断定させてしまう。
+        for (const forbidden of ["locationRequirement", "online", "applyFrom"]) {
+          if (st[forbidden] !== undefined) {
+            c.add(
+              category,
+              `secondThird.${forbidden}`,
+              "2回目・3回目の申請場所・申請方法は未確認です（持たせず details.unverified へ）",
+            );
+            ok = false;
+          }
+        }
+        const condition = st.inAustraliaStatusCondition;
+        if (condition !== null && condition !== undefined) {
+          if (typeof condition !== "object" || Array.isArray(condition)) {
+            c.add(category, "secondThird.inAustraliaStatusCondition", "オブジェクトにしてください");
+            ok = false;
+          } else {
+            const cond = condition as Record<string, unknown>;
+            const options = Array.isArray(cond.options) ? cond.options : [];
+            if (options.length < 2) {
+              c.add(
+                category,
+                "secondThird.inAustraliaStatusCondition.options",
+                "どちらを満たしてもよい2つの状態（substantive visa を保持／最後の substantive visa の失効から28日未満）を両方入れてください",
+              );
+              ok = false;
+            }
+            if (!text(cond.officialWording)) {
+              c.add(
+                category,
+                "secondThird.inAustraliaStatusCondition.officialWording",
+                "公式の文をそのまま保持してください（条件の範囲が広がらないようにするため）",
+              );
+              ok = false;
+            }
+            // 「国内にいる場合の条件」であることを必ず一緒に渡すため、注記を必須にする。
+            if (!text(cond.scopeNote)) {
+              c.add(
+                category,
+                "secondThird.inAustraliaStatusCondition.scopeNote",
+                "これが「オーストラリア国内にいる場合に満たす状態」であり申請場所のルールではないことを scopeNote に書いてください",
+              );
+              ok = false;
+            }
+          }
+        }
+      }
     }
   }
 
@@ -423,6 +628,69 @@ function validateDetails(details: Record<string, unknown>, c: Collector, categor
         seenDoc.set(item, group);
       }
     }
+
+    // 「might ask」のような条件付きの書類を必須側へ入れていないか。
+    // 公式が「求められる可能性がある」としか書いていないものを必須として案内すると誤案内になる。
+    for (const item of groups.requiredDocuments) {
+      if (typeof item !== "string") continue;
+      if (/might ask|求められる可能性|場合に求められ|条件に当てはまる場合/.test(item)) {
+        c.add(
+          category,
+          "requiredDocuments",
+          "「求められる可能性がある」書類を必須側に登録できません（mayBeRequestedDocuments へ入れてください）",
+        );
+        ok = false;
+        break;
+      }
+    }
+
+    // 資金の証拠について、具体的な書類の種類が未確認のまま書類名を書いていないか。
+    const financial =
+      details.financialEvidence && typeof details.financialEvidence === "object" && !Array.isArray(details.financialEvidence)
+        ? (details.financialEvidence as Record<string, unknown>)
+        : null;
+    if (financial) {
+      const serialized = JSON.stringify(financial);
+      if (financial.specificDocumentTypesVerified !== true) {
+        for (const banned of ["給与明細", "payslip", "bank statement", "残高証明", "通帳", "雇用証明", "シフト表"]) {
+          if (new RegExp(banned, "i").test(serialized)) {
+            c.add(
+              category,
+              "financialEvidence",
+              `具体的な書類の種類が未確認（specificDocumentTypesVerified が true でない）のに「${banned}」を書いています`,
+            );
+            ok = false;
+            break;
+          }
+        }
+      }
+      // 金額を持つなら通貨と基準が必要（原文の弱さを保つため basis は必須）。
+      if (financial.amount !== undefined) {
+        const amount = financial.amount;
+        if (typeof amount !== "number" || !Number.isFinite(amount) || amount === 0) {
+          c.add(category, "financialEvidence.amount", "有限の数値にしてください（0 では登録できません）");
+          ok = false;
+        }
+        if (typeof financial.currency !== "string" || !/^[A-Z]{3}$/.test(financial.currency)) {
+          c.add(category, "financialEvidence.currency", "通貨を3文字（例: AUD）で指定してください");
+          ok = false;
+        }
+        const basis = typeof financial.basis === "string" ? financial.basis : null;
+        if (!basis || !MONEY_BASIS.includes(basis)) {
+          c.add(
+            category,
+            "financialEvidence.basis",
+            `金額の基準を ${MONEY_BASIS.join(" / ")} のいずれかで指定してください（公式が "usually" と書いている場合は usually）`,
+          );
+          ok = false;
+        }
+      }
+    }
+
+    // 「公式で確認していない区分を作らない」は importer では判定できない
+    // （validator は出典ページの内容を知らないため、健康書類が正式に確認済みの
+    //   entry（例: Student 500）まで拒否してしまう）。
+    // どの entry で何が確認済みかは human-review とデータ固有のテストで担保する。
   }
 
   return ok;
@@ -433,6 +701,17 @@ function hasConcreteValue(details: Record<string, unknown>): boolean {
   for (const key of CONCRETE_VALUE_KEYS) {
     const value = details[key];
     if (typeof value === "number" && Number.isFinite(value)) return true;
+  }
+  // 回ごとに値を持つ entry（417 の申請料・滞在期間）も具体値として扱う。
+  // ここを見ないと、top-level に数値が無いだけで出典の確認日が必須にならない。
+  for (const stage of STAGE_KEYS) {
+    const raw = details[stage];
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const stageDetails = raw as Record<string, unknown>;
+    for (const key of CONCRETE_VALUE_KEYS) {
+      const value = stageDetails[key];
+      if (typeof value === "number" && Number.isFinite(value)) return true;
+    }
   }
   // 年齢などの具体条件
   for (const key of Object.keys(details)) {
@@ -543,8 +822,36 @@ export function validateVisaDocument(file: string, raw: unknown): VisaValidation
         : {};
     if (!validateDetails(details, c, category)) continue;
 
+    // costs の要約で、画面表示までの確認を「確定額」「固定額」と断定していないか。
+    // details の basis が exact_as_displayed のときだけ見る（exact が確認できている
+    // ビザの要約まで拒否しないため）。
+    if (category === "costs") {
+      const bases: (string | null)[] = [text(details.basis)];
+      for (const stage of STAGE_KEYS) {
+        const raw = details[stage];
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+          bases.push(text((raw as Record<string, unknown>).basis));
+        }
+      }
+      if (bases.includes("exact_as_displayed") && /確定額|固定額|正確に|ちょうど/.test(summary)) {
+        c.add(
+          category,
+          "summary",
+          "画面に表示されていた額までの確認です。「確定額」「固定額」等と断定する表現は使えません",
+        );
+        continue;
+      }
+    }
+
     // processing の要約に保証表現が無いか
-    if (category === "processing" && /必ず\s*\d+\s*(日|週|営業日)|\d+\s*日以内に(出|発給|下り)/.test(summary)) {
+    // 「必ず○日」「○日以内に出る」だけでなく、週・か月の言い方も同じ扱いにする
+    // （417 の目安は「around three months」なので、月の単位で保証表現が出やすい）。
+    if (
+      category === "processing" &&
+      /必ず\s*\d+\s*(日|週|営業日|か月|ヶ月|カ月|箇月)|[\d一二三四五六七八九十]+\s*(日|週|週間|か月|ヶ月|カ月|箇月)以内に(出|発給|下り|決定|許可)/.test(
+        summary,
+      )
+    ) {
       c.add(category, "summary", "審査期間を保証する表現（「必ず○日」「○日以内に出る」等）は使えません");
       continue;
     }

@@ -83,12 +83,14 @@ console.log("前提: importer の検証を通っている");
 {
   assert(validated.problems.length === 0, "検証エラーなし");
   // 2026-10-01 に eligibility（Working Holiday visa ページ）、2026-10-02 に specified_work /
-  // second_third（Specified subclass 417 work ページ）と same_employer（condition 8547 の3ページ）を登録済み。
-  assert(validated.entries.length === 4, `4カテゴリが受理される（実際: ${validated.entries.length}）`);
+  // second_third（Specified subclass 417 work ページ）と same_employer（condition 8547 の3ページ）、
+  // 2026-10-23 に documents、2026-11-11 に costs / stay / processing / application を登録済み。
+  assert(validated.entries.length === 9, `9カテゴリが受理される（実際: ${validated.entries.length}）`);
   const categories = validated.entries.map((e) => e.category).sort();
   assert(
-    categories.join(",") === "eligibility,same_employer,second_third,specified_work",
-    "eligibility / same_employer / second_third / specified_work",
+    categories.join(",") ===
+      "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay",
+    "application / costs / documents / eligibility / processing / same_employer / second_third / specified_work / stay",
   );
 }
 
@@ -284,12 +286,12 @@ console.log("Test 17: 未確認のカテゴリは空のまま（同一雇用主�
   // eligibility は 2026-10-01 に Working Holiday visa ページを確認して登録した。
   assert(rawEntry("eligibility") !== undefined, "eligibility は別ページの確認で登録済み");
   // どのページでも確認していないカテゴリは、今も未登録のまま。
-  for (const unconfirmed of ["stay", "work_rights", "study_rights", "application", "documents", "costs", "processing"]) {
+  for (const unconfirmed of ["work_rights", "study_rights"]) {
     assert(rawEntry(unconfirmed) === undefined, `未確認の ${unconfirmed} は登録されていない`);
   }
   const readme = JSON.stringify(doc._readme ?? []);
   assert(/推測で埋めてはいけない/.test(readme), "推測禁止が記録されている");
-  assert(/stay \/ work_rights \/ study_rights/.test(readme), "未登録カテゴリの一覧が記録されている");
+  assert(/work_rights \/ study_rights/.test(readme), "未登録カテゴリの一覧が記録されている");
 }
 
 console.log("Test 18: 通常の質問で巨大な一覧を prompt へ全件注入しない");

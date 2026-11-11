@@ -1,7 +1,7 @@
 -- visa_reference_data / visa_reference_sources の登録用 SQL
 -- scripts/import-visa-reference-data.ts が data/visas/ の JSON から生成
--- 生成: 2026-10-21T06:30:49.523Z
--- entry 数: 15（australia_student_500: 11 / australia_working_holiday_417: 4）
+-- 生成: 2026-11-11T03:11:25.265Z
+-- entry 数: 20（australia_student_500: 11 / australia_working_holiday_417: 9）
 -- 適用方法: 内容を目で確認したうえで、Supabase の SQL エディタで実行する。
 -- 対象 entry 以外は変更しない（upsert のみ。DELETE は対象 entry の出典の入れ替えだけ）。
 
@@ -402,7 +402,7 @@ with upserted as (
     visa_key, visa_code, visa_name, country_code, category, summary, details, reviewed_at, review_note, updated_at
   ) values (
     'australia_working_holiday_417', '417', 'Working Holiday visa (subclass 417)', 'AU',
-    'eligibility', '日本のパスポートを持つ人の場合、このビザの申請対象年齢は18〜30歳です。上限が30歳の国・地域では、31歳になる前に申請を提出する必要があり、締切は31歳の誕生日の前日の midnight（AEST / AEDST 基準）です。30歳のうちに期限内に申請していれば、結果が出る前に31歳になっても、他の条件を満たしていれば認められ得ます。年齢以外にも、パスポートの対象国・扶養している子どもを同伴しないこと・過去の WHM プログラムのビザでの入国歴などの条件があります。', '{"country":"Japan","eligiblePassport":true,"eligiblePassportNote":"日本のパスポートはこのビザの対象となる国・地域の一覧に掲載されている。ただしこれは「日本国籍なら必ず取得できる」という意味ではなく、年齢・資金・健康・人物などの他の条件も満たす必要がある","minimumAge":18,"maximumAge":30,"ageCountryScope":"この 18〜30歳 は日本のパスポートを持つ人についての条件。上限が異なる国・地域もあるが、その条件を日本国籍の人に当てはめて説明しないこと","applicationAgeDeadline":{"rule":"上限が30歳の国・地域では、31歳になる前に申請を提出する必要がある","deadline":"31歳の誕生日の前日の midnight","timezoneBasis":"AEST / AEDST","appliesAtLodgement":true,"turningAgeAfterLodgement":"30歳のうちに期限内に申請していれば、審査結果が出る前に31歳になっても、他の条件を満たしている場合はビザが認められ得る","notAnArrivalDeadline":"これは**申請を提出する時点**の年齢条件。「30歳までに渡航しなければならない」という意味ではない。入国の期限については今回の資料で確認していないため、推測して案内しないこと"},"dependentChildren":{"cannotBeAccompanied":true,"note":"扶養している子どもを同伴することはできない","familyInSameApplication":"1回目の申請では、家族を同じ申請に含めることはできない"},"previousVisaDisqualifyingHistory":{"appliesTo":"1回目（ファースト）の申請","rule":"過去に Working Holiday Maker プログラムのビザでオーストラリアへ入国したことがある場合は対象にならない","programScopeNote":"Working Holiday Maker プログラムには、このビザ（subclass 417）のほかに、対象の国・地域向けのもう1つのサブクラスが含まれる。もう1つのサブクラスの制度内容はこのデータでは扱わないため、本人が過去に別のサブクラスで入国している場合は、公式での確認を案内すること"},"primarySourceVerified":true,"unverified":["入国の期限（申請時の年齢条件とは別のもの。今回の資料では確認していない）","資金要件の具体的な金額","健康・人物（character）の要件で必要になる具体的な書類","就学できる期間などの他の条件の具体値","申請料の金額"]}'::jsonb,
+    'eligibility', '日本のパスポートを持つ人の場合、このビザの申請対象年齢は18〜30歳です。上限が30歳の国・地域では、31歳になる前に申請を提出する必要があり、締切は31歳の誕生日の前日の midnight（AEST / AEDST 基準）です。30歳のうちに期限内に申請していれば、結果が出る前に31歳になっても、他の条件を満たしていれば認められ得ます。年齢以外にも、パスポートの対象国・扶養している子どもを同伴しないこと・過去の WHM プログラムのビザでの入国歴などの条件があります。', '{"country":"Japan","eligiblePassport":true,"eligiblePassportNote":"日本のパスポートはこのビザの対象となる国・地域の一覧に掲載されている。ただしこれは「日本国籍なら必ず取得できる」という意味ではなく、年齢・資金・健康・人物などの他の条件も満たす必要がある","minimumAge":18,"maximumAge":30,"ageCountryScope":"この 18〜30歳 は日本のパスポートを持つ人についての条件。上限が異なる国・地域もあるが、その条件を日本国籍の人に当てはめて説明しないこと","applicationAgeDeadline":{"rule":"上限が30歳の国・地域では、31歳になる前に申請を提出する必要がある","deadline":"31歳の誕生日の前日の midnight","timezoneBasis":"AEST / AEDST","appliesAtLodgement":true,"turningAgeAfterLodgement":"30歳のうちに期限内に申請していれば、審査結果が出る前に31歳になっても、他の条件を満たしている場合はビザが認められ得る","notAnArrivalDeadline":"これは**申請を提出する時点**の年齢条件。「30歳までに渡航しなければならない」という意味ではない。入国の期限については今回の資料で確認していないため、推測して案内しないこと"},"dependentChildren":{"cannotBeAccompanied":true,"note":"扶養している子どもを同伴することはできない","familyInSameApplication":"1回目の申請では、家族を同じ申請に含めることはできない"},"previousVisaDisqualifyingHistory":{"appliesTo":"1回目（ファースト）の申請","rule":"過去に Working Holiday Maker プログラムのビザでオーストラリアへ入国したことがある場合は対象にならない","programScopeNote":"Working Holiday Maker プログラムには、このビザ（subclass 417）のほかに、対象の国・地域向けのもう1つのサブクラスが含まれる。もう1つのサブクラスの制度内容はこのデータでは扱わないため、本人が過去に別のサブクラスで入国している場合は、公式での確認を案内すること"},"primarySourceVerified":true,"unverified":["入国の期限（申請時の年齢条件とは別のもの。今回の資料では確認していない）","資金要件の具体的な金額","健康・人物（character）の要件で必要になる具体的な書類","就学できる期間などの他の条件の具体値"]}'::jsonb,
     '2026-10-01'::date, '2026-10-01 に人間が Home Affairs の Working Holiday visa (subclass 417) 公式ページを画面で確認した内容。日本が対象の国・地域の一覧に掲載されていること、日本は 18 to 30 years、31歳になる前の申請提出（締切は31歳の誕生日の前日の midnight AEST / AEDST）、提出後に31歳になった場合の扱い、扶養している子どもの同伴不可、1回目の申請での過去の入国歴の条件を登録した。過去の入国歴の条件はもう1つのサブクラスにも及ぶが、別サブクラスの制度情報をこの JSON へ混入させない方針（importer の分離検証）を維持するため、サブクラス番号は記録せず「Working Holiday Maker プログラムのビザ」として表現し、個別ケースは公式確認へ案内する形にした。入国の期限・資金額・申請料などは今回の画面では確認していないため unverified に残した。', now()
   )
   on conflict (visa_key, category) do update set
@@ -429,6 +429,41 @@ from upserted
 cross join (
   values
       ('Australian Government Department of Home Affairs - Working Holiday visa (subclass 417)', 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417', 'home_affairs', null::date, null::date, '2026-10-01'::date, '対象となる国・地域の一覧に日本が掲載されていること、日本は 18 to 30 years であること、30歳が上限の国・地域では31歳になる前に申請を提出する必要があること（締切は31歳の誕生日の前日の midnight AEST / AEDST）、扶養している子どもを同伴できないこと、1回目の申請では過去に同じプログラムのビザで入国していないことを確認。')
+) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);
+
+-- australia_working_holiday_417 / documents（確認日: 2026-10-23）
+with upserted as (
+  insert into visa_reference_data (
+    visa_key, visa_code, visa_name, country_code, category, summary, details, reviewed_at, review_note, updated_at
+  ) values (
+    'australia_working_holiday_417', '417', 'Working Holiday visa (subclass 417)', 'AU',
+    'documents', '申請には、現在のパスポートのページ（顔写真・本人情報・発行日・有効期限が分かるもの）と、両親2人の名前が記載された出生証明書のコピーが必要です。出生証明書を持っておらず取得もできない場合は、family book・政府発行の身分証明書・裁判所発行の書類が代わりになります。名前を変更している場合はその証明も必要です。滞在と出国のための資金の証拠も提出し、Home Affairs は「通常は AUD 5,000」と案内しています。人物（character）に関する書類は、条件に当てはまる場合に求められることがあります。英語以外の書類は英語への翻訳が必要ですが、書類を認証（certified）する必要はないと明記されています。', '{"appliesTo":"First Working Holiday visa（subclass 417）の申請について確認した内容。セカンド・サードの申請で追加・変更される書類は、この画面では確認していない","requiredDocuments":["現在のパスポートのページ（顔写真・本人情報・パスポートの発行日・有効期限が分かるもの）","両親2人の名前が記載された出生証明書（birth certificate）のコピー"],"birthCertificateAlternatives":{"appliesWhen":"出生証明書を持っておらず、取得することもできない場合","options":["両親2人の名前が記載された family book","政府が発行した身分証明書（government-issued identification）","本人であることを確認できる裁判所発行の書類（court-issued document）"],"note":"これは出生証明書が取得できない場合の代替であり、全員に必要な通常の書類ではない"},"caseDependentDocuments":["名前を変更している場合は、その証明となる書類"],"nameChangeEvidence":{"appliesWhen":"名前を変更している場合","officialWording":"Home Affairs は「proof such as」として次を例示している（これだけに限るとは書かれていない）","examples":["結婚証明書（marriage certificate）","離婚証明書（divorce certificate）","オーストラリアの Registry of Births, Deaths and Marriages が発行した改名の書類","該当する国外の機関が発行した改名の書類","本人が名乗っていた他の名前が分かる書類"],"note":"名前を変更していない人には必要ない。全員必須として案内しないこと"},"financialEvidence":{"heading":"Enough money for your stay and to leave","requirement":"オーストラリア滞在に十分な資金があることを示す証拠を提出する","amount":5000,"currency":"AUD","basis":"usually","amountWording":"Home Affairs の表現は「This is usually AUD 5,000.」。最低額・確定額として断定しないこと","exitRequirement":"滞在が終わるときにオーストラリアを出る航空券を購入できる十分な資金があること、または既に航空券を持っていることを示す","ifNotAttached":"証拠を申請に添付しない場合、追加の情報を求められて審査が遅れる可能性があると案内されている","specificDocumentTypesVerified":false,"note":"どのような書類で資金を示すかは、この画面に記載がないため確認できていない。書類名を挙げずに「要件がある」ことと金額の表現までを伝えること"},"mayBeRequestedDocuments":["人物（character）に関する書類（Home Affairs の表現は「We might ask you to provide」）"],"characterDocuments":{"officialWording":"Home Affairs の表現は「We might ask you to provide」。全員必須ではない","australianPoliceCertificate":{"appliesWhen":"16歳になって以降、過去10年間でオーストラリアに合計12か月以上滞在している場合に求められる可能性がある","accepted":"complete disclosure National Police Certificate（Australian Federal Police が発行したもの）のみ受理されると記載されている","notAccepted":["standard disclosure certificates","オーストラリアの州・テリトリーの警察が発行した national police certificates"],"note":"どの発行元・どの種類かで受理されるかが変わるため、種類の違いを落として説明しないこと"},"overseasPoliceCertificate":{"appliesWhen":"16歳になって以降、過去10年間で、母国を含む各国に合計12か月以上滞在している場合、その国の overseas police certificate を求められる可能性がある","note":"オーストラリアの証明書とは条件が別。混同して説明しないこと"},"militaryRecords":{"appliesWhen":"軍（armed forces）に勤務したことがある場合","options":["military service records","discharge papers"],"officialWording":"これらの書類が必要かどうかは Home Affairs から知らせると記載されている"}},"administrativeForms":{"note":"これは本人の資格を示す書類ではなく、申請の事務手続きのための様式。必要書類の一覧として案内しないこと","items":["authorised recipient を指名する場合: Form 956A（Appointment or withdrawal of an authorised recipient）","immigration assistance を受ける場合: Form 956（Appointment of a registered migration agent, legal practitioner or exempt person）"],"submission":"書面での通知・様式は ImmiAccount へアップロードする"},"translationRequirements":{"rule":"英語以外の書類はすべて英語へ翻訳し、原本と翻訳の両方を申請で提出する","inAustralia":"オーストラリア国内の翻訳者は NAATI の認定を受けている必要がある","outsideAustralia":"オーストラリア国外の翻訳者は認定は必須ではないが、各翻訳に次を英語で記載する: 氏名（full name）／住所と電話番号／翻訳する言語についての資格と経験","certificationNote":"Home Affairs は「You do not need to have any documents certified.」と明記している。認証済みのコピー（certified copy）が必須だと案内しないこと"},"scanRequirements":["英語・英語以外を含むすべての書類をカラーでスキャンまたは撮影する","スキャンや写真は鮮明である必要がある","複数ページの書類は、全ページを1つのファイルとして保存する"],"attachRule":"同じ書類を複数のことを示すために使う場合でも、その書類を添付するのは1回だけ","primarySourceVerified":true,"unverified":["資金のevidenceとして提出する具体的な書類の種類（この画面に記載がない）","健康（health）に関する書類（この画面では独立したセクションを確認していない）","人物（character）の書類が実際に求められるかどうかの個別の判断","書類ごとのファイル形式・容量などの技術的な要件","セカンド・サードの申請で追加される書類（この画面は First Working Holiday visa のもの）"]}'::jsonb,
+    '2026-10-23'::date, '2026-10-23 に人間が Home Affairs の Working Holiday visa (subclass 417) → First Working Holiday visa → Step 2「Gather your documents」を画面で確認した内容。「必須」と明記されているもの（パスポートのページ・両親の名前が載った出生証明書）、出生証明書が取得できない場合の代替、名前変更の証明（条件付き・公式は proof such as として例示）、資金のevidence（usually AUD 5,000・出国用の航空券を買える資金または既に所持・未添付だと審査が遅れ得る）、「We might ask you to provide」として挙げられている人物関係の書類（Australian は complete disclosure の AFP 発行のみ受理／standard disclosure と州・テリトリー警察発行は不受理、overseas は国ごとの条件）、軍の記録（必要かは Home Affairs から知らせる）、Form 956A / 956、翻訳とスキャンの要件、同じ書類は1回だけ添付する規則を登録した。資金をどの書類で示すかは画面に記載が無いため、Phase 8.3〜8.6 で未確認として扱うと決めた financial evidence 系の書類名は一切追加していない（禁止している具体名は lib/visaReferenceContext.ts の「必ず守ること」に列挙されている）。独立した Health documents のセクションはこの画面で確認していないため、健康に関する書類は登録せず unverified に残した。この画面は First Working Holiday visa のものなので、セカンド・サードで追加される書類は未確認。', now()
+  )
+  on conflict (visa_key, category) do update set
+    visa_code = excluded.visa_code,
+    visa_name = excluded.visa_name,
+    country_code = excluded.country_code,
+    summary = excluded.summary,
+    details = excluded.details,
+    reviewed_at = excluded.reviewed_at,
+    review_note = excluded.review_note,
+    updated_at = now()
+  returning id
+),
+cleared as (
+  delete from visa_reference_sources
+  where entry_id in (select id from upserted)
+  returning entry_id
+)
+insert into visa_reference_sources (
+  entry_id, source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes
+)
+select upserted.id, v.source_name, v.source_url, v.source_type, v.source_published_at, v.source_updated_at, v.accessed_at, v.notes
+from upserted
+cross join (
+  values
+      ('Australian Government Department of Home Affairs - Working Holiday visa (subclass 417) / First Working Holiday visa / Step 2: Gather your documents', 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417', 'home_affairs', null::date, null::date, '2026-10-23'::date, 'First Working Holiday visa の Step 2「Gather your documents」を人間が画面で確認。身分（パスポートのページ・両親の名前が載った出生証明書とその代替）、名前変更の証明、滞在と出国のための資金（usually AUD 5,000・出国用の航空券を買える資金または既に所持）、求められる可能性のある人物関係の書類（Australian / overseas police certificate・軍の記録）、authorised recipient / migration agent の様式、翻訳・スキャンの要件、同じ書類を一度だけ添付する規則を確認。独立した Health documents のセクションはこの画面では確認していない。')
 ) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);
 
 -- australia_working_holiday_417 / same_employer（確認日: 2026-10-02）
@@ -536,4 +571,144 @@ from upserted
 cross join (
   values
       ('Australian Government Department of Home Affairs - Specified subclass 417 work', 'https://immi.homeaffairs.gov.au/what-we-do/whm-program/specified-work-conditions/specified-work-417', 'home_affairs', null::date, null::date, '2026-10-02'::date, 'セカンド3か月（最低88 calendar days）・サード6か月（最低179 calendar days）・フルタイム相当要件・数え方・分割の可否を確認。')
+) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);
+
+-- australia_working_holiday_417 / costs（確認日: 2026-11-11）
+with upserted as (
+  insert into visa_reference_data (
+    visa_key, visa_code, visa_name, country_code, category, summary, details, reviewed_at, review_note, updated_at
+  ) values (
+    'australia_working_holiday_417', '417', 'Working Holiday visa (subclass 417)', 'AU',
+    'costs', 'Home Affairs の画面では、申請料は1回目（ファースト）が AUD 840、2回目（セカンド）と3回目（サード）が AUD 1,000 と表示されています。画面に書かれているのはこの金額までで、「〜から」「最低額」という表記はなく、いつからこの額なのか（適用開始日）も確認できていません。支払い時の手数料、一緒に申請する家族の追加料金、減額や免除の有無も、この画面では確認していません。最新の金額は Home Affairs で確認してください。', '{"appliesTo":"1回目（First）・2回目（Second）・3回目（Third）の Working Holiday visa（subclass 417）について、公式ページの各カードに表示されていた申請料。ここに無い費用は確認していない","per":"application","currency":"AUD","first":{"amount":840,"currency":"AUD","basis":"exact_as_displayed","officialWording":"Cost AUD 840.00"},"second":{"amount":1000,"currency":"AUD","basis":"exact_as_displayed","officialWording":"Cost AUD 1,000.00"},"third":{"amount":1000,"currency":"AUD","basis":"exact_as_displayed","officialWording":"Cost AUD 1,000.00"},"sameAcrossStages":false,"displayNote":"公式画面の表示は「Cost AUD 840.00」のような金額のみ。Student visa の「From AUD 2,500」のような from の表記はなく、minimum とも書かれていない。「この画面にこの額が表示されていた」という範囲で伝え、「〜から」「最低」と言い換えないこと","effectiveFrom":null,"effectiveFromNote":"この金額がいつから適用されているかは、この画面では確認していない。ページ全体の Last updated （2024-12-09）を適用開始日として説明しないこと","primarySourceVerified":true,"unverified":["この金額の適用開始日","支払い時の surcharge・カード手数料などの追加費用","一緒に申請する家族（additional applicant）の追加料金","申請料が下がる・免除される対象と条件","今後の金額の改定"]}'::jsonb,
+    '2026-11-11'::date, 'Home Affairs の Working Holiday visa (subclass 417) ページで、First / Second / Third の各カードに 表示された申請料（AUD 840.00 / AUD 1,000.00 / AUD 1,000.00）を人間が画面で確認した。「from」「minimum」の表記は無く、適用開始日もこの画面には無いため、basis は exact_as_displayed とし、effectiveFrom は null のまま。surcharge・家族の追加料金・減額は確認していないので unverified に記録。ページ全体の Last updated（2024-12-09）は sourceUpdatedAt にだけ持ち、金額の適用開始日には使わない。', now()
+  )
+  on conflict (visa_key, category) do update set
+    visa_code = excluded.visa_code,
+    visa_name = excluded.visa_name,
+    country_code = excluded.country_code,
+    summary = excluded.summary,
+    details = excluded.details,
+    reviewed_at = excluded.reviewed_at,
+    review_note = excluded.review_note,
+    updated_at = now()
+  returning id
+),
+cleared as (
+  delete from visa_reference_sources
+  where entry_id in (select id from upserted)
+  returning entry_id
+)
+insert into visa_reference_sources (
+  entry_id, source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes
+)
+select upserted.id, v.source_name, v.source_url, v.source_type, v.source_published_at, v.source_updated_at, v.accessed_at, v.notes
+from upserted
+cross join (
+  values
+      ('Australian Government Department of Home Affairs - Working Holiday visa (subclass 417)', 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417', 'home_affairs', null::date, '2024-12-09'::date, '2026-11-11'::date, 'First / Second / Third の各カードの Cost 表示（AUD 840.00 / AUD 1,000.00 / AUD 1,000.00）を確認。from / minimum の表記と適用開始日はこのページでは確認していない。sourceUpdatedAt はページ全体の Last updated であり、各申請料の適用開始日ではない。')
+) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);
+
+-- australia_working_holiday_417 / stay（確認日: 2026-11-11）
+with upserted as (
+  insert into visa_reference_data (
+    visa_key, visa_code, visa_name, country_code, category, summary, details, reviewed_at, review_note, updated_at
+  ) values (
+    'australia_working_holiday_417', '417', 'Working Holiday visa (subclass 417)', 'AU',
+    'stay', 'Home Affairs の画面では、滞在できる期間は1回目（ファースト）・2回目（セカンド）・3回目（サード）のいずれも 12 months と表示されています。画面にあるのはこの表示までで、この期間をいつから数えるのか（ビザが認められた日なのか、入国した日なのか）、滞在中にオーストラリアを出入りできるかどうかは書かれていないため、確認できていません。この点は Home Affairs で確認してください。', '{"appliesTo":"1回目（First）・2回目（Second）・3回目（Third）の Working Holiday visa（subclass 417）について、公式ページの各カードに表示されていた滞在期間","first":{"duration":12,"durationUnit":"months","officialWording":"Stay 12 months"},"second":{"duration":12,"durationUnit":"months","officialWording":"Stay 12 months"},"third":{"duration":12,"durationUnit":"months","officialWording":"Stay 12 months"},"sameAcrossStages":true,"wordingNote":"公式画面の表示は「Stay 12 months」のみ。滞在期間について触れるときは、この 12 months（12か月）という表示をそのまま伝えること。期間をいつから数えるか、この期間がどう適用されるかは画面に書かれていないため、そこへ踏み込まないこと","primarySourceVerified":true,"unverified":["この 12 months をどの時点から数えるか（ビザが認められた日／オーストラリアへ入国した日など）","この 12 months が状況によって短くなったり延びたりすることがあるかどうか","滞在中にオーストラリアを出入りできるか（travel / re-entry）の扱い","滞在期間に関係する他のビザ条件の具体値"]}'::jsonb,
+    '2026-11-11'::date, 'Home Affairs の Working Holiday visa (subclass 417) ページで、First / Second / Third の各カードの 「Stay 12 months」を人間が画面で確認した。up to / exact のどちらとも書かれていないため durationBasis は設定せず、起算点（grant date / 入国日）や travel・re-entry の扱いも画面に無いので unverified に記録。Student 500 の stay は「Up to 6 years」と明記されていたため durationBasis を持つが、417 にはその表記が無いので同じ扱いにしない。', now()
+  )
+  on conflict (visa_key, category) do update set
+    visa_code = excluded.visa_code,
+    visa_name = excluded.visa_name,
+    country_code = excluded.country_code,
+    summary = excluded.summary,
+    details = excluded.details,
+    reviewed_at = excluded.reviewed_at,
+    review_note = excluded.review_note,
+    updated_at = now()
+  returning id
+),
+cleared as (
+  delete from visa_reference_sources
+  where entry_id in (select id from upserted)
+  returning entry_id
+)
+insert into visa_reference_sources (
+  entry_id, source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes
+)
+select upserted.id, v.source_name, v.source_url, v.source_type, v.source_published_at, v.source_updated_at, v.accessed_at, v.notes
+from upserted
+cross join (
+  values
+      ('Australian Government Department of Home Affairs - Working Holiday visa (subclass 417)', 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417', 'home_affairs', null::date, '2024-12-09'::date, '2026-11-11'::date, 'First / Second / Third の各カードの Stay 表示（いずれも 12 months）を確認。up to / exact の区別、起算点、travel・re-entry の扱いはこのページでは確認していない。sourceUpdatedAt はページ全体の Last updated であり、滞在期間のルールの適用開始日ではない。')
+) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);
+
+-- australia_working_holiday_417 / processing（確認日: 2026-11-11）
+with upserted as (
+  insert into visa_reference_data (
+    visa_key, visa_code, visa_name, country_code, category, summary, details, reviewed_at, review_note, updated_at
+  ) values (
+    'australia_working_holiday_417', '417', 'Working Holiday visa (subclass 417)', 'AU',
+    'processing', '審査にかかる期間は、Home Affairs の visa processing time guide で目安を確認できます。この目安は最近決定された申請をもとにしたもので、個別の申請に当てはまる期間ではありません。2026年11月11日に確認した時点では、公式ページに「平均しておよそ3か月程度と見込まれる」と表示されていました。これは保証ではないため、ビザが認められるまでは航空券の予約や、仕事・就学の約束をしないよう案内されています。', '{"type":"dynamic_official_guide","fixedDuration":null,"guaranteed":false,"currentAverageGuidance":{"value":3,"unit":"months","wording":"expected to be around","officialWording":"The average processing time is expected to be around three months.","checkedAt":"2026-11-11","isCurrentPageValue":true},"items":["Home Affairs の visa processing time guide（審査期間の目安を見るツール）で目安を確認する","ツールが示すのは最近決定された申請の処理期間","示されるのは目安（guide only）であり、個別の申請に当てはまる期間ではない","ビザが認められるまで、航空券の予約や、渡航・仕事・就学の約束をしない"],"primarySourceVerified":true,"unverified":["保証される処理期間（保証という仕組み自体がない）","処理期間の percentile（75%・90% などの内訳）","審査の優先順位の仕組み","1回目・2回目・3回目で目安が違うかどうか（画面には1つの平均の目安しかない）","この平均の目安が今後どう変わるか"]}'::jsonb,
+    '2026-11-11'::date, 'Home Affairs の Working Holiday visa (subclass 417) ページで、visa processing time guide tool を使うこと・示されるのは recently decided applications の処理期間であること・guide only で個別の申請に当てはまるものではないこと・「The average processing time is expected to be around three months.」という表示・ビザ許可前に航空券や travel / work / study の約束をしないことを人間が画面で確認した。固定の処理期間としては保存せず、type: dynamic_official_guide / fixedDuration: null / guaranteed: falseのまま、現時点の目安だけを currentAverageGuidance に確認日つきで持つ。percentile と優先順位は未確認。', now()
+  )
+  on conflict (visa_key, category) do update set
+    visa_code = excluded.visa_code,
+    visa_name = excluded.visa_name,
+    country_code = excluded.country_code,
+    summary = excluded.summary,
+    details = excluded.details,
+    reviewed_at = excluded.reviewed_at,
+    review_note = excluded.review_note,
+    updated_at = now()
+  returning id
+),
+cleared as (
+  delete from visa_reference_sources
+  where entry_id in (select id from upserted)
+  returning entry_id
+)
+insert into visa_reference_sources (
+  entry_id, source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes
+)
+select upserted.id, v.source_name, v.source_url, v.source_type, v.source_published_at, v.source_updated_at, v.accessed_at, v.notes
+from upserted
+cross join (
+  values
+      ('Australian Government Department of Home Affairs - Working Holiday visa (subclass 417)', 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417', 'home_affairs', null::date, '2024-12-09'::date, '2026-11-11'::date, 'processing time guide tool の性質（recently decided applications にもとづく guide only で、個別の申請に当てはまるものではない）と、確認時点の表示「The average processing time is expected to be around three months.」、ビザ許可前に航空券・travel / work / study の約束をしない案内を確認。percentile と優先順位の仕組みはこのページでは確認していない。')
+) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);
+
+-- australia_working_holiday_417 / application（確認日: 2026-11-11）
+with upserted as (
+  insert into visa_reference_data (
+    visa_key, visa_code, visa_name, country_code, category, summary, details, reviewed_at, review_note, updated_at
+  ) values (
+    'australia_working_holiday_417', '417', 'Working Holiday visa (subclass 417)', 'AU',
+    'application', '1回目（ファースト）の申請は、オーストラリアの外からオンラインで行う必要があると案内されています。2回目・3回目については、オーストラリア国内にいる場合に満たす必要がある状態として、substantive visa（実体のあるビザ）を持っているか、最後の substantive visa が失効してから28日未満であることが挙げられています。これは「国内にいる場合に満たす状態」で、2回目・3回目をどこから申請する必要があるのか、オンラインである必要があるのかは、この画面では確認できていません。', '{"appliesTo":"1回目（First）の申請方法・申請場所と、2回目（Second）・3回目（Third）についてオーストラリア国内にいる場合の状態条件。公式ページの各カードで確認した内容","first":{"online":true,"locationRequirement":"outside_australia","officialWording":"You must apply online from outside Australia"},"secondThird":{"inAustraliaStatusCondition":{"officialWording":"If you are in Australia, you must hold a substantive visa or your last substantive visa expired less than 28 days ago","options":["substantive visa（実体のあるビザ）を持っている","最後に持っていた substantive visa が失効してから28日未満である"],"scopeNote":"これは「オーストラリア国内にいる場合に満たす必要がある状態」の条件。2回目・3回目をオーストラリア国内から申請できる、あるいは国外から申請する必要がある、という申請場所のルールとしては説明しないこと。オンライン申請である必要があるかどうかも、この画面では確認していない。また、2回目・3回目の申請場所が1回目と同じなのか違うのかも確認できていないため、「1回目とは違う」「1回目と同じ」のどちらとも言わないこと"}},"primarySourceVerified":true,"unverified":["2回目・3回目の申請場所の要件（オーストラリアの外にいる必要があるかどうか）","2回目・3回目がオンライン申請である必要があるかどうか","1回目をオーストラリア国内から申請できる例外があるかどうか","申請を提出する時期（いつまでに出す必要があるか）","bridging visa を持っている場合の扱い","「失効から28日未満」の数え方と例外","申請に含められる家族の範囲"]}'::jsonb,
+    '2026-11-11'::date, 'Home Affairs の Working Holiday visa (subclass 417) ページで、First の「You must apply online from outside Australia」と、Second / Third の「If you are in Australia, you must hold a substantive visa or your last substantive visa expired less than 28 days ago」を人間が画面で確認した。後者は**国内にいる場合に満たす状態**の条件なので、申請場所のルールへ一般化しないよう scopeNote を必須にして保持。2回目・3回目の申請場所・オンライン要件・提出時期・bridging visa・28日の数え方は未確認のまま unverified に記録した。', now()
+  )
+  on conflict (visa_key, category) do update set
+    visa_code = excluded.visa_code,
+    visa_name = excluded.visa_name,
+    country_code = excluded.country_code,
+    summary = excluded.summary,
+    details = excluded.details,
+    reviewed_at = excluded.reviewed_at,
+    review_note = excluded.review_note,
+    updated_at = now()
+  returning id
+),
+cleared as (
+  delete from visa_reference_sources
+  where entry_id in (select id from upserted)
+  returning entry_id
+)
+insert into visa_reference_sources (
+  entry_id, source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes
+)
+select upserted.id, v.source_name, v.source_url, v.source_type, v.source_published_at, v.source_updated_at, v.accessed_at, v.notes
+from upserted
+cross join (
+  values
+      ('Australian Government Department of Home Affairs - Working Holiday visa (subclass 417)', 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417', 'home_affairs', null::date, '2024-12-09'::date, '2026-11-11'::date, 'First は「You must apply online from outside Australia」、Second / Third は「If you are in Australia, you must hold a substantive visa or your last substantive visa expired less than 28 days ago」を確認。Second / Third の申請場所そのもの・オンライン要件・提出時期・bridging visa の扱いはこのページでは確認していない。')
 ) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);

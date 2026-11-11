@@ -109,14 +109,14 @@ function simulate(message: string): { readVisaData: boolean; categories: VisaCat
 console.log("前提: importer の検証を通っている（検証を弱めていない）");
 {
   assert(validated.problems.length === 0, "検証エラーなし");
-  assert(validated.entries.length === 4, `417 は4 entry が受理される（実際: ${validated.entries.length}）`);
+  assert(validated.entries.length === 9, `417 は9 entry が受理される（実際: ${validated.entries.length}）`);
 }
 
 console.log("Test 1: 417 eligibility が登録されている");
 {
   const categories = WHV.map((e) => e.category).sort();
   assert(
-    categories.join(",") === "eligibility,same_employer,second_third,specified_work",
+    categories.join(",") === "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay",
     `417 のカテゴリ（${categories.join(",")}）`,
   );
   assert(eligibility.reviewedAt === "2026-10-01", "人間確認日 2026-10-01 が記録されている");
@@ -262,15 +262,24 @@ console.log("一般語の gate 追加で 417 の既存表現を壊していな�
   }
 }
 
-console.log("417 の滞在期間は未登録のままで、Student 500 の値を流用しない");
+console.log("417 の滞在期間は 417 の確認済みデータだけを使い、Student 500 の値を流用しない");
 {
   const r = simulate("ワーホリは何年いられますか？");
   assert(r.categories.join(",") === "stay", `stay だけへ routing される（実際: ${r.categories.join(",")}）`);
-  assert(r.matched.length === 0, "417 の stay は未登録なので entry が1件も取れない");
+  assert(
+    r.matched.length === 1 && r.matched[0].category === "stay",
+    `417 の stay entry だけが取れる（実際: ${r.matched.map((e) => `${e.visaKey}/${e.category}`).join(",")}）`,
+  );
   assert(
     !r.matched.some((e) => e.visaKey === "australia_student_500"),
     "Student 500 の滞在期間を 417 の答えに流用しない",
   );
+  // 417 は 12 months。Student 500 の「最長6年」が混ざっていないこと。
+  const details = r.matched[0].details as Record<string, unknown>;
+  const first = details.first as Record<string, unknown>;
+  assert(first.duration === 12 && first.durationUnit === "months", "417 の 1回目は 12 months");
+  assert(details.durationBasis === undefined, "up to / exact が未確認なので durationBasis を持たない");
+  assert(details.enrolmentDependent === undefined, "Student 500 の enrolment 連動を 417 に持ち込まない");
 }
 
 console.log("Test 17: 入国の年齢期限を捏造していない");

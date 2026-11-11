@@ -363,11 +363,11 @@ console.log("Test 12: 現在の working-holiday-417.json → accept（人間確�
   // 未確認のカテゴリ（stay 等）は空のまま。
   const categories = r.entries.map((e) => e.category).sort();
   assert(
-    categories.join(",") === "eligibility,same_employer,second_third,specified_work",
-    `確認済みの4カテゴリだけが受理される（${categories.join(",")}）`,
+    categories.join(",") === "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay",
+    `確認済みの9カテゴリだけが受理される（${categories.join(",")}）`,
   );
   // 未確認のカテゴリは登録されていない
-  for (const unconfirmed of ["stay", "work_rights", "study_rights", "application", "documents", "costs", "processing"]) {
+  for (const unconfirmed of ["work_rights", "study_rights"]) {
     assert(!categories.includes(unconfirmed), `未確認の ${unconfirmed} は登録されていない`);
   }
   // same_employer は期間があるため、例外の記録が無ければ弾かれるルールを満たして通っている
@@ -470,6 +470,224 @@ console.log("Test 16: 検証エラーのメッセージが人間に分かる形"
   assert(message.includes("same_employer"), "category が分かる");
   assert(message.includes("exceptions"), "field が分かる");
   assert(message.includes("必要です") || message.includes("ません"), "理由が書かれている");
+}
+
+console.log("Test 17: 回ごとの金額（first / second / third）も通貨・基準が必須");
+{
+  const noCurrency = check(whvDoc([entry("costs", { per: "application", first: { amount: 840 } })]));
+  assert(noCurrency.entries.length === 0, "通貨の無い回ごとの金額は受理されない");
+  assert(rejectedFor(noCurrency.problems, "first.currency"), `通貨の欠落を指摘する（${showProblems(noCurrency.problems)}）`);
+
+  const noBasis = check(whvDoc([entry("costs", { per: "application", first: { amount: 840, currency: "AUD" } })]));
+  assert(noBasis.entries.length === 0, "基準の無い回ごとの金額は受理されない");
+  assert(rejectedFor(noBasis.problems, "first.basis"), "基準の欠落を指摘する");
+
+  const zero = check(
+    whvDoc([entry("costs", { per: "application", first: { amount: 0, currency: "AUD", basis: "exact_as_displayed" } })]),
+  );
+  assert(zero.entries.length === 0, "0 で埋めた回ごとの金額は受理されない");
+
+  const ok = check(
+    whvDoc([
+      entry("costs", {
+        per: "application",
+        first: { amount: 840, currency: "AUD", basis: "exact_as_displayed" },
+        second: { amount: 1000, currency: "AUD", basis: "exact_as_displayed" },
+      }),
+    ]),
+  );
+  assert(ok.entries.length === 1, `正しい形は受理される（${showProblems(ok.problems)}）`);
+}
+
+console.log("Test 18: exact_as_displayed を確定額へ強めると reject");
+{
+  const strengthened = check(
+    whvDoc([
+      entry("costs", {
+        per: "application",
+        first: { amount: 840, currency: "AUD", basis: "exact_as_displayed" },
+        description: "申請料は正確に AUD 840 です",
+      }),
+    ]),
+  );
+  assert(strengthened.entries.length === 0, "「正確に」と書いた値は受理されない");
+
+  const summaryStrengthened = check(
+    whvDoc([
+      {
+        ...entry("costs", {
+          per: "application",
+          first: { amount: 840, currency: "AUD", basis: "exact_as_displayed" },
+        }),
+        summary: "申請料は AUD 840 の固定額です",
+      },
+    ]),
+  );
+  assert(summaryStrengthened.entries.length === 0, "要約で「固定額」と断定しても受理されない");
+
+  // 注意書きとして使うのは許す（「確定額として断定しないこと」は必要な記述）。
+  const guidance = check(
+    whvDoc([
+      entry("costs", {
+        per: "application",
+        first: { amount: 840, currency: "AUD", basis: "exact_as_displayed" },
+        displayNote: "確定額として断定しないこと",
+      }),
+    ]),
+  );
+  assert(guidance.entries.length === 1, `注意書きとしての言及は受理される（${showProblems(guidance.problems)}）`);
+}
+
+console.log("Test 19: costs の適用開始日は根拠が無いと reject");
+{
+  const noSource = check(
+    whvDoc([
+      entry("costs", {
+        per: "application",
+        effectiveFrom: "2024-12-09",
+        first: { amount: 840, currency: "AUD", basis: "exact_as_displayed" },
+      }),
+    ]),
+  );
+  assert(noSource.entries.length === 0, "根拠の無い適用開始日は受理されない");
+  assert(rejectedFor(noSource.problems, "effectiveFrom"), "適用開始日の問題として指摘する");
+}
+
+console.log("Test 20: processing の現時点の目安は確認日と公式の言い方が必須");
+{
+  const base = { type: "dynamic_official_guide", fixedDuration: null, guaranteed: false };
+  const noCheckedAt = check(
+    studentDoc([
+      entry("processing", {
+        ...base,
+        currentAverageGuidance: { value: 3, unit: "months", wording: "expected to be around" },
+      }),
+    ]),
+  );
+  assert(noCheckedAt.entries.length === 0, "確認日の無い目安は受理されない");
+  assert(rejectedFor(noCheckedAt.problems, "checkedAt"), "確認日の欠落を指摘する");
+
+  const guaranteedWording = check(
+    studentDoc([
+      entry("processing", {
+        ...base,
+        currentAverageGuidance: {
+          value: 3,
+          unit: "months",
+          wording: "必ず3か月以内",
+          checkedAt: "2026-11-11",
+        },
+      }),
+    ]),
+  );
+  assert(guaranteedWording.entries.length === 0, "保証と読める言い方は受理されない");
+
+  const notMarkedUnguaranteed = check(
+    studentDoc([
+      entry("processing", {
+        type: "dynamic_official_guide",
+        fixedDuration: null,
+        currentAverageGuidance: {
+          value: 3,
+          unit: "months",
+          wording: "expected to be around",
+          checkedAt: "2026-11-11",
+        },
+      }),
+    ]),
+  );
+  assert(notMarkedUnguaranteed.entries.length === 0, "guaranteed: false の明示が無いと受理されない");
+
+  const ok = check(
+    studentDoc([
+      entry("processing", {
+        ...base,
+        currentAverageGuidance: {
+          value: 3,
+          unit: "months",
+          wording: "expected to be around",
+          checkedAt: "2026-11-11",
+        },
+      }),
+    ]),
+  );
+  assert(ok.entries.length === 1, `正しい形は受理される（${showProblems(ok.problems)}）`);
+
+  const monthsPromise = check(
+    studentDoc([{ ...entry("processing", base), summary: "申請すれば3か月以内に許可されます" }]),
+  );
+  assert(monthsPromise.entries.length === 0, "要約の「○か月以内に許可」も拒否する");
+}
+
+console.log("Test 21: application の 2回目・3回目を申請場所のルールへ広げると reject");
+{
+  const condition = {
+    officialWording:
+      "If you are in Australia, you must hold a substantive visa or your last substantive visa expired less than 28 days ago",
+    options: ["substantive visa を持っている", "最後の substantive visa の失効から28日未満"],
+    scopeNote: "オーストラリア国内にいる場合に満たす状態であり、申請場所のルールではない",
+  };
+
+  const withLocation = check(
+    whvDoc([
+      entry("application", {
+        secondThird: { locationRequirement: "in_australia", inAustraliaStatusCondition: condition },
+      }),
+    ]),
+  );
+  assert(withLocation.entries.length === 0, "2回目・3回目の申請場所を持たせると受理されない");
+  assert(rejectedFor(withLocation.problems, "locationRequirement"), "申請場所の問題として指摘する");
+
+  const withOnline = check(
+    whvDoc([entry("application", { secondThird: { online: true, inAustraliaStatusCondition: condition } })]),
+  );
+  assert(withOnline.entries.length === 0, "2回目・3回目のオンライン要件を持たせると受理されない");
+
+  const noScopeNote = check(
+    whvDoc([
+      entry("application", {
+        secondThird: {
+          inAustraliaStatusCondition: { ...condition, scopeNote: undefined },
+        },
+      }),
+    ]),
+  );
+  assert(noScopeNote.entries.length === 0, "範囲の注記が無いと受理されない");
+  assert(rejectedFor(noScopeNote.problems, "scopeNote"), "注記の欠落を指摘する");
+
+  const oneOption = check(
+    whvDoc([
+      entry("application", {
+        secondThird: {
+          inAustraliaStatusCondition: { ...condition, options: ["substantive visa を持っている"] },
+        },
+      }),
+    ]),
+  );
+  assert(oneOption.entries.length === 0, "2つの状態のうち片方だけでは受理されない");
+
+  const ok = check(
+    whvDoc([entry("application", { secondThird: { inAustraliaStatusCondition: condition } })]),
+  );
+  assert(ok.entries.length === 1, `正しい形は受理される（${showProblems(ok.problems)}）`);
+}
+
+console.log("Test 22: 回ごとの期間（stay）も単位が必須");
+{
+  const noUnit = check(whvDoc([entry("stay", { first: { duration: 12 } })]));
+  assert(noUnit.entries.length === 0, "単位の無い回ごとの期間は受理されない");
+  assert(rejectedFor(noUnit.problems, "first.duration"), "単位の欠落を指摘する");
+
+  const ok = check(
+    whvDoc([
+      entry("stay", {
+        first: { duration: 12, durationUnit: "months" },
+        second: { duration: 12, durationUnit: "months" },
+        sameAcrossStages: true,
+      }),
+    ]),
+  );
+  assert(ok.entries.length === 1, `正しい形は受理される（${showProblems(ok.problems)}）`);
 }
 
 console.log("");

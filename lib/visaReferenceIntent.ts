@@ -69,6 +69,11 @@ const VISA_TOPIC_GATED_KEYWORDS: { category: VisaCategory; keywords: string[] }[
       "変更でき",
       "変えたい",
       // 申請場所・国内での更新
+      // 「どこから申請する？」は申請場所の質問だが、既存語（国内から申請 等）に当たらず
+      // 基本セットへ落ちていた。
+      "どこから申請",
+      "どこで申請",
+      "どこから出す",
       "国内から申請",
       "国内で申請",
       "現地で申請",
@@ -120,6 +125,16 @@ const VISA_TOPIC_GATED_KEYWORDS: { category: VisaCategory; keywords: string[] }[
       // ungated のままだと「語学学校の費用はいくらですか？」でビザ層が起動し、
       // 「どのビザですか？」と聞き返してしまう（Phase 6 の実機確認で再現）。
       "費用",
+      // 「ワーホリのビザはいくら？」は申請料の質問だが、どの既存語にも当たらず
+      // 基本セット（eligibility / work_rights / stay）へ落ちていた。
+      // 「ビザ」と「いくら」が隣接する言い方だけを拾う（「いくら」単独は入れない。
+      // 学費・家賃などビザ以外の金額の質問まで costs へ回してしまうため）。
+      "ビザはいくら",
+      "ビザっていくら",
+      "ビザいくら",
+      "ビザの金額",
+      "ビザ料金",
+      "ビザの料金",
     ],
   },
   {
@@ -160,6 +175,20 @@ const VISA_TOPIC_GATED_KEYWORDS: { category: VisaCategory; keywords: string[] }[
     ],
   },
   {
+    // 人物（character）の書類。417 documents に「We might ask you to provide」として
+    // 確認済みで入っているため、名指しで聞かれたら documents へ回す。
+    // 「警察」単体は入れない（現地で警察に相談したい等、ビザと無関係な相談で誤発火するため）。
+    category: "documents",
+    keywords: [
+      "警察証明",
+      "無犯罪証明",
+      "犯罪経歴証明",
+      "police certificate",
+      "police clearance",
+      "character document",
+    ],
+  },
+  {
     // 英語力の正本は documents（englishEvidence / englishExemptions / englishScoreNote）側にある。
     // 試験名は**入力の判定語**として持つだけで、回答に固定スコアを出すためのものではない。
     category: "documents",
@@ -174,6 +203,25 @@ const VISA_TOPIC_GATED_KEYWORDS: { category: VisaCategory; keywords: string[] }[
  * 「どう証明するか・何を提出するか」は Home Affairs で未確認（evidenceStatus: unverified）。
  * 同じコンテキストを渡すと、LLM が一般知識から書類名を補ってしまうため、問いの種類で分ける。
  */
+/**
+ * 「滞在のための資金」を聞いている言い方。申請料（costs）とは区別する。
+ *
+ * 417 では金額の正本が documents entry の financialEvidence 側にある
+ * （Home Affairs の Gather your documents 画面にそこで書かれているため）。
+ * この語に当たったときだけ documents も読み、申請料の質問では読まない。
+ */
+const FUNDS_TOPIC_WORDS = [
+  "資金",
+  "残高",
+  "貯金",
+  "所持金",
+  "いくら持って",
+  "いくら必要",
+  "必要なお金",
+  "お金はいくら",
+  "お金が必要",
+];
+
 const FINANCIAL_AMOUNT_WORDS = [
   "いくら",
   "金額",
@@ -201,6 +249,8 @@ const FINANCIAL_EVIDENCE_METHOD_WORDS = [
   "何を出せば",
   "どんな書類",
   "どの書類",
+  // 「資金は何の書類で証明する？」が amount 扱いになり、mixed と判定されていなかった。
+  "何の書類",
   "必要書類",
   "書類は何",
   "提出書類",
@@ -265,6 +315,12 @@ export type VisaIntent = {
    * 証明方法が未確認の entry では、呼び出し側がこれを見て詳細を渡さない経路へ切り替える。
    */
   financialQuestion: FinancialQuestionKind;
+  /**
+   * 発言そのものが書類について聞いているか。
+   * 資金の質問で documents を足したケースと区別するために持つ
+   * （資金の答えに関係しない documents entry を呼び出し側が外せるようにする）。
+   */
+  asksDocuments: boolean;
 };
 
 function includesAny(text: string, words: string[]): boolean {
@@ -307,6 +363,8 @@ export function detectVisaIntent(latestUserMessage: string): VisaIntent | null {
   }
 
   const mentionsVisaTopic = includesAny(lower, VISA_TOPIC_WORDS.map((w) => w.toLowerCase()));
+  // 資金の質問で documents を足す前の状態（発言そのものが書類を聞いているか）。
+  let asksDocumentsFromMessage = categories.includes("documents");
 
   // ファームの仕事探しだけ（セカンド・ビザの話が無い）ならビザ情報は読まない。
   if (mentionsFarmJobSearch && !mentionsVisaTopic && categories.length === 0) return null;
@@ -320,12 +378,22 @@ export function detectVisaIntent(latestUserMessage: string): VisaIntent | null {
   if (mentionsVisaTopic) {
     // 「資金はいくら？」は資金要件の話で、申請料（costs）ではない。
     // 一般的な「いくら」系の語だけで costs を足すと、申請料の金額が混ざって誤案内になる。
-    const asksFunds = includesAny(lower, ["資金", "残高", "貯金"]);
     const asksApplicationFee = includesAny(lower, ["ビザ代", "申請費", "申請料", "fee"]);
+    const asksFunds = includesAny(lower, FUNDS_TOPIC_WORDS) && !asksApplicationFee;
     for (const { category, keywords } of VISA_TOPIC_GATED_KEYWORDS) {
       if (categories.includes(category)) continue;
-      if (category === "costs" && asksFunds && !asksApplicationFee) continue;
+      if (category === "costs" && asksFunds) continue;
       if (includesAny(lower, keywords.map((k) => k.toLowerCase()))) categories.push(category);
+    }
+    // 発言そのものが書類を聞いているかは、資金由来で documents を足す前に確定させる。
+    asksDocumentsFromMessage = categories.includes("documents");
+    if (asksFunds) {
+      // 資金の質問は、資金要件 entry と documents entry の両方を見る。
+      // どちらに金額が入っているかはビザによって違う（500 は financial_capacity、
+      // 417 は documents の financialEvidence）。
+      // documents 側は「資金の情報を持つ entry だけ使う」よう呼び出し側で絞る。
+      if (!categories.includes("financial_capacity")) categories.push("financial_capacity");
+      if (!categories.includes("documents")) categories.push("documents");
     }
   }
 
@@ -346,6 +414,7 @@ export function detectVisaIntent(latestUserMessage: string): VisaIntent | null {
     mentionsTax,
     mentionsFarmJobSearch,
     financialQuestion: detectFinancialQuestionKind(lower),
+    asksDocuments: asksDocumentsFromMessage,
   };
 }
 

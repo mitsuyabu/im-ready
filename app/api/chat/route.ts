@@ -24,6 +24,12 @@ import {
   isDevCitySnapshotEnabled,
   loadDevCitySnapshots,
 } from "@/lib/devCitySnapshot";
+import {
+  hasFinancialEvidence,
+  hasUnverifiedFinancialEvidence,
+  onlyFinancialEvidence,
+  withoutUnverifiedFinancialEvidence,
+} from "@/lib/visaReference";
 import { detectVisaIntent, resolveVisaKeysForChat } from "@/lib/visaReferenceIntent";
 import {
   buildVisaCitations,
@@ -216,31 +222,58 @@ async function buildVisaContextForTurn(
     }
 
     const supabase = await createClient();
-    const entries = await loadVisaReferenceEntries(supabase, resolution.visaKeys, intent.categories);
+    const loaded = await loadVisaReferenceEntries(supabase, resolution.visaKeys, intent.categories);
+
+    // 資金の質問のために足した documents entry は、資金の情報を持つものだけ使う。
+    // 417 は「通常 AUD 5,000」が documents 側にあるが、500 の documents は資金と無関係で、
+    // 混ぜると資金の答えが英語力などへ広がってしまう。
+    const usable = intent.asksDocuments
+      ? loaded
+      : loaded.filter((e) => e.category !== "documents" || hasFinancialEvidence(e));
+
+    // 資金だけを聞かれたターンでは、documents entry を資金の情報へ絞る。
+    // 書類一覧まで渡すと、答えが資金の要件（金額・出国のための資金）から離れてしまう。
+    const entries =
+      !intent.asksDocuments && intent.financialQuestion !== "unspecified"
+        ? usable.map(onlyFinancialEvidence)
+        : usable;
 
     if (entries.length === 0) {
       return buildVisaNoDataContext(resolution.visaKeys, intent.categories);
     }
 
-    // 資金要件の「どう証明するか」を聞かれたが、その証明方法が未確認の場合は、
-    // **推測の材料を渡さない経路**へ切り替える（金額も entry 本文も渡さない）。
-    // 判定は question intent と entry の evidenceStatus の**両方**で行う
+    // 資金の「どう証明するか」が未確認の場合は、**推測の材料を渡さない経路**へ切り替える。
+    // 判定は question intent と entry 側の状態の**両方**で行う
     // （キーワードだけで未確認と決め打ちしない）。
     const financialEntry = entries.find((e) => e.category === "financial_capacity");
-    const evidenceUnverified =
+    const financialStateUnverified =
       financialEntry !== undefined && financialEntry.details.evidenceStatus === "unverified";
+    // documents entry の financialEvidence（417）: 金額は確認済みだが、書類の種類は未確認。
+    const entryEvidenceUnverified = entries.some(hasUnverifiedFinancialEvidence);
     const asksEvidenceMethod =
       intent.financialQuestion === "evidence_method" || intent.financialQuestion === "mixed";
+    // 確認済みの金額が答えに必要なターンだけ、金額を含む block を残す。
+    const asksAmount = intent.financialQuestion === "amount" || intent.financialQuestion === "mixed";
 
-    if (evidenceUnverified && asksEvidenceMethod) {
+    // 書類そのものを聞かれたターン（「必要書類は？」等）も、未確認の financialEvidence が
+    // 残っていると「どの書類か」を一般知識で埋める材料になる。金額を聞かれていない限り外す。
+    if (
+      (financialStateUnverified && asksEvidenceMethod) ||
+      (entryEvidenceUnverified && (asksEvidenceMethod || !asksAmount))
+    ) {
       // 渡してよい entry だけを残す。
-      //   mixed（金額も聞かれている）: 資金要件の entry も残す（金額は確認済みの候補値）
-      //   evidence_method（証明方法だけ）: 資金要件の entry は渡さない
-      //     （金額や周辺の記述が、書類名を思い浮かべる材料になるため）
-      const keepEntries =
-        intent.financialQuestion === "mixed"
-          ? entries
-          : entries.filter((e) => e.category !== "financial_capacity");
+      //   資金要件 entry（証明方法が未確認）: 証明方法だけを聞かれたターンでは渡さない
+      //     （金額や周辺の記述が、書類名を思い浮かべる材料になるため）。
+      //     mixed では金額も聞かれているため残す。
+      //   documents entry: 確認済みの必要書類（パスポート等）は答えに必要なので残し、
+      //     未確認の financialEvidence だけを外す。
+      const keepEntries = entries
+        .filter(
+          (e) =>
+            !(financialStateUnverified && intent.financialQuestion === "evidence_method") ||
+            e.category !== "financial_capacity",
+        )
+        .map((e) => (asksAmount ? e : withoutUnverifiedFinancialEvidence(e)));
 
       const evidenceContext = buildVisaUnverifiedEvidenceContext(resolution.visaKeys);
       if (keepEntries.length === 0) {

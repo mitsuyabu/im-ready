@@ -93,7 +93,7 @@ console.log("Test 2: --check は従来どおり（検証のみ・SQL を書か�
   assert(status === 0, "exit 0");
   assert(stdout.includes("student-500.json"), "Student 500 を検証している");
   assert(stdout.includes("working-holiday-417.json"), "417 を検証している");
-  assert(stdout.includes("有効な entry: 15件"), `受理 15 entry（実際の出力: ${stdout.trim().split("\n").pop()}）`);
+  assert(stdout.includes("有効な entry: 20件"), `受理 16 entry（実際の出力: ${stdout.trim().split("\n").pop()}）`);
   assert(stdout.includes("SQL は出力しません"), "--check では SQL を出さないと明示する");
   assert(sha(readFileSync(OUT_FILE, "utf8")) === beforeSha, "--check では生成 SQL が変わらない");
 }
@@ -102,7 +102,7 @@ console.log("Test 3: 通常生成は従来どおり（中身は生成日時以�
 {
   const { stdout, status } = run([IMPORTER]);
   assert(status === 0, "exit 0");
-  assert(stdout.includes("15件ぶんの SQL を書き出しました"), "SQL を書き出したと報告する");
+  assert(stdout.includes("20件ぶんの SQL を書き出しました"), "SQL を書き出したと報告する");
   const after = readFileSync(OUT_FILE, "utf8");
   assert(semantic(after) === beforeSemantic, "生成日時コメント以外に差分が無い");
   assert(after.includes("on conflict (visa_key, category)"), "upsert のままである");

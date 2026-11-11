@@ -76,11 +76,22 @@ https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-4
 | 申請料の金額 | no | | | | |
 | 健康・人物（character）の具体的な書類 | no | | | | |
 
-## 1-2. stay
+## 1-2. stay（2026-11-11 確認済み）
+
+確認したページ: Department of Home Affairs「Working Holiday visa (subclass 417)」
+→ 概要および First / Second / Third の各カード
+https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417
+（accessed_at / reviewed_at: 2026-11-11。人間が画面で確認）
 
 | 項目 | 確認 | 値 | 要約 | ページ箇所 | 備考 |
 |---|---|---|---|---|---|
-| 滞在できる期間（単位つき） | no | | | | |
+| 滞在できる期間（1回目） | **yes** | 12 months（`first.duration: 12` / `durationUnit: "months"`） | 画面の表示は「Stay 12 months」 | First Working Holiday visa のカード | |
+| 滞在できる期間（2回目） | **yes** | 12 months（`second`） | 画面の表示は「Stay 12 months」 | Second Working Holiday visa のカード | 1回目と同じ |
+| 滞在できる期間（3回目） | **yes** | 12 months（`third`） | 画面の表示は「Stay 12 months」 | Third Working Holiday visa のカード | 1回目と同じ |
+| `up_to`（上限）か確定の期間か | no | `durationBasis` は設定しない | | | **画面に up to / exact の表記が無い。Student 500（Up to 6 years）の扱いを流用しない** |
+| 滞在期間の起算点（start rule） | no | | | | **未確認。ビザが認められた日／入国した日のいずれとも説明しない** |
+| 滞在中の出入国（travel / re-entry） | no | | | | 未確認。multiple entry 等を追加しない |
+| 期間が短くなる・延びる条件 | no | | | | 未確認 |
 
 ## 1-3. work_rights
 
@@ -129,40 +140,96 @@ https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-4
 |---|---|---|---|---|---|
 | 就学・訓練が可能な期間（単位つき） | no | | | | |
 
-## 1-6. application
+## 1-6. application（2026-11-11 確認済み・一部）
+
+確認したページ: Department of Home Affairs「Working Holiday visa (subclass 417)」
+→ First / Second / Third の各カード
+https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417
+（accessed_at / reviewed_at: 2026-11-11。人間が画面で確認）
 
 | 項目 | 確認 | 値 | 要約 | ページ箇所 | 備考 |
 |---|---|---|---|---|---|
-| 申請時にオーストラリア国内／国外のどちらにいる必要があるか | no | | | | |
-| 申請方法 | no | | | | |
-| その他の申請条件 | no | | | | |
+| 申請方法（1回目） | **yes** | `first.online: true` | オンラインで申請する | First のカード | 公式の文: 「You must apply online from outside Australia」 |
+| 申請時の所在（1回目） | **yes** | `first.locationRequirement: "outside_australia"` | 申請する時点でオーストラリアの外にいる必要がある | 同 | |
+| 2回目・3回目の国内在留条件 | **yes** | `secondThird.inAustraliaStatusCondition` | オーストラリア国内にいる場合は、substantive visa を持っているか、最後の substantive visa の失効から28日未満であること | Second / Third のカード | **「国内にいる場合に満たす状態」。申請場所のルールへ一般化しない**（`scopeNote` を必須で保持し、importer が検証） |
+| 2回目・3回目の申請場所の要件 | no | | | | **未確認。「国内から申請できる」「国外から申請する必要がある」のどちらとも言わない** |
+| 2回目・3回目がオンライン申請かどうか | no | | | | 未確認 |
+| 1回目の国内申請の例外 | no | | | | 未確認 |
+| 申請を提出する時期（lodgement timing） | no | | | | 未確認 |
+| bridging visa を持っている場合の扱い | no | | | | 未確認。個別ケースは公式・移民エージェントへ案内 |
+| 「失効から28日未満」の数え方・例外 | no | | | | 未確認 |
+| 申請に含められる家族の範囲 | no | | | | 1回目については eligibility 側に「家族を同じ申請に含められない」を保持 |
 
-## 1-7. documents
+## 1-7. documents（2026-10-23 確認済み）
 
-公式が区分を示している範囲で分ける（示していない区分を作らない）。
+確認したページ: Department of Home Affairs「Working Holiday visa (subclass 417)」
+→ First Working Holiday visa → **Step 2: Gather your documents**
+https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417
+（accessed_at / reviewed_at: 2026-10-23。人間が画面で確認）
+
+この画面は **First Working Holiday visa のもの**。セカンド・サードで追加される書類は未確認。
+
+| 項目 | 確認 | 値（公式の文言のまま） | 備考 |
+|---|---|---|---|
+| 身分: パスポート | **yes** | 顔写真・本人情報・発行日・有効期限が分かるページ | 必須側 |
+| 身分: 出生証明書 | **yes** | 両親2人の名前が記載された birth certificate のコピー | 必須側 |
+| 出生証明書の代替 | **yes** | family book（両親2人の名前）／政府発行の身分証明書／裁判所発行の本人確認書類 | **取得できない場合の代替。通常の必須と同列にしない** |
+| 名前変更の証明 | **yes** | 結婚／離婚証明書、豪 Registry of BDM の改名書類、国外機関の改名書類、他に名乗っていた名前が分かる書類 | **条件付き**。公式は「proof such as」として例示（限定列挙ではない） |
+| 資金の証拠 | **yes** | 滞在に十分な資金の証拠を提出。「This is usually AUD 5,000.」 | `basis: "usually"`。**最低額・確定額へ言い換えない** |
+| 出国のための資金 | **yes** | 滞在終了時に出国する航空券を買える資金があること、または既に所持していること | |
+| 証拠を添付しない場合 | **yes** | 追加情報を求められ審査が遅れる可能性 | |
+| 人物（character）の書類 | **yes（条件付き）** | 公式の表現は「We might ask you to provide」 | **全員必須にしない** |
+| 豪州の警察証明 | **yes** | 16歳以降・過去10年でオーストラリアに合計12か月以上滞在した場合に求められる可能性。**AFP 発行の complete disclosure National Police Certificate のみ受理**／standard disclosure と州・テリトリー警察発行は不受理 | 種類の違いを落とさない |
+| 国外の警察証明 | **yes** | 16歳以降・過去10年で、母国を含む各国に合計12か月以上滞在した場合、その国の overseas police certificate を求められる可能性 | 豪州側と条件が別 |
+| 軍の記録 | **yes** | armed forces に勤務したことがある場合、military service records / discharge papers。必要かは Home Affairs から知らせる | |
+| 事務手続きの様式 | **yes** | Form 956A（authorised recipient）／Form 956（migration agent・legal practitioner・exempt person）。ImmiAccount へアップロード | **必要書類の一覧と混同しない** |
+| 翻訳 | **yes** | 英語以外は英語へ翻訳し、原本と翻訳の両方を提出。豪州内の翻訳者は NAATI 認定が必要。国外は認定不要だが、各翻訳に氏名／住所・電話／当該言語の資格と経験を英語で記載 | |
+| 認証（certified） | **yes** | 「You do not need to have any documents certified.」 | **certified copy 必須と書かない** |
+| スキャン・写真 | **yes** | すべてカラーでスキャンまたは撮影／鮮明であること／複数ページは全ページを1ファイル | |
+| 添付の仕方 | **yes** | 同じ書類を複数の目的で使う場合も、添付は1回だけ | |
+| 資金をどの書類で示すか | **no** | | **この画面に記載がない。書類名を挙げない**（`specificDocumentTypesVerified: false`） |
+| 健康（health）の書類 | **no** | | **この画面に独立セクションを確認していない。健康診断等を登録しない** |
+| ファイル形式・容量などの技術要件 | no | | |
+| セカンド・サードで追加される書類 | no | | この画面は First のもの |
+
+## 1-8. costs（2026-11-11 確認済み）
+
+確認したページ: Department of Home Affairs「Working Holiday visa (subclass 417)」
+→ 概要および First / Second / Third の各カード
+https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417
+（accessed_at / reviewed_at: 2026-11-11。人間が画面で確認）
+
+ページ全体の **Last updated: 9 December 2024**。これは `source_updated_at` にだけ記録し、
+**各申請料の適用開始日として扱わない**。
 
 | 項目 | 確認 | 値 | 要約 | ページ箇所 | 備考 |
 |---|---|---|---|---|---|
-| 身分（identity）関係 | no | | | | |
-| 資金の証明（financial evidence） | no | | | | 金額が示されている場合は通貨も記録 |
-| 健康（health）関係 | no | | | | |
-| 人物（character）関係 | no | | | | |
-| 追加で求められ得る書類 | no | | | | 「必須」と混ぜない |
+| 現在の申請料（1回目） | **yes** | AUD 840（`first.amount: 840`） | 画面の表示は「Cost AUD 840.00」 | First Working Holiday visa のカード | |
+| 現在の申請料（2回目） | **yes** | AUD 1,000（`second.amount: 1000`） | 画面の表示は「Cost AUD 1,000.00」 | Second Working Holiday visa のカード | **1回目と額が違う。取り違えない** |
+| 現在の申請料（3回目） | **yes** | AUD 1,000（`third.amount: 1000`） | 画面の表示は「Cost AUD 1,000.00」 | Third Working Holiday visa のカード | |
+| `from`（〜から）か `exact`（確定額）か | **no** | `basis: "exact_as_displayed"` | 画面は金額のみ。`from` も `minimum` も表記されていない | 同 | **「〜から」「最低」へ言い換えず、確定額・固定額とも断定しない**ために専用の basis を使う |
+| 適用開始日 | no | `effectiveFrom: null` | | | **未確認。ページ全体の Last updated（2024-12-09）を流用しない**（`effectiveFromNote` に明記） |
+| 支払い時の surcharge・カード手数料 | no | | | | 未確認。追加しない |
+| 同伴者（additional applicant）の追加料金 | no | | | | 未確認。追加しない |
+| 減額・免除（concession / exemption）の有無 | no | | | | 未確認。Student 500 の減額対象を 417 へ流用しない |
+| 今後の金額の改定 | no | | | | 未確認 |
 
-## 1-8. costs
+## 1-9. processing（2026-11-11 確認済み）
+
+確認したページ: Department of Home Affairs「Working Holiday visa (subclass 417)」
+https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417
+（accessed_at / reviewed_at: 2026-11-11。人間が画面で確認）
 
 | 項目 | 確認 | 値 | 要約 | ページ箇所 | 備考 |
 |---|---|---|---|---|---|
-| 現在の申請料（金額・通貨） | no | | | | |
-| `from`（〜から）か `exact`（確定額）か | no | | | | |
-| 適用開始日 | no | | | | |
-| 同伴者の追加料金・免除の有無 | no | | | | |
-
-## 1-9. processing
-
-| 項目 | 確認 | 値 | 要約 | ページ箇所 | 備考 |
-|---|---|---|---|---|---|
-| 公式の審査期間の案内 | no | | | | パーセンタイル等の動的な表示なら、固定日数として保存せず `type: "dynamic_official_guide"` / `fixedDuration: null` で記録する |
+| 公式の審査期間の案内 | **yes** | `type: "dynamic_official_guide"` / `fixedDuration: null` | visa processing time guide で目安を確認する | Processing times | 固定日数としては保存しない |
+| 目安の性質 | **yes** | recently decided applications / guide only | 最近決定された申請にもとづく目安で、個別の申請に当てはまるものではない | 同 | 公式の文言: 「It is a guide only and is not specific to the individual application.」 |
+| 確認時点の平均の目安 | **yes** | 約3か月（`currentAverageGuidance`: value 3 / unit months / wording "expected to be around" / checkedAt 2026-11-11） | 「The average processing time is expected to be around three months.」 | 同 | **変動する現時点の表示**。確認日つきで保持し、`guaranteed: false` と同じ場所で渡す |
+| 渡航の約束についての案内 | **yes** | ビザ許可前に航空券・travel / work / study の約束をしない | 「Do not book flights or make travel, work or study commitments until the visa has been granted.」 | 同 | |
+| 保証される処理期間 | no | `guaranteed: false` | | | **保証という仕組み自体がない。「3か月で出る」「3か月以内」と言わせない** |
+| percentile（75% / 90% 等） | no | | | | 未確認。作らない |
+| 審査の優先順位の仕組み | no | | | | 未確認。Student 500 の Ministerial Direction を 417 へ流用しない |
+| 1回目・2回目・3回目で目安が違うか | no | | | | 画面には1つの平均の目安しかない |
 
 ## 1-10. second_third（2026-10-02 確認済み・一部）
 
