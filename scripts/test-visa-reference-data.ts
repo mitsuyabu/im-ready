@@ -453,13 +453,13 @@ async function main() {
   {
     // 417 は人間が確認したカテゴリだけが入っている（未確認は空のまま）
     const whv417 = SEED.filter((e) => e.visaKey === "australia_working_holiday_417");
-    assert(whv417.length === 9, `417 は確認済みの9カテゴリだけ（実際: ${whv417.length}）`);
+    assert(whv417.length === 10, `417 は確認済みの10カテゴリだけ（実際: ${whv417.length}）`);
     assert(
       whv417.map((e) => e.category).sort().join(",") ===
-        "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay",
-      "application / costs / documents / eligibility / processing / same_employer / second_third / specified_work / stay のみ",
+        "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay,work_rights",
+      "application / costs / documents / eligibility / processing / same_employer / second_third / specified_work / stay / work_rights のみ",
     );
-    for (const unconfirmed of ["work_rights", "study_rights"]) {
+    for (const unconfirmed of ["study_rights"]) {
       assert(!whv417.some((e) => e.category === unconfirmed), `未確認の ${unconfirmed} は入っていない`);
     }
 
@@ -658,8 +658,8 @@ async function main() {
         `Student 500: 未確認の ${absent} は登録しない`,
       );
     }
-    assert(whv.length === 9, `417 の確認済み entry が9件（実際: ${whv.length}）`);
-    for (const absent of ["work_rights", "study_rights"]) {
+    assert(whv.length === 10, `417 の確認済み entry が10件（実際: ${whv.length}）`);
+    for (const absent of ["study_rights"]) {
       assert(!whv.some((e) => e.category === absent), `417: 未確認の ${absent} は登録しない`);
     }
     for (const e of SEED) {
@@ -815,7 +815,7 @@ async function main() {
     );
 
     // 既存 entry の正本を複製していない（specified work の期間・同一雇用主・年齢）
-    for (const category of ["costs", "stay", "processing", "application"]) {
+    for (const category of ["costs", "stay", "processing", "application", "work_rights"]) {
       const serialized = JSON.stringify(byCategory(category).details);
       for (const duplicated of ["88", "179", "8547", "18〜30"]) {
         assert(
@@ -824,6 +824,107 @@ async function main() {
         );
       }
     }
+  }
+
+  console.log("Test 19: 417 work_rights は概要画面の文言だけで、時間・雇用形態・期間へ広げない");
+  {
+    const workRights = SEED.find(
+      (e) => e.visaKey === "australia_working_holiday_417" && e.category === "work_rights",
+    );
+    assert(workRights !== undefined, "417 の work_rights entry がある");
+    const details = (workRights?.details ?? {}) as Record<string, unknown>;
+
+    // 確認済みの事実（概要画面の3つの公式文言）
+    assert(details.generalWorkRight === true, "就労が認められることが登録されている");
+    const wording = (stage: string) =>
+      ((details[stage] as Record<string, unknown>) ?? {}).officialWording;
+    assert(wording("first") === "You can work while you are here", "1回目の公式文言が原文のまま");
+    assert(
+      wording("second") === "You can do any kind of work while you are here",
+      "2回目の公式文言が原文のまま",
+    );
+    assert(
+      wording("third") === "You can do any kind of work while you are here",
+      "3回目の公式文言が原文のまま",
+    );
+
+    // 時間の上限を表す field を持たない（readWorkHourLimit が反応する構造を作らない）
+    for (const forbidden of [
+      "limit",
+      "unit",
+      "hoursPerWeek",
+      "hoursPerFortnight",
+      "weeklyLimit",
+      "fortnightLimit",
+      "maxHours",
+    ]) {
+      assert(details[forbidden] === undefined, `work_rights: 時間の上限 field（${forbidden}）を持たない`);
+    }
+    assert(
+      readWorkHourLimit(details) === null,
+      "work_rights: 上限として読み取れる構造になっていない（未確認のため）",
+    );
+
+    // 文言の差の意味を推測する field を持たない
+    assert(typeof details.wordingDifferenceNote === "string", "文言の差が未確認であることを保持している");
+    for (const guessed of ["occupationRestriction", "occupationFree", "sameMeaning", "firstIsRestricted"]) {
+      assert(details[guessed] === undefined, `work_rights: 差を説明する推測 field（${guessed}）を持たない`);
+    }
+    assert(details.sameEmployerHandledSeparately === true, "同一雇用主の制限は別 category だと明示している");
+
+    // same_employer / specified_work / second_third の正本値を複製していない
+    const serialized = JSON.stringify(details);
+    for (const owned of ["8547", "88", "179", "Northern Australia", "critical sector", "postcode"]) {
+      assert(!serialized.includes(owned), `work_rights: 他 category が正本の内容（${owned}）を複製していない`);
+    }
+
+    // context: 公式文言が渡り、時間の上限は「特定できない」として渡る
+    const ctx = simulate({ message: "ワーホリで働くことができますか？" });
+    assert(ctx.categories.join(",") === "work_rights", `work_rights へ routing される（${ctx.categories.join(",")}）`);
+    assert(ctx.context.includes("You can work while you are here"), "1回目の公式文言が渡る");
+    assert(
+      ctx.context.includes("You can do any kind of work while you are here"),
+      "2回目・3回目の公式文言が渡る",
+    );
+    assert(
+      ctx.context.includes("週あたり・2週間あたりの上限は今回確認できている情報では特定できません"),
+      "時間の上限が未確認であることが渡る",
+    );
+    assert(
+      ctx.context.includes("「上限はない」「制限なく働ける」とも言わない"),
+      "「制限なし」と言わせない指示が渡る",
+    );
+    // Student 500 の上限が混ざらない
+    assert(!ctx.context.includes("48"), "417 の就労の質問に Student 500 の 48 hours が混ざらない");
+
+    // 「どんな仕事でもできますか？」も work_rights だけへ届く（基本セットへ落ちない）
+    const kind = simulate({ message: "ワーホリはどんな仕事でもできますか？" });
+    assert(kind.categories.join(",") === "work_rights", `仕事の種類の質問も work_rights（${kind.categories.join(",")}）`);
+    assert(
+      kind.context.includes("その差が何を意味するかまでは今回確認できていません"),
+      "文言の差が未確認であることが渡る",
+    );
+
+    // 同一雇用主の質問では same_employer が正本として渡り、6か月が落ちない
+    const employer = simulate({ message: "ワーホリで同じ会社で何ヶ月働けますか？" });
+    assert(employer.categories.includes("same_employer"), "同一雇用主の質問は same_employer へも回る");
+    assert(employer.context.includes("6 months"), "same_employer の6か月が渡る");
+    assert(employer.context.includes("8547"), "condition 8547 は same_employer 側から渡る");
+
+    // 28日（申請時の在留状態の条件）を就労権へ転用しない
+    const expiry = simulate({ message: "ワーホリのビザが切れたあと28日間は働けますか？" });
+    assert(
+      expiry.categories.join(",") === "work_rights",
+      `満了後の就労の質問は work_rights へ回る（${expiry.categories.join(",")}）`,
+    );
+    assert(
+      !expiry.context.includes("28"),
+      "就労の質問に application の28日ルールが渡らない（申請条件を就労権へ転用させない）",
+    );
+    assert(
+      expiry.context.includes("ビザが始まる前・満了したあとの就労の扱い"),
+      "満了後の就労が未確認であることが渡る",
+    );
   }
 
   console.log("");

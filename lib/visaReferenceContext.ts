@@ -23,6 +23,8 @@ import {
   readFactList,
   readMoneyFact,
   readStageDurationFacts,
+  VISA_STAGE_KEYS,
+  VISA_STAGE_LABELS,
   readStageMoneyFacts,
   readWorkHourLimit,
   type VisaCategory,
@@ -633,6 +635,40 @@ function detailLines(entry: VisaReferenceEntry): string[] {
       `    - 期間: ${duration} ${asData(durationUnit, 40)}${upTo ? "（**上限**であり、全員がこの期間になるわけではない）" : ""}${enrolment ? "／就学の登録内容（enrolment）に沿って決まる" : ""}`,
     );
   }
+  // 申請の回ごとの公式文言だけを持つ場合（417 の work_rights）。
+  // stage の金額・期間 reader とは別で、officialWording だけを読む最小処理にする。
+  // 文言をそのまま渡し、そこから時間・雇用形態・期間を推測させない。
+  if (entry.details.generalWorkRight === true) {
+    const stageWordings: string[] = [];
+    for (const stage of VISA_STAGE_KEYS) {
+      const raw = entry.details[stage];
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+      const wording = (raw as Record<string, unknown>).officialWording;
+      if (typeof wording !== "string" || wording.length === 0) continue;
+      stageWordings.push(`    - ${VISA_STAGE_LABELS[stage]}の公式の文: ${asData(wording, 200)}`);
+    }
+    if (stageWordings.length > 0) {
+      lines.push("    - 就労が認められていること自体は、公式の概要画面で確認できている");
+      lines.push(...stageWordings);
+      lines.push(
+        "    - 伝え方: 上の公式の文をそのまま使い、「Home Affairs の概要画面では〜と案内されています」という形で答えること。**この文言から、働ける時間の上限・雇用形態（自営業かどうか）・働ける期間を読み取って足さないこと**（どれもこのデータでは確認していない）",
+      );
+    }
+  }
+  if (typeof entry.details.wordingDifferenceNote === "string") {
+    lines.push(`    - 文言の違いについて: ${asData(entry.details.wordingDifferenceNote, 500)}`);
+  }
+  if (entry.details.sameEmployerHandledSeparately === true) {
+    const note =
+      typeof entry.details.sameEmployerNote === "string" ? asData(entry.details.sameEmployerNote, 300) : "";
+    lines.push(
+      `    - 同じ雇用主のもとで働ける期間は、この項目では扱っていない（別の項目の条件）${note ? `。${note}` : ""}`,
+      // 例外や許可の経路があるため、期間について否定側へ断定しても誤案内になる。
+      // この項目では長短のどちらにも踏み込ませない。
+      "    - その期間について、この項目では長さを断定しないこと（「長く働き続けられない」とも「期間の制限なく働ける」とも言わない）。詳しく聞かれたら、同じ雇用主での就労の条件として別に確認するよう案内すること",
+    );
+  }
+
   // 申請の回ごとの申請方法・申請場所（417 の application）。
   // 1回目について確認できていることと、2回目・3回目について確認できていることは意味が違う。
   // 同じ行にまとめると「2回目も国外からオンライン」と読まれてしまうので、必ず分けて渡す。
@@ -863,6 +899,18 @@ export function buildVisaReferenceContext(
       "- 上限は渡された単位（fortnight 単位なら2週間あたり）のまま伝えてください。**2で割って週単位の上限へ言い換えないでください**（管理の仕方が変わり、違反につながる恐れがあります）。",
       "- 例外が渡されている場合は、それが誰に当てはまるのかも一緒に伝えてください。",
     );
+    // 就労の entry はあるが、時間の上限がデータに無い場合（417 の段階1）。
+    // 上限の有無そのものが未確認なので、「制限なし」とも「○時間まで」とも言わせない。
+    // 別のビザ（Student 500）の上限を当てはめさせないため、ここで明示的に指示する。
+    const hasHourLimit = entries.some(
+      (e) => e.category === "work_rights" && readWorkHourLimit(e.details) !== null,
+    );
+    if (!hasHourLimit) {
+      parts.push(
+        "- **今回渡しているデータには、働ける時間の上限がありません。** 時間について聞かれたら「就労できることは公式の情報で確認できますが、週あたり・2週間あたりの上限は今回確認できている情報では特定できません」と伝え、公式での確認を案内してください。具体的な時間数を挙げず、「上限はない」「制限なく働ける」とも言わないでください（上限が無いことも確認できていません）。",
+        "- 他のビザの上限（学生ビザの上限など）をこのビザに当てはめないでください。",
+      );
+    }
   }
 
   if (categories.has("same_employer")) {

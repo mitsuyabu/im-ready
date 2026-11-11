@@ -266,6 +266,42 @@ function validateDetails(details: Record<string, unknown>, c: Collector, categor
     }
   }
 
+  // 「未確認」と書いてある事実を、同じ entry が具体値として持っていないか。
+  //
+  // どの値が確認済みかは validator には分からない（出典ページの内容を知らない）。
+  // 分かるのは **同じ entry の中で矛盾しているか** で、これは出典に依存せず判定できる。
+  // 例: details.unverified に「働ける時間の上限」と書きながら limit / unit を持つ状態。
+  // これを許すと、未確認のまま「上限 N hours per fortnight」という行が生成される。
+  const unverifiedText = Array.isArray(details.unverified)
+    ? details.unverified.filter((v): v is string => typeof v === "string").join(" / ")
+    : "";
+  if (unverifiedText.length > 0) {
+    const contradictions: { keys: string[]; pattern: RegExp; label: string }[] = [
+      {
+        keys: ["limit", "unit", "hoursPerWeek", "hoursPerFortnight", "weeklyLimit", "fortnightLimit", "maxHours"],
+        pattern: /働ける時間の上限|就労時間の上限|hour limit/i,
+        label: "働ける時間の上限",
+      },
+      {
+        keys: ["amount"],
+        pattern: /金額が未確認|申請料の金額$/,
+        label: "金額",
+      },
+    ];
+    for (const { keys, pattern, label } of contradictions) {
+      if (!pattern.test(unverifiedText)) continue;
+      for (const key of keys) {
+        if (details[key] === undefined || details[key] === null) continue;
+        c.add(
+          category,
+          key,
+          `details.unverified に「${label}」が未確認として書かれているのに、${key} を具体値として持っています（どちらかが誤りです）`,
+        );
+        ok = false;
+      }
+    }
+  }
+
   // 俗称だけを条件にしていないか（俗称を持ってよい field は除く）
   for (const [key, value] of Object.entries(details)) {
     if (COLLOQUIAL_KEYS.includes(key)) continue;
@@ -533,6 +569,43 @@ function validateDetails(details: Record<string, unknown>, c: Collector, categor
         }
       }
     }
+  }
+
+  // work_rights: 「就労できる」という記述を、時間・雇用形態・期間の自由へ広げさせない
+  if (category === "work_rights") {
+    // 回ごとの公式文言だけで登録する段階では、generalWorkRight と各回の officialWording が必要。
+    // これが欠けると「就労できる」という事実そのものが渡らない entry になる。
+    if (details.generalWorkRight !== undefined && details.generalWorkRight !== true) {
+      c.add(category, "generalWorkRight", "就労が認められることを確認した場合だけ true にしてください");
+      ok = false;
+    }
+    const hasStageWording = STAGE_KEYS.some((stage) => {
+      const raw = details[stage];
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+      return text((raw as Record<string, unknown>).officialWording) !== null;
+    });
+    if (details.generalWorkRight === true) {
+      if (!hasStageWording) {
+        c.add(
+          category,
+          "first.officialWording",
+          "就労できることを登録するなら、公式の文言（officialWording）を回ごとに保持してください",
+        );
+        ok = false;
+      }
+      // 同一雇用主の期間制限は別 category が正本。参照であることを明示させる。
+      if (details.sameEmployerHandledSeparately !== true) {
+        c.add(
+          category,
+          "sameEmployerHandledSeparately",
+          "同一雇用主の期間制限は same_employer が正本です。true を明示してください（詳細はここに複製しない）",
+        );
+        ok = false;
+      }
+    }
+    // どの category が何の正本かは出典ページごとに違うため、validator では判定できない
+    // （「Northern Australia」等を一律に拒否すると、それを正式に確認した entry まで拒否してしまう）。
+    // 責務の境界は human-review と 417 固有のテスト（test-visa-reference-data の重複検査）で担保する。
   }
 
   // application: 「国内にいる場合に満たす状態」を「申請場所のルール」へ広げさせない

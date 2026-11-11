@@ -109,14 +109,14 @@ function simulate(message: string): { readVisaData: boolean; categories: VisaCat
 console.log("前提: importer の検証を通っている（検証を弱めていない）");
 {
   assert(validated.problems.length === 0, "検証エラーなし");
-  assert(validated.entries.length === 9, `417 は9 entry が受理される（実際: ${validated.entries.length}）`);
+  assert(validated.entries.length === 10, `417 は10 entry が受理される（実際: ${validated.entries.length}）`);
 }
 
 console.log("Test 1: 417 eligibility が登録されている");
 {
   const categories = WHV.map((e) => e.category).sort();
   assert(
-    categories.join(",") === "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay",
+    categories.join(",") === "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay,work_rights",
     `417 のカテゴリ（${categories.join(",")}）`,
   );
   assert(eligibility.reviewedAt === "2026-10-01", "人間確認日 2026-10-01 が記録されている");

@@ -126,16 +126,16 @@ console.log("Test 11: 417 は人間が確認したカテゴリだけが登録さ
     // （2026-10-01: Working Holiday visa ページ → eligibility、
     //   2026-10-02: Specified subclass 417 work / 8547 の3ページ → 残り3カテゴリ）
     assert(
-      categories.join(",") === "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay",
+      categories.join(",") === "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay,work_rights",
       `確認済みのカテゴリだけ（${categories.join(",")}）`,
     );
-    for (const unconfirmed of ["work_rights", "study_rights"]) {
+    for (const unconfirmed of ["study_rights"]) {
       assert(!categories.includes(unconfirmed), `未確認の ${unconfirmed} は登録されていない`);
     }
     const readme = JSON.stringify((whv.doc as { _readme?: string[] })._readme ?? []);
     assert(/推測で埋めてはいけない/.test(readme), "推測禁止が明記されている");
     assert(/same_employer/.test(readme), "same_employer の確認状況が記録されている");
-    assert(/work_rights \/ study_rights/.test(readme), "未登録カテゴリの一覧が記録されている");
+    assert(/study_rights/.test(readme), "未登録カテゴリの一覧が記録されている");
     // 確認済みカテゴリには一次情報（Home Affairs）の出典がある
     for (const entry of entriesOf(whv.doc)) {
       assert(

@@ -93,11 +93,34 @@ https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-4
 | 滞在中の出入国（travel / re-entry） | no | | | | 未確認。multiple entry 等を追加しない |
 | 期間が短くなる・延びる条件 | no | | | | 未確認 |
 
-## 1-3. work_rights
+## 1-3. work_rights（2026-11-11 確認済み・**段階1: overview のみ**）
+
+確認したページ: Department of Home Affairs「Working Holiday visa (subclass 417)」
+→ 概要および First / Second / Third の各カード
+https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417
+（accessed_at / reviewed_at: 2026-11-11。人間が画面で確認）
+
+**これは段階1（overview-level human-reviewed only）**。就労条件の詳細ページは未確認で、
+働ける時間の上限・職種制限の詳細・自営業・ビザ開始前と満了後の就労は埋めていない。
 
 | 項目 | 確認 | 値 | 要約 | ページ箇所 | 備考 |
 |---|---|---|---|---|---|
-| 就労の一般的な条件 | no | | | | |
+| 就労が認められるか（1回目） | **yes** | `generalWorkRight: true` / `first.officialWording` | 公式の文言は「You can work while you are here」 | First のカード | 「無制限に働ける」とは解釈しない |
+| 仕事の種類（2回目） | **yes** | `second.officialWording` | 「You can do any kind of work while you are here」 | Second のカード | condition 8547 の対象外という意味には**しない** |
+| 仕事の種類（3回目） | **yes** | `third.officialWording` | 「You can do any kind of work while you are here」 | Third のカード | 2回目と同じ文言 |
+| 1回目と2回目・3回目の文言差の意味 | no | `wordingDifferenceNote` に未確認として保持 | | | **差の意味を推測しない**。「First は職種制限あり」「実質同じ」のいずれも未確認 |
+| 働ける時間の上限（週・2週間あたり） | no | | | | **未確認。`limit` / `unit` 等の時間 field を持たない**（持つと上限の行が生成される）。importer が矛盾を検証 |
+| 業種・職種の制限の詳細 | no | | | | 未確認 |
+| 自営業（self-employed / contractor） | no | | | | 未確認 |
+| 複数の雇用主での同時就労 | no | | | | 未確認 |
+| ビザ開始前・満了後の就労 | no | | | | **未確認**。`application` の「失効から28日未満」は申請時の在留状態の条件であり、就労できる期間ではない |
+| ボランティアの一般的な扱い | no | | | | 未確認。`specified_work.voluntaryExceptions` はセカンド要件の例外であって一般的な就労権の話ではない |
+| 同一雇用主の期間制限 | **別カテゴリで確認済み** | `sameEmployerHandledSeparately: true` | | | **`## 1-4. same_employer`（2026-10-02 確認済み）が正本**。condition 8547・6か月・例外・permission はここに書かない |
+| specified work の業種・地域・日数 | **別カテゴリで確認済み** | — | | | `## 1-10. second_third` / `## 1-11. specified_work` が正本 |
+| VEVO / grant letter での条件確認 | **別カテゴリで確認済み** | — | | | `same_employer.vevoGuidance`。work_rights 文脈での公式記載有無は未確認 |
+
+**段階2（別途 human review が必要）**: 就労条件の詳細ページで、時間の上限の有無・職種制限・自営業・
+複数雇用主・ビザ開始前と満了後の就労・ボランティアの一般的な扱いを確認する。
 
 ## 1-4. same_employer（2026-10-02 確認済み）
 

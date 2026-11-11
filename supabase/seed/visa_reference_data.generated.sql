@@ -1,7 +1,7 @@
 -- visa_reference_data / visa_reference_sources の登録用 SQL
 -- scripts/import-visa-reference-data.ts が data/visas/ の JSON から生成
--- 生成: 2026-11-11T03:11:25.265Z
--- entry 数: 20（australia_student_500: 11 / australia_working_holiday_417: 9）
+-- 生成: 2026-11-11T04:51:55.624Z
+-- entry 数: 21（australia_student_500: 11 / australia_working_holiday_417: 10）
 -- 適用方法: 内容を目で確認したうえで、Supabase の SQL エディタで実行する。
 -- 対象 entry 以外は変更しない（upsert のみ。DELETE は対象 entry の出典の入れ替えだけ）。
 
@@ -711,4 +711,39 @@ from upserted
 cross join (
   values
       ('Australian Government Department of Home Affairs - Working Holiday visa (subclass 417)', 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417', 'home_affairs', null::date, '2024-12-09'::date, '2026-11-11'::date, 'First は「You must apply online from outside Australia」、Second / Third は「If you are in Australia, you must hold a substantive visa or your last substantive visa expired less than 28 days ago」を確認。Second / Third の申請場所そのもの・オンライン要件・提出時期・bridging visa の扱いはこのページでは確認していない。')
+) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);
+
+-- australia_working_holiday_417 / work_rights（確認日: 2026-11-11）
+with upserted as (
+  insert into visa_reference_data (
+    visa_key, visa_code, visa_name, country_code, category, summary, details, reviewed_at, review_note, updated_at
+  ) values (
+    'australia_working_holiday_417', '417', 'Working Holiday visa (subclass 417)', 'AU',
+    'work_rights', 'Home Affairs の概要画面では、1回目（ファースト）について「You can work while you are here」、2回目（セカンド）と3回目（サード）について「You can do any kind of work while you are here」と案内されています。画面にあるのはこの表現までで、働ける時間の上限があるのか、自営業として働けるのか、ビザが始まる前や満了したあとの就労がどう扱われるのかは確認できていません。同じ雇用主のもとで働ける期間には別の条件があります。', '{"appliesTo":"First / Second / Third Working Holiday visa（subclass 417）の概要画面で確認した就労の記述。この画面に書かれている範囲のみで、就労条件の詳細ページは確認していない","reviewStage":"overview-level human-reviewed only（概要画面のみ。就労条件の詳細ページは未確認）","generalWorkRight":true,"first":{"officialWording":"You can work while you are here"},"second":{"officialWording":"You can do any kind of work while you are here"},"third":{"officialWording":"You can do any kind of work while you are here"},"wordingNote":"画面にあるのはこの表現まで。就労が認められていることと仕事の種類についての記述だけを伝え、働ける時間の上限・雇用形態・就労できる期間へ踏み込まないこと。First と Second・Third で文言が異なるが、その差が何を意味するかは画面では確認できていない","wordingDifferenceNote":"First の「You can work」と Second・Third の「You can do any kind of work」は文言が異なる。ただし「First には職種の制限がある」「Second・Third だけ職種が自由」「両者は実質同じ意味」のいずれも確認できていない。聞かれた場合は「公式の概要画面では文言が異なりますが、その差が何を意味するかまでは今回確認できていません」と伝えること","sameEmployerHandledSeparately":true,"sameEmployerNote":"同じ雇用主のもとで働ける期間には別の条件がある。その内容は same_employer の entry を正本とし、ここには複製しない。期間の数字や例外の内容をこの entry から答えないこと","primarySourceVerified":true,"unverified":["働ける時間の上限（週あたり・2週間あたりの上限があるのかどうか）","就労できる業種・職種の制限の有無と具体的な内容","First の「You can work」と Second・Third の「any kind of work」の文言の差が意味すること","自営業（self-employed / contractor）としての就労の扱い","ビザが始まる前・満了したあとの就労の扱い","ボランティアの仕事の一般的な扱い","複数の雇用主のもとで同時に働けるかどうか"]}'::jsonb,
+    '2026-11-11'::date, '【段階1: overview-level human-reviewed only】Home Affairs の Working Holiday visa (subclass 417) 概要画面で、First の「You can work while you are here」と Second / Third の「You can do any kind of work while you are here」を人間が画面で確認した。就労条件の詳細ページは今回確認していないため、働ける時間の上限・職種制限の詳細・自営業・ビザ開始前と満了後の就労・ボランティアの一般的な扱い・複数雇用主での同時就労はすべて unverified のまま。時間上限が未確認なので limit / unit 等の時間を表す field は持たない（持つと上限の数値があるかのように描画される）。同一雇用主の6か月の条件と condition 8547 は same_employer、specified work の業種・地域・日数は specified_work / second_third を正本とし、この entry には複製しない。application entry にある「最後の substantive visa の失効から28日未満」は申請時の在留状態の条件で、就労できる期間の話ではないため、この entry では扱わない。', now()
+  )
+  on conflict (visa_key, category) do update set
+    visa_code = excluded.visa_code,
+    visa_name = excluded.visa_name,
+    country_code = excluded.country_code,
+    summary = excluded.summary,
+    details = excluded.details,
+    reviewed_at = excluded.reviewed_at,
+    review_note = excluded.review_note,
+    updated_at = now()
+  returning id
+),
+cleared as (
+  delete from visa_reference_sources
+  where entry_id in (select id from upserted)
+  returning entry_id
+)
+insert into visa_reference_sources (
+  entry_id, source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes
+)
+select upserted.id, v.source_name, v.source_url, v.source_type, v.source_published_at, v.source_updated_at, v.accessed_at, v.notes
+from upserted
+cross join (
+  values
+      ('Australian Government Department of Home Affairs - Working Holiday visa (subclass 417)', 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417', 'home_affairs', null::date, '2024-12-09'::date, '2026-11-11'::date, '概要画面の First / Second / Third の各カードの就労に関する記述を確認（First: You can work while you are here／Second・Third: You can do any kind of work while you are here）。働ける時間の上限・職種制限の詳細・自営業・ビザ開始前と満了後の就労はこのページでは確認していない。sourceUpdatedAt はページ全体の Last updated であり、就労条件の適用開始日ではない。')
 ) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);

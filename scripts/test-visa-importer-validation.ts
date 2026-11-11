@@ -363,11 +363,11 @@ console.log("Test 12: 現在の working-holiday-417.json → accept（人間確�
   // 未確認のカテゴリ（stay 等）は空のまま。
   const categories = r.entries.map((e) => e.category).sort();
   assert(
-    categories.join(",") === "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay",
-    `確認済みの9カテゴリだけが受理される（${categories.join(",")}）`,
+    categories.join(",") === "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay,work_rights",
+    `確認済みの10カテゴリだけが受理される（${categories.join(",")}）`,
   );
   // 未確認のカテゴリは登録されていない
-  for (const unconfirmed of ["work_rights", "study_rights"]) {
+  for (const unconfirmed of ["study_rights"]) {
     assert(!categories.includes(unconfirmed), `未確認の ${unconfirmed} は登録されていない`);
   }
   // same_employer は期間があるため、例外の記録が無ければ弾かれるルールを満たして通っている
@@ -688,6 +688,73 @@ console.log("Test 22: 回ごとの期間（stay）も単位が必須");
     ]),
   );
   assert(ok.entries.length === 1, `正しい形は受理される（${showProblems(ok.problems)}）`);
+}
+
+console.log("Test 23: 「未確認」と書いた事実を同じ entry が具体値で持つと reject");
+{
+  // validator は出典ページの内容を知らないため「その値が確認済みか」は判定できない。
+  // 判定できるのは **同じ entry 内の矛盾**。未確認と書きながら上限を持つ状態を拒否する。
+  const contradiction = check(
+    whvDoc([
+      entry("work_rights", {
+        generalWorkRight: true,
+        first: { officialWording: "You can work while you are here" },
+        sameEmployerHandledSeparately: true,
+        limit: 40,
+        unit: "hours_per_week",
+        unverified: ["働ける時間の上限（週あたり・2週間あたりの上限があるのかどうか）"],
+      }),
+    ]),
+  );
+  assert(contradiction.entries.length === 0, "未確認と書いた上限を具体値で持つと受理されない");
+  assert(rejectedFor(contradiction.problems, "limit"), `limit の矛盾として指摘する（${showProblems(contradiction.problems)}）`);
+
+  // 上限が確認済みの entry（Student 500）は従来どおり受理される（検証を広げすぎていない）
+  const verifiedLimit = check(
+    studentDoc([
+      entry("work_rights", {
+        limit: 48,
+        unit: "hours_per_fortnight",
+        during: "study_terms",
+        unverified: ["コースのブレイク中の具体的な扱い"],
+      }),
+    ]),
+  );
+  assert(verifiedLimit.entries.length === 1, `確認済みの上限は受理される（${showProblems(verifiedLimit.problems)}）`);
+}
+
+console.log("Test 24: work_rights は公式文言と同一雇用主の参照を必須にする");
+{
+  const base = {
+    generalWorkRight: true,
+    first: { officialWording: "You can work while you are here" },
+    second: { officialWording: "You can do any kind of work while you are here" },
+    third: { officialWording: "You can do any kind of work while you are here" },
+    sameEmployerHandledSeparately: true,
+  };
+
+  const ok = check(whvDoc([entry("work_rights", base)]));
+  assert(ok.entries.length === 1, `正しい形は受理される（${showProblems(ok.problems)}）`);
+
+  const noWording = check(
+    whvDoc([entry("work_rights", { generalWorkRight: true, sameEmployerHandledSeparately: true })]),
+  );
+  assert(noWording.entries.length === 0, "公式文言が無いと受理されない");
+  assert(rejectedFor(noWording.problems, "officialWording"), "公式文言の欠落を指摘する");
+
+  const noReference = check(
+    whvDoc([
+      entry("work_rights", {
+        generalWorkRight: true,
+        first: { officialWording: "You can work while you are here" },
+      }),
+    ]),
+  );
+  assert(noReference.entries.length === 0, "同一雇用主が別 category だと明示しないと受理されない");
+  assert(rejectedFor(noReference.problems, "sameEmployerHandledSeparately"), "参照の欠落を指摘する");
+
+  const falseFlag = check(whvDoc([entry("work_rights", { ...base, generalWorkRight: false })]));
+  assert(falseFlag.entries.length === 0, "generalWorkRight を false で埋めると受理されない");
 }
 
 console.log("");

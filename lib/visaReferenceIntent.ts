@@ -110,6 +110,14 @@ const VISA_TOPIC_GATED_KEYWORDS: { category: VisaCategory; keywords: string[] }[
       "就労でき",
       "アルバイトでき",
       "バイトでき",
+      // 「ワーホリはどんな仕事でもできますか？」が基本セット（eligibility / work_rights / stay）へ
+      // 落ちていた。work_rights は基本セットにも入っているため答え自体は届くが、
+      // 関係のない申請資格・滞在期間まで注入されて回答が広がる。仕事の種類を聞く言い方を拾う。
+      "どんな仕事",
+      "どのような仕事",
+      "仕事の種類",
+      "職種",
+      "any kind of work",
     ],
   },
   {
