@@ -40,14 +40,34 @@ function asData(value: string, max: number): string {
   return flattened.length > max ? `${flattened.slice(0, max)}…` : flattened;
 }
 
+/**
+ * 金額を**登録されている数値のまま**文字列にする。
+ *
+ * ここは以前 Math.round() を使っていた。そのため公式の運賃が context の時点で変わっていた:
+ *   AUD 0.50 /trip  → 「AUD 1 /trip」（ゴールドコーストの均一運賃）
+ *   AUD 19.30 /day  → 「AUD 19 /day」（Opal の1日上限）
+ *   AUD 9.65 /day   → 「AUD 10 /day」
+ * 要約文（summary）には正しい値が入っていたため、同じ entry の中で数値が食い違い、
+ * 実機では 1/5 の頻度で丸められた側（AUD 1）が回答に出ていた。
+ * prompt のルールをいくら強くしても、渡している数値が違えば直らない。
+ *
+ * 小数がある値は小数2桁で出す（公式表示が「0.50」「19.30」なので桁も合う）。
+ * 整数は桁区切りだけを付ける（3825 → 3,825）。
+ */
+function formatExactAmount(value: number): string {
+  return Number.isInteger(value)
+    ? value.toLocaleString("en-US")
+    : value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function estimateLines(entry: CityReferenceEntry): string[] {
   const lines: string[] = [];
   for (const estimate of entry.estimates.slice(0, 6)) {
     const parts: string[] = [];
     const currency = estimate.currency && /^[A-Z]{3}$/.test(estimate.currency) ? estimate.currency : "";
     if (estimate.min !== null || estimate.max !== null) {
-      const min = estimate.min !== null ? Math.round(estimate.min).toLocaleString("en-US") : "?";
-      const max = estimate.max !== null ? Math.round(estimate.max).toLocaleString("en-US") : "?";
+      const min = estimate.min !== null ? formatExactAmount(estimate.min) : "?";
+      const max = estimate.max !== null ? formatExactAmount(estimate.max) : "?";
       const amount = estimate.min !== null && estimate.max !== null && estimate.min === estimate.max ? min : `${min}〜${max}`;
       parts.push(`${currency ? `${currency} ` : ""}${amount}`);
     }
@@ -72,6 +92,13 @@ function estimateLines(entry: CityReferenceEntry): string[] {
   if (lines.length > 0 && periods.length > 0) {
     lines.push(
       `    - 上の金額は「${periods.join("」「")}」あたりの値です。**この単位のまま伝えてください。**他の期間の金額（1か月ぶん・1年ぶんなど）に直した数字を書かないでください。上限額（キャップ）も、その期間の上限としてだけ伝えてください。`,
+    );
+  }
+  // 数値そのものの保持も、**金額の直後**で言う。
+  // 公的に決まっている運賃は、丸めた時点で誤案内になる（AUD 0.50 と AUD 1 は別の制度の話になる）。
+  if (lines.length > 0) {
+    lines.push(
+      "    - 上の金額は、**表示されている数字をそのまま**使ってください（丸めない・小数点以下を省かない・「約」を付けて整数にしない）。小数のある金額は、その桁のまま書き写してください。",
     );
   }
   return lines;

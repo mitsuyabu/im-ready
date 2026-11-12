@@ -443,6 +443,58 @@ console.log("Test 9: 単位の保持と未確認費目のルールが、デー�
   assert(prompt.includes("傾向も補わないでください"), "最終 prompt に未確認費目のルールが入る");
 }
 
+console.log("Test 10: 公式の金額は登録されている数値のまま渡る（丸めない）");
+{
+  // ここは以前 Math.round() で整形していたため、context の時点で数値が変わっていた:
+  //   AUD 0.50 /trip → 「AUD 1 /trip」／AUD 19.30 /day → 「AUD 19 /day」／AUD 9.65 → 「AUD 10」
+  // 要約文には正しい値があったため同じ entry 内で食い違い、実機で 1/5 の頻度で
+  // 丸められた側（AUD 1）が回答に出ていた。渡す数値そのものを固定する。
+  const exact: { message: string; present: string[]; absent: string[] }[] = [
+    {
+      message: "ゴールドコーストの交通費は？",
+      present: ["AUD 0.50 /trip"],
+      absent: ["AUD 1 /trip", "AUD 0.5 /trip"],
+    },
+    {
+      message: "シドニーの交通費は？",
+      present: ["AUD 19.30 /day", "AUD 9.65 /day", "AUD 50 /week"],
+      absent: ["AUD 19 /day", "AUD 10 /day", "AUD 19.3 /day"],
+    },
+  ];
+  for (const { message, present, absent } of exact) {
+    const context = cityContextFor(message).context ?? "";
+    const prompt = finalPrompt(message);
+    for (const value of present) {
+      assert(context.includes(value), `「${message}」→ ${value} が登録どおり渡る`);
+      assert(prompt.includes(value), `「${message}」→ 最終 prompt にも ${value} が残る`);
+    }
+    for (const value of absent) {
+      assert(!context.includes(value), `「${message}」→ 丸めた値「${value}」が渡らない`);
+    }
+    // 数値をそのまま使う指示が、金額の**直後**にある
+    const linesOf = context.split("\n");
+    const lastAmount = linesOf.reduce((acc, l, i) => (present.some((v) => l.includes(v)) ? i : acc), -1);
+    const exactRule = linesOf.findIndex((l) => l.includes("表示されている数字をそのまま"));
+    assert(lastAmount >= 0 && exactRule > lastAmount, `「${message}」→ 数値厳守の指示が金額の直後にある`);
+    assert(
+      context.includes("丸めない・小数点以下を省かない・「約」を付けて整数にしない"),
+      `「${message}」→ 丸め・省略・「約」での整数化を禁じる指示がある`,
+    );
+    // 既存のルールも残っている（弱めていない）
+    assert(context.includes("この単位のまま伝えてください"), `「${message}」→ 単位保持のルールが残っている`);
+    assert(
+      context.includes("1ドル未満の金額を切り上げないでください"),
+      `「${message}」→ 1ドル未満の切り上げ禁止が残っている`,
+    );
+    assert(context.includes("乗り放題"), `「${message}」→ 1回ごとの運賃を乗り放題と言わせない指示が残っている`);
+  }
+  // 整数の金額は桁区切りのまま（小数を足さない）
+  const gc = cityContextFor("ゴールドコーストの生活費は？").context ?? "";
+  assert(gc.includes("AUD 3,825 /semester"), "整数の金額は桁区切りのまま渡る");
+  assert(!gc.includes("AUD 3,825.00"), "整数へ小数を足さない");
+  assert(gc.includes("AUD 800〜2,000 /one-time"), "範囲の金額もそのまま渡る");
+}
+
 console.log("Test 8: dev snapshot（§12）— production 相当では最終 prompt に入らない");
 {
   assert(isDevCitySnapshotEnabled(PROD_ENV) === false, "production ではフラグが立っていても無効");
