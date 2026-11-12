@@ -287,6 +287,14 @@ function validateDetails(details: Record<string, unknown>, c: Collector, categor
         pattern: /金額が未確認|申請料の金額$/,
         label: "金額",
       },
+      {
+        // 就学・訓練の可否や期間を「未確認」と書きながら、同じ entry が可否・期間を持つ状態。
+        // これを許すと「就学は4か月まで」という行を生成しながら、同じ entry が
+        // 「就学できる期間は未確認」と言う矛盾した context になる。
+        keys: ["duration", "durationUnit", "durationBasis", "equivalentDuration", "studyAllowed", "trainingAllowed"],
+        pattern: /就学できる期間|就学・訓練の期間|就学の可否|訓練の可否|study duration/i,
+        label: "就学・訓練の可否または期間",
+      },
     ];
     for (const { keys, pattern, label } of contradictions) {
       if (!pattern.test(unverifiedText)) continue;
@@ -606,6 +614,181 @@ function validateDetails(details: Record<string, unknown>, c: Collector, categor
     // どの category が何の正本かは出典ページごとに違うため、validator では判定できない
     // （「Northern Australia」等を一律に拒否すると、それを正式に確認した entry まで拒否してしまう）。
     // 責務の境界は human-review と 417 固有のテスト（test-visa-reference-data の重複検査）で担保する。
+  }
+
+  // study_rights: 就学・訓練の条件を、確認した範囲より広く読ませない
+  //
+  // ここで見るのは **同じ entry の中で矛盾していないか** だけ。
+  // どの値が公式ページに書かれていたかは validator には分からないため、
+  // 「conditionNumber が 8548 であること」「4 months であること」のような**値そのものの検査は
+  // ここでは行わない**（417 固有の値は scripts/test-visa-reference-data.ts 側で担保する）。
+  // 値を validator に焼き付けると、条件番号も期間も持たない Student 500 の study_rights や、
+  // 将来の human review による更新まで弾いてしまう。
+  if (category === "study_rights") {
+    const hasDuration = typeof details.duration === "number" && Number.isFinite(details.duration);
+
+    // 期間を持つなら「何に対する期間なのか」を必ず一緒に持つ。
+    // scope が無いと「1コースあたり4か月」とも読める行が生成されてしまう。
+    if (hasDuration && !text(details.durationScope)) {
+      c.add(
+        category,
+        "durationScope",
+        "就学・訓練の期間を登録するなら、それが何に対する期間なのか（durationScope。例: 滞在中の就学と訓練の合計）が必須です",
+      );
+      ok = false;
+    }
+    if (hasDuration && !text(details.durationBasis)) {
+      c.add(category, "durationBasis", "期間を登録するなら基準（durationBasis。例: up_to）を明示してください");
+      ok = false;
+    }
+
+    // 可否と期間の矛盾
+    if (details.studyAllowed !== undefined && typeof details.studyAllowed !== "boolean") {
+      c.add(category, "studyAllowed", "true / false にしてください（未確認なら field 自体を省く）");
+      ok = false;
+    }
+    if (details.trainingAllowed !== undefined && typeof details.trainingAllowed !== "boolean") {
+      c.add(category, "trainingAllowed", "true / false にしてください（未確認なら field 自体を省く）");
+      ok = false;
+    }
+    if (details.studyAllowed === false && (hasDuration || details.trainingAllowed === true)) {
+      c.add(
+        category,
+        "studyAllowed",
+        "就学できないと記録しながら、就学できる期間や訓練の可否を持っています（どちらかが誤りです）",
+      );
+      ok = false;
+    }
+
+    // 就学と訓練の両方が可能で上限があるなら、それが**合計**の上限かどうかを必ず明示させる。
+    // 曖昧なままだと「就学で4か月、訓練でさらに4か月」という読み方を許してしまう。
+    if (details.studyAllowed === true && details.trainingAllowed === true && hasDuration) {
+      if (typeof details.studyTrainingCombinedLimit !== "boolean") {
+        c.add(
+          category,
+          "studyTrainingCombinedLimit",
+          "就学と訓練の両方が可能で期間の上限があるなら、その上限が合計に対するものかどうかを true / false で明示してください",
+        );
+        ok = false;
+      }
+      if (details.studyTrainingCombinedLimit === true && !text(details.combinedLimitNote)) {
+        c.add(
+          category,
+          "combinedLimitNote",
+          "合計の上限として登録するなら、就学と訓練を別枠にしないための注記（combinedLimitNote）を持たせてください",
+        );
+        ok = false;
+      }
+    }
+
+    // 換算（例: 4 months = 17 weeks and 3 days）。本体の期間と矛盾しないことだけを見る。
+    const equivalent = details.equivalentDuration;
+    if (equivalent !== undefined && equivalent !== null) {
+      if (typeof equivalent !== "object" || Array.isArray(equivalent)) {
+        c.add(category, "equivalentDuration", "オブジェクトにしてください");
+        ok = false;
+      } else {
+        const eq = equivalent as Record<string, unknown>;
+        const weeks = typeof eq.weeks === "number" && Number.isFinite(eq.weeks) ? eq.weeks : null;
+        const days = eq.days === undefined ? 0 : typeof eq.days === "number" && Number.isFinite(eq.days) ? eq.days : null;
+        if (weeks === null || weeks <= 0 || days === null || days < 0) {
+          c.add(
+            category,
+            "equivalentDuration",
+            "weeks（0 より大きい数値）と days（0 以上の数値）で記録してください",
+          );
+          ok = false;
+        } else if (!hasDuration) {
+          c.add(
+            category,
+            "equivalentDuration",
+            "換算だけを持つことはできません（本体の期間 duration / durationUnit と一緒に持たせてください）",
+          );
+          ok = false;
+        } else if (text(details.durationUnit) === "months") {
+          // 1か月は 28〜31日。この範囲から外れる換算は、同じ entry の中で矛盾している。
+          const totalDays = weeks * 7 + days;
+          const duration = details.duration as number;
+          if (totalDays < duration * 28 || totalDays > duration * 31) {
+            c.add(
+              category,
+              "equivalentDuration",
+              `換算（${weeks} weeks ${days} days = ${totalDays} 日）が duration（${duration} months）と一致しません`,
+            );
+            ok = false;
+          }
+        }
+      }
+    }
+
+    // カウント対象・除外対象。同じものが両方に入っていたら矛盾。
+    for (const key of ["countsTowardLimit", "doesNotCountTowardLimit"]) {
+      const value = details[key];
+      if (value === undefined || value === null) continue;
+      if (!Array.isArray(value) || value.some((v) => typeof v !== "string" || v.trim() === "")) {
+        c.add(category, key, "空でない文字列の配列にしてください");
+        ok = false;
+      }
+    }
+    const counts = Array.isArray(details.countsTowardLimit) ? details.countsTowardLimit : [];
+    const notCounts = Array.isArray(details.doesNotCountTowardLimit) ? details.doesNotCountTowardLimit : [];
+    for (const item of counts) {
+      if (typeof item === "string" && notCounts.includes(item)) {
+        c.add(
+          category,
+          "doesNotCountTowardLimit",
+          `「${item}」が「カウントする」と「カウントしない」の両方に入っています`,
+        );
+        ok = false;
+      }
+    }
+
+    // 4か月にカウントしない活動。カウントするものをここへ混ぜない。
+    if (details.excludedActivities !== undefined && details.excludedActivities !== null) {
+      if (!Array.isArray(details.excludedActivities)) {
+        c.add(category, "excludedActivities", "配列にしてください");
+        ok = false;
+      } else {
+        for (const [i, raw] of details.excludedActivities.entries()) {
+          if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+            c.add(category, `excludedActivities[${i}]`, "オブジェクトにしてください");
+            ok = false;
+            continue;
+          }
+          const activity = raw as Record<string, unknown>;
+          if (!text(activity.type)) {
+            c.add(category, `excludedActivities[${i}].type`, "どの活動なのか（type）が必要です");
+            ok = false;
+          }
+          if (activity.countsTowardFourMonthLimit !== false) {
+            c.add(
+              category,
+              `excludedActivities[${i}].countsTowardFourMonthLimit`,
+              "ここに入れるのは期間にカウントしない活動だけです（false を明示してください）",
+            );
+            ok = false;
+          }
+        }
+      }
+    }
+
+    // 申請の回ごとの違いを勝手に作らない。
+    // 「すべての回で同じ」と記録しながら回ごとの条件を持つ状態は矛盾している。
+    if (details.sameAcrossStages !== undefined && typeof details.sameAcrossStages !== "boolean") {
+      c.add(category, "sameAcrossStages", "true / false にしてください");
+      ok = false;
+    }
+    if (details.sameAcrossStages === true) {
+      for (const stage of STAGE_KEYS) {
+        if (details[stage] === undefined || details[stage] === null) continue;
+        c.add(
+          category,
+          stage,
+          "すべての回で同じ条件（sameAcrossStages: true）と記録しながら、回ごとの就学条件を持っています",
+        );
+        ok = false;
+      }
+    }
   }
 
   // application: 「国内にいる場合に満たす状態」を「申請場所のルール」へ広げさせない

@@ -85,11 +85,11 @@ console.log("前提: importer の検証を通っている");
   // 2026-10-01 に eligibility（Working Holiday visa ページ）、2026-10-02 に specified_work /
   // second_third（Specified subclass 417 work ページ）と same_employer（condition 8547 の3ページ）、
   // 2026-10-23 に documents、2026-11-11 に costs / stay / processing / application を登録済み。
-  assert(validated.entries.length === 10, `10カテゴリが受理される（実際: ${validated.entries.length}）`);
+  assert(validated.entries.length === 11, `11カテゴリが受理される（実際: ${validated.entries.length}）`);
   const categories = validated.entries.map((e) => e.category).sort();
   assert(
     categories.join(",") ===
-      "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay,work_rights",
+      "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay,study_rights,work_rights",
     "application / costs / documents / eligibility / processing / same_employer / second_third / specified_work / stay / work_rights",
   );
 }
@@ -285,13 +285,16 @@ console.log("Test 17: 未確認のカテゴリは空のまま（同一雇用主�
   assert(rawEntry("same_employer") !== undefined, "same_employer は別ページの確認で登録済み");
   // eligibility は 2026-10-01 に Working Holiday visa ページを確認して登録した。
   assert(rawEntry("eligibility") !== undefined, "eligibility は別ページの確認で登録済み");
-  // どのページでも確認していないカテゴリは、今も未登録のまま。
-  for (const unconfirmed of ["study_rights"]) {
+  // study_rights は 2026-11-12 に condition 8548 を確認して登録した（別ページ）。
+  assert(rawEntry("study_rights") !== undefined, "study_rights は condition 8548 の確認で登録済み");
+  // 確認していないカテゴリは、今も未登録のまま。
+  for (const unconfirmed of ["health_insurance", "financial_capacity", "genuine_student", "arrival_preparation"]) {
     assert(rawEntry(unconfirmed) === undefined, `未確認の ${unconfirmed} は登録されていない`);
   }
   const readme = JSON.stringify(doc._readme ?? []);
   assert(/推測で埋めてはいけない/.test(readme), "推測禁止が記録されている");
-  assert(/study_rights/.test(readme), "未登録カテゴリの一覧が記録されている");
+  assert(/study_rights/.test(readme), "study_rights の確認状況が記録されている");
+  assert(/段階1/.test(readme), "work_rights が段階1であることが記録されている");
 }
 
 console.log("Test 18: 通常の質問で巨大な一覧を prompt へ全件注入しない");

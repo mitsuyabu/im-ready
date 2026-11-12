@@ -210,6 +210,9 @@ function detailLines(entry: VisaReferenceEntry): string[] {
   if (typeof entry.details.conditionNumber === "number") {
     lines.push(`    - ビザ条件の番号: ${entry.details.conditionNumber}`);
   }
+  if (typeof entry.details.conditionTitle === "string") {
+    lines.push(`    - ビザ条件の名称: ${asData(entry.details.conditionTitle, 120)}`);
+  }
   if (typeof entry.details.appliesToVisaProgram === "string") {
     lines.push(`    - 適用: ${asData(entry.details.appliesToVisaProgram, 200)}`);
   }
@@ -628,13 +631,90 @@ function detailLines(entry: VisaReferenceEntry): string[] {
   // 期間（滞在・就学など）。単位が無ければ出さない。
   const duration = entry.details.duration;
   const durationUnit = entry.details.durationUnit;
-  if (typeof duration === "number" && Number.isFinite(duration) && typeof durationUnit === "string") {
+  // 就学と訓練の**合計**に対する上限（417 の condition 8548）は、この一般描画では
+  // 「何の合計なのか」が落ちる。下の専用ブロックで scope と換算つきで渡すため、ここでは出さない。
+  const combinedStudyLimit = entry.details.studyTrainingCombinedLimit === true;
+  if (!combinedStudyLimit && typeof duration === "number" && Number.isFinite(duration) && typeof durationUnit === "string") {
     const upTo = entry.details.durationBasis === "up_to";
     const enrolment = entry.details.enrolmentDependent === true;
     lines.push(
       `    - 期間: ${duration} ${asData(durationUnit, 40)}${upTo ? "（**上限**であり、全員がこの期間になるわけではない）" : ""}${enrolment ? "／就学の登録内容（enrolment）に沿って決まる" : ""}`,
     );
   }
+  // 就学・訓練の条件（417 の condition 8548）。
+  //
+  // ここを一般描画に任せると「期間: 4 months（上限）」という行だけになり、
+  //   - 就学と訓練の**合計**であること
+  //   - 17 weeks and 3 days という公式の換算
+  //   - 何が含まれ、何が含まれないか
+  // が落ちる。落ちると「就学で4か月、訓練でさらに4か月」と読まれる余地が出るため、
+  // 合計であることを最初に出し、含む／含まない／カウントしない活動を分けて渡す。
+  if (combinedStudyLimit) {
+    const studyAllowed = entry.details.studyAllowed === true;
+    const trainingAllowed = entry.details.trainingAllowed === true;
+    if (studyAllowed || trainingAllowed) {
+      lines.push(
+        `    - ${studyAllowed && trainingAllowed ? "就学（study）も訓練（training）も認められている" : studyAllowed ? "就学（study）は認められている" : "訓練（training）は認められている"}`,
+      );
+    }
+    if (typeof duration === "number" && Number.isFinite(duration) && typeof durationUnit === "string") {
+      const scope = typeof entry.details.durationScope === "string" ? asData(entry.details.durationScope, 300) : "";
+      lines.push(
+        `    - 期間の上限: 就学と訓練を**合わせた合計**で ${duration} ${asData(durationUnit, 40)}（これを超えることはできない）${scope ? `／対象: ${scope}` : ""}`,
+      );
+    }
+    if (typeof entry.details.officialWording === "string") {
+      lines.push(`    - 公式の原文: ${asData(entry.details.officialWording, 300)}`);
+    }
+    const equivalent = entry.details.equivalentDuration;
+    if (equivalent && typeof equivalent === "object" && !Array.isArray(equivalent)) {
+      const eq = equivalent as Record<string, unknown>;
+      if (typeof eq.weeks === "number" && Number.isFinite(eq.weeks)) {
+        const days = typeof eq.days === "number" && Number.isFinite(eq.days) ? eq.days : 0;
+        const official = typeof eq.officialWording === "string" ? asData(eq.officialWording, 200) : "";
+        lines.push(
+          `    - 期間の換算（公式）: ${eq.weeks} weeks${days > 0 ? ` ${days} days` : ""}（${eq.weeks}週${days > 0 ? `${days}日` : ""}）${official ? `。公式の表示: ${official}` : ""}`,
+        );
+      }
+    }
+    const counts = readFactList(entry.details, "countsTowardLimit");
+    if (counts.length > 0) {
+      lines.push(
+        `    - この期間に**含まれる**もの: ${counts.map((v) => asData(v, 120)).join("／")}`,
+      );
+    }
+    const notCounts = readFactList(entry.details, "doesNotCountTowardLimit");
+    if (notCounts.length > 0) {
+      lines.push(
+        `    - この期間に**含まれない**もの: ${notCounts.map((v) => asData(v, 120)).join("／")}`,
+      );
+    }
+    if (Array.isArray(entry.details.excludedActivities)) {
+      const excluded: string[] = [];
+      for (const raw of entry.details.excludedActivities.slice(0, 6)) {
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+        const activity = raw as Record<string, unknown>;
+        if (activity.countsTowardFourMonthLimit !== false) continue;
+        if (typeof activity.type !== "string") continue;
+        excluded.push(asData(activity.type, 160));
+      }
+      if (excluded.length > 0) {
+        lines.push(
+          `    - この期間にカウントしない活動（公式に挙げられているもの）: ${excluded.join("／")}`,
+          "    - カウントしない活動は、**公式に挙げられているものだけ**。ここから「訓練は全部カウントしない」のように一般化しないこと",
+        );
+      }
+    }
+    if (typeof entry.details.combinedLimitNote === "string") {
+      lines.push(`    - 合計であることの扱い: ${asData(entry.details.combinedLimitNote, 300)}`);
+    }
+    if (entry.details.sameAcrossStages === true) {
+      lines.push(
+        "    - この条件は1回目（ファースト）・2回目（セカンド）・3回目（サード）のいずれにも同じように付される（回ごとの違いは確認していないため、回によって違うとは言わないこと）",
+      );
+    }
+  }
+
   // 申請の回ごとの公式文言だけを持つ場合（417 の work_rights）。
   // stage の金額・期間 reader とは別で、officialWording だけを読む最小処理にする。
   // 文言をそのまま渡し、そこから時間・雇用形態・期間を推測させない。
@@ -913,6 +993,26 @@ export function buildVisaReferenceContext(
     }
   }
 
+  // 就学・訓練の上限が「合計」である entry が渡っているとき（417 の condition 8548）。
+  // 期間を答えるときに最も壊れやすいのは「合計」の部分なので、ここで明示的に固定する。
+  const hasCombinedStudyLimit = entries.some((e) => e.details.studyTrainingCombinedLimit === true);
+  if (hasCombinedStudyLimit) {
+    parts.push(
+      "",
+      "## 就学・訓練の条件を答えるとき",
+      "- 期間の上限は、**就学（study）と訓練（training）を合わせた合計**です。「就学で4か月、訓練でさらに4か月」「1つのコースごとに4か月」「学校ごとに4か月」のように、別枠・コース単位の上限として説明しないでください。",
+      "- 渡された単位（か月）のまま伝えてください。公式の換算（週と日）が渡っている場合はそのまま使ってかまいませんが、自分で日数へ計算し直さないでください。",
+      "- 期間に含まれるもの・含まれないものが渡っている場合は、どちらかだけを伝えて終わらせないでください（含まれるものだけを伝えると実際より長く使えるように読めます）。",
+      "- 他のビザの就学条件（学生ビザのフルタイム在籍・CoE・CRICOS など）をこのビザに当てはめないでください。",
+      // 実機測定（各5回）で、カウントしない活動の**条件が落ちる**ドリフトが出た:
+      //   「通信講座はカウントされない」（「オーストラリアの外でも受けられる」が落ちる）、
+      //   「会社が提供する職場訓練」（work-based training の言い換え。境界は未確認）。
+      // 同一雇用主の例外で有効だった「条件を同じ文に添えさせる」形で固定する。
+      "- 期間にカウントしない活動に触れるときは、**公式の条件をそのまま同じ文に添えてください**。通信講座（correspondence courses）は「オーストラリアの外でも受けられるもの」という条件つきで伝え、条件を外して「通信講座はカウントされない」と書かないでください。",
+      "- work-based training は公式の用語のまま伝えてください。どんな訓練がこれに当たるかの言い換え・例示を足さないでください（どこまでがこれに当たるかは確認できていません）。",
+    );
+  }
+
   if (categories.has("same_employer")) {
     parts.push(
       "",
@@ -1049,7 +1149,12 @@ export function buildVisaNoDataContext(visaKeys: VisaKey[], categories: VisaCate
     `${visas}の「${items}」について、確認済みのデータがありません。`,
     "",
     "- 申請料・年齢条件・審査期間・必要日数などの**数値を推測して答えないでください**。",
-    "- 知識ベースに書かれている制度の大枠（条件が存在すること、一般的な仕組み）までは説明してかまいませんが、具体的な数値や個別の条件は断定しないでください。",
+    "- 知識ベースに書かれている制度の大枠（一般的な仕組み）までは説明してかまいませんが、具体的な数値や個別の条件は断定しないでください。",
+    // 以前はここで「条件が存在すること」までを許可していた。そのため、知識ベースに
+    // 条件の記述が無い項目（417 の就学など）でも「〜という条件があります」「〜は可能です」と
+    // 存在・可否を補ってしまっていた（実機で再現）。存在そのものが未確認な項目があるため、
+    // 知識ベースに書かれていないことは補わせない。
+    "- 知識ベースに書かれていない項目については、**条件や仕組みが存在するかどうか自体も確認できていません**。「〜という条件があります」「〜は可能です」「〜に制限があります」のように、存在や可否を補って書かないでください。確認できていないことは、確認できていないとだけ伝えてください。",
     "- そのうえで、Department of Home Affairs の最新情報で確認するよう案内してください。本人が何を確認すればよいか（どのページの何を見るか）が分かる形にすると役立ちます。",
     "- 個別のユーザーについて「このビザが取れます」「申請は通ります」と保証しないでください。申請資格の判断は本人の状況によって変わります。",
     "- ビザの却下（refusal）・取消（cancellation）・オーバーステイ・bridging visa・健康面（health）・犯罪歴等（character）が関わるケースでは、断定的な助言をしないでください。Department of Home Affairs、または登録移民エージェント（registered migration agent）・移民弁護士への相談を案内してください。",

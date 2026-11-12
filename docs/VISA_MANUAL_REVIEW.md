@@ -43,8 +43,12 @@ Department of Home Affairs は自動取得を拒否する（HTTP 403。2026-10-0
 
 一次情報: https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417
 
-**現状: eligibility / same_employer / specified_work / second_third の4カテゴリを登録済み。**
-それ以外のカテゴリは未確認のため未登録で、Chat は数値を推測せず「確認できていない」と答える。
+**現状: eligibility / documents / same_employer / specified_work / second_third / costs / stay /
+processing / application / work_rights / study_rights の11カテゴリを登録済み（未登録の formal category は無い）。**
+ただし確認の深さはカテゴリごとに違う。`work_rights` は概要画面のみの**段階1**（時間の上限・職種制限の詳細・
+自営業・複数雇用主・ビザ開始前と満了後の就労は未確認＝段階2が必要）、`study_rights` は **condition 8548 まで**が
+human-reviewed 済み（コース種別・フルタイム／パートタイム・合算方法の詳細・超過時の取り扱いは未確認）。
+未確認の項目については、Chat は数値を推測せず「確認できていない」と答える。
 
 確認済みページ:
 - Working Holiday visa (subclass 417) — https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417
@@ -53,6 +57,14 @@ Department of Home Affairs は自動取得を拒否する（HTTP 403。2026-10-0
   （accessed_at / reviewed_at: 2026-10-02 → specified_work / second_third）
 - 6 month work limitation / Work longer than 6 months / WHM condition 8547 permission request form
   （accessed_at / reviewed_at: 2026-10-02 → same_employer）
+- Working Holiday visa (subclass 417) → First Working Holiday visa → Step 2: Gather your documents
+  （accessed_at / reviewed_at: 2026-10-23 → documents）
+- Working Holiday visa (subclass 417)（概要と First / Second / Third のカード）
+  （accessed_at / reviewed_at: 2026-11-11 → costs / stay / processing / application / work_rights【段階1】）
+- See your visa conditions（condition 8548 - Maximum 4 months study）
+  https://immi.homeaffairs.gov.au/visas/already-have-a-visa/check-visa-details-and-conditions/see-your-visa-conditions
+  ＋ Working Holiday visa (subclass 417) の First / Second / Third のカード
+  （accessed_at / reviewed_at: 2026-11-12 → study_rights）
 
 > 注意: サブクラス462（Work and Holiday）は**別のビザ**。462 の条件を 417 の JSON に入れない。
 
@@ -157,11 +169,41 @@ https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-4
 | Northern Australia の地理的範囲 | no | | | | 未確認 |
 | 許可の審査基準・所要期間 | no | | | | 未確認 |
 
-## 1-5. study_rights
+## 1-5. study_rights（2026-11-12 確認済み）
+
+確認したページ（いずれも Department of Home Affairs。accessed_at / reviewed_at: 2026-11-12。人間が画面で確認）:
+- See your visa conditions（ビザ条件の一覧・解説）→ **condition 8548 - Maximum 4 months study**
+  https://immi.homeaffairs.gov.au/visas/already-have-a-visa/check-visa-details-and-conditions/see-your-visa-conditions
+- Working Holiday visa (subclass 417) → First / Second / Third のカード
+  https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417
+
+**4か月は就学と訓練の合計**。「就学で4か月、訓練でさらに4か月」「コースごとに4か月」とは扱わない。
 
 | 項目 | 確認 | 値 | 要約 | ページ箇所 | 備考 |
 |---|---|---|---|---|---|
-| 就学・訓練が可能な期間（単位つき） | no | | | | |
+| ビザ条件の番号 | **yes** | 8548 | `conditionNumber: 8548` / `conditionTitle: "Maximum 4 months study"` | condition 8548 | 同一雇用主の 8547 と混同しない |
+| 就学（study）が可能か | **yes** | `studyAllowed: true` | 就学は認められている | 同 | もう未確認扱いにしない |
+| 訓練（training）が可能か | **yes** | `trainingAllowed: true` | 訓練も認められている | 同 | 就学と別枠の4か月を持つという意味ではない |
+| 期間の上限 | **yes** | 4 months | `duration: 4` / `durationUnit: "months"` / `durationBasis: "up_to"` | 同 | 公式は「Maximum 4 months study」「can’t study or train for more than a total of 4 months」 |
+| 上限の対象（scope） | **yes** | 就学と訓練の**合計** | `durationScope` / `studyTrainingCombinedLimit: true` / `combinedLimitNote` | 同 | このビザでオーストラリアにいる間の合計。importer が scope 欠落と合計の明示欠落を検証 |
+| 期間の換算 | **yes** | 17 weeks and 3 days | `equivalentDuration: { weeks: 17, days: 3 }` | 同 | 公式の表示「Four months of study or training is 17 weeks and 3 days.」。importer が duration との不一致を検証 |
+| 公式の原文 | **yes** | `officialWording` | You can’t study or train for more than a total of 4 months while you are in Australia on this visa. | 同 | 言い換えずそのまま保持 |
+| 4か月に含むもの | **yes** | 3件 | weekends ／ public holidays ／ non-teaching periods before exams | 同（It includes） | `countsTowardLimit` |
+| 4か月に含まないもの | **yes** | 2件 | orientation periods ／ holiday periods | 同（It does not include） | `doesNotCountTowardLimit`。含むものだけ伝えて終わらせない |
+| カウントしない活動 | **yes** | 2件 | work-based training ／ correspondence courses that you could take outside Australia | 同 | `excludedActivities`（`countsTowardFourMonthLimit: false`）。**「training は全部カウントしない」と一般化しない** |
+| 1回目（First） | **yes** | condition 8548 あり | | First のカード | |
+| 2回目（Second） | **yes** | condition 8548 あり | | Second のカード | |
+| 3回目（Third） | **yes** | condition 8548 あり | | Third のカード | |
+| 回ごとの違い | **yes（違いなし）** | `sameAcrossStages: true` | すべての回で同じ条件 | 同 | 回ごとに別の未確認条件があると推測しない。importer が回ごとの条件の併記を拒否 |
+| 語学学校（ELICOS）の明示 | no | | | | **未確認**。対象として明示されているかどうかを確認していない |
+| vocational / university / short course の個別扱い | no | | | | 未確認 |
+| フルタイム／パートタイムの違い | no | | | | 未確認 |
+| employer-provided training と work-based training の境界 | no | | | | 未確認。公式に挙げられた範囲でだけ扱う |
+| 複数コース・複数提供機関の合算方法 | no | | | | 未確認。合計であることまでは確認済み |
+| 4か月を超えた場合の取り扱い（violation consequences） | no | | | | 未確認。断定せず公式・移民エージェントへ案内 |
+
+**Student 500 との分離**: CRICOS / CoE / full-time enrolment / Genuine Student / OSHC / 48 hours per fortnight /
+packaged courses / school-age rules は **`## 2-4. study_rights`（Student 500）が正本**。417 の study_rights には入れない。
 
 ## 1-6. application（2026-11-11 確認済み・一部）
 

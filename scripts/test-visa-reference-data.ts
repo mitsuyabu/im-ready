@@ -453,13 +453,13 @@ async function main() {
   {
     // 417 は人間が確認したカテゴリだけが入っている（未確認は空のまま）
     const whv417 = SEED.filter((e) => e.visaKey === "australia_working_holiday_417");
-    assert(whv417.length === 10, `417 は確認済みの10カテゴリだけ（実際: ${whv417.length}）`);
+    assert(whv417.length === 11, `417 は確認済みの11カテゴリだけ（実際: ${whv417.length}）`);
     assert(
       whv417.map((e) => e.category).sort().join(",") ===
-        "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay,work_rights",
-      "application / costs / documents / eligibility / processing / same_employer / second_third / specified_work / stay / work_rights のみ",
+        "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay,study_rights,work_rights",
+      "application / costs / documents / eligibility / processing / same_employer / second_third / specified_work / stay / study_rights / work_rights のみ",
     );
-    for (const unconfirmed of ["study_rights"]) {
+    for (const unconfirmed of ["health_insurance", "financial_capacity", "genuine_student", "arrival_preparation"]) {
       assert(!whv417.some((e) => e.category === unconfirmed), `未確認の ${unconfirmed} は入っていない`);
     }
 
@@ -658,8 +658,8 @@ async function main() {
         `Student 500: 未確認の ${absent} は登録しない`,
       );
     }
-    assert(whv.length === 10, `417 の確認済み entry が10件（実際: ${whv.length}）`);
-    for (const absent of ["study_rights"]) {
+    assert(whv.length === 11, `417 の確認済み entry が11件（実際: ${whv.length}）`);
+    for (const absent of ["health_insurance", "financial_capacity", "genuine_student", "arrival_preparation"]) {
       assert(!whv.some((e) => e.category === absent), `417: 未確認の ${absent} は登録しない`);
     }
     for (const e of SEED) {
@@ -925,6 +925,209 @@ async function main() {
       expiry.context.includes("ビザが始まる前・満了したあとの就労の扱い"),
       "満了後の就労が未確認であることが渡る",
     );
+  }
+
+  console.log("Test 21: 417 の就学の質問は condition 8548 の formal data へ届く");
+  {
+    // study_rights へ届かないと基本セット（eligibility / work_rights / stay）へ落ち、
+    // 就学の質問に**就労の条件**が渡ってしまう（前フェーズの監査で実測した漏れ）。
+    for (const message of [
+      "ワーホリで学校に通えますか？",
+      "ワーホリで学校に通いたい",
+      "ワーホリで勉強できますか？",
+      "ワーホリで勉強できる？",
+      "ワーホリで何ヶ月勉強できますか？",
+      "ワーホリで勉強したい",
+      "ワーホリの就学期間は？",
+      "417でstudyできますか？",
+      "ワーホリで語学学校に通えますか？",
+      "ワーホリでtrainingできますか？",
+    ]) {
+      const r = simulate({ message });
+      assert(
+        r.categories.join(",") === "study_rights",
+        `「${message}」→ study_rights だけへ routing される（実際: ${r.categories.join(",")}）`,
+      );
+      assert(r.visaKeys.join(",") === "australia_working_holiday_417", `「${message}」→ 417 のデータを読む`);
+      assert(r.usedData === true, `「${message}」→ formal entry（condition 8548）が取れる`);
+      assert(r.context.includes("8548"), `「${message}」→ condition 8548 が渡る`);
+      assert(r.context.includes("4 months"), `「${message}」→ 上限 4 months が渡る`);
+      assert(
+        r.context.includes("就学と訓練を**合わせた合計**で 4 months"),
+        `「${message}」→ 就学と訓練の**合計**であることが渡る`,
+      );
+      assert(r.context.includes("17 weeks"), `「${message}」→ 17 weeks 3 days の換算が渡る`);
+      // 就労の条件を就学の答えの根拠にさせない
+      assert(
+        !r.context.includes("You can do any kind of work while you are here"),
+        `「${message}」→ work_rights の公式文言が渡らない`,
+      );
+      // Student 500 の就学条件が混ざらない（§13 の相互分離）。
+      // 一般の prompt 規則には「他のビザの条件（CoE・CRICOS）を当てはめない」という**禁止**が入るため、
+      // データ部分（## データ 以降）だけを見る。
+      const data = r.context.slice(r.context.indexOf("## データ"));
+      for (const contaminated of [
+        "CRICOS",
+        "CoE",
+        "packaged courses",
+        "Genuine Student",
+        "OSHC",
+        "48 hours",
+        "fortnight",
+        "full-time enrolment",
+      ]) {
+        assert(!data.includes(contaminated), `「${message}」→ Student 500 の ${contaminated} が渡らない`);
+      }
+    }
+
+    // 専用の指示（合計であることを崩させない）が渡る
+    const study = simulate({ message: "ワーホリで何ヶ月勉強できますか？" });
+    assert(
+      study.context.includes("就学（study）と訓練（training）を合わせた合計"),
+      "「合計」であることの指示が渡る",
+    );
+    assert(
+      study.context.includes("1つのコースごとに4か月"),
+      "コース単位の上限として説明させない指示が渡る",
+    );
+    assert(study.context.includes("週末（weekends）"), "4か月に含まれるものが渡る");
+    assert(study.context.includes("オリエンテーション期間（orientation periods）"), "含まれないものが渡る");
+    assert(study.context.includes("work-based training"), "カウントしない活動が渡る");
+    assert(
+      study.context.includes("correspondence courses that you could take outside Australia"),
+      "カウントしない通信講座の範囲が渡る",
+    );
+    assert(
+      study.context.includes("1回目（ファースト）・2回目（セカンド）・3回目（サード）のいずれにも同じように付される"),
+      "First / Second / Third すべてに付されることが渡る",
+    );
+    // カウントしない活動の**条件**を落とさせない指示（実機のドリフト対策）
+    assert(
+      study.context.includes("「オーストラリアの外でも受けられるもの」という条件つきで伝え"),
+      "通信講座の条件を落とさせない指示が渡る",
+    );
+    assert(
+      study.context.includes("work-based training は公式の用語のまま伝えてください"),
+      "work-based training を言い換えさせない指示が渡る",
+    );
+    // 一般描画の「期間: 4 months」だけで終わらない（合計であることが落ちない）
+    assert(
+      !study.context.includes("- 期間: 4 months"),
+      "合計であることが落ちる一般描画の期間行を出していない",
+    );
+
+    // 417 の study_rights が登録され、確認した範囲を超える field を持たない
+    const whvStudy = SEED.find(
+      (e) => e.visaKey === "australia_working_holiday_417" && e.category === "study_rights",
+    );
+    assert(whvStudy !== undefined, "417 の study_rights が登録されている");
+    if (whvStudy) {
+      const d = whvStudy.details as Record<string, unknown>;
+      assert(d.conditionNumber === 8548, "condition 8548 を保持している");
+      assert(d.conditionTitle === "Maximum 4 months study", "条件の名称を保持している");
+      assert(d.studyAllowed === true && d.trainingAllowed === true, "就学・訓練ともに可能として保持");
+      assert(d.duration === 4 && d.durationUnit === "months", "4 months を単位つきで保持");
+      assert(d.studyTrainingCombinedLimit === true, "合計の上限であることを保持");
+      assert(typeof d.durationScope === "string" && d.durationScope.includes("合計"), "scope が合計である");
+      const eq = d.equivalentDuration as Record<string, unknown>;
+      assert(eq.weeks === 17 && eq.days === 3, "17 weeks and 3 days を保持");
+      assert(d.sameAcrossStages === true, "First / Second / Third で同じ条件として保持");
+      // 回ごとの条件を勝手に作っていない
+      for (const stage of ["first", "second", "third"]) {
+        assert(d[stage] === undefined, `回ごとの就学条件（${stage}）を作っていない`);
+      }
+      // Student 500 の条件を 417 へ持ち込んでいない
+      const serialized = JSON.stringify(d);
+      for (const owned of ["CRICOS", "CoE", "Genuine Student", "OSHC", "packaged", "fortnight", "48 hours"]) {
+        assert(!serialized.includes(owned), `417 の study_rights に Student 500 の ${owned} が入っていない`);
+      }
+      // 時間の上限（就労）と混同する field を持たない
+      for (const forbidden of ["limit", "unit", "hoursPerWeek", "hoursPerFortnight"]) {
+        assert(d[forbidden] === undefined, `就労時間の field（${forbidden}）を持たない`);
+      }
+      // 未確認のものは unverified に残っている
+      const unverified = JSON.stringify(d.unverified ?? []);
+      for (const open of ["ELICOS", "vocational", "フルタイム", "合算", "4か月を超えた"]) {
+        assert(unverified.includes(open), `未確認の項目（${open}）が残っている`);
+      }
+    }
+
+    // 数え方の質問（condition 8548 の「含む／含まない」）。
+    // ビザ名を言わない追い質問でも study_rights へ回り、どのビザか決まらなければ確認経路へ行く
+    // （数え方を勝手に答えない）。
+    for (const message of [
+      "4か月には土日も含まれますか？",
+      "オリエンテーションは4か月に含まれますか？",
+      "work-based trainingは4か月に含まれますか？",
+      "17週3日とはどういう意味ですか？",
+    ]) {
+      const intent = detectVisaIntent(message);
+      assert(
+        intent !== null && intent.categories.join(",") === "study_rights",
+        `「${message}」→ study_rights へ回る（実際: ${JSON.stringify(intent?.categories)}）`,
+      );
+      // ビザが分かっている場合は 8548 のデータへ届く
+      const r = simulate({ message, karteStated: { workingHolidayInterest: true } });
+      assert(r.usedData === true, `「${message}」→ ワーホリ前提なら formal entry が取れる`);
+      assert(r.context.includes("8548"), `「${message}」→ condition 8548 が渡る`);
+      // ビザが決まらない場合は、数え方を答えずどのビザかを確認する
+      const unknown = simulate({ message });
+      assert(
+        unknown.usedData === false && unknown.context.includes("どのビザの話か"),
+        `「${message}」→ ビザ未確定なら確認経路（勝手に数え方を答えない）`,
+      );
+    }
+    // 含む／含まないの両方が同じ context で渡る（片方だけ渡して終わらせない）
+    const counting = simulate({
+      message: "ワーホリの4か月には土日も含まれますか？",
+    });
+    assert(counting.context.includes("祝日（public holidays）"), "含まれるものが渡る");
+    assert(counting.context.includes("休暇期間（holiday periods）"), "含まれないものが渡る");
+
+    // 学校の費用・学校選びは就学の権利条件ではない（ビザ層を起動しない／costs へ行かない）
+    for (const message of [
+      "語学学校の料金は？",
+      "語学学校の学費はいくら？",
+      "学校の選び方を教えて",
+      "おすすめの学校は？",
+      "英語をstudyしています",
+      "英語が勉強できるアプリを教えて",
+      "どの学校に通うか迷っています",
+    ]) {
+      assert(
+        detectVisaIntent(message) === null,
+        `「${message}」→ ビザ層を起動しない（実際: ${JSON.stringify(detectVisaIntent(message)?.categories)}）`,
+      );
+    }
+    // ビザの語があっても、学費は study_rights の条件として扱わない
+    const tuition = simulate({ message: "ワーホリ中の語学学校の学費はいくら？" });
+    assert(!tuition.categories.includes("study_rights"), "学費の質問を study_rights へ回さない");
+    assert(!tuition.categories.includes("costs"), "学校の学費をビザ申請料（costs）へ誤 routing しない");
+    assert(!tuition.context.includes("8548"), "学費の質問に condition 8548 が渡らない");
+
+    // Student 500 の就学条件は従来どおり 500 の formal data へ届く（§13 の回帰）
+    const student = simulate({ message: "学生ビザで学校に通えますか？" });
+    assert(
+      student.categories.join(",") === "study_rights",
+      `「学生ビザで学校に通えますか？」→ study_rights（実際: ${student.categories.join(",")}）`,
+    );
+    assert(student.visaKeys.join(",") === "australia_student_500", "500 のデータを読む");
+    assert(student.usedData === true, "500 の study_rights entry が取れる");
+    assert(student.context.includes("CRICOS"), "500 の CRICOS 条件が渡る");
+    assert(student.context.includes("packaged courses"), "500 の packaged courses が渡る");
+    // 417 の4か月が学生ビザの答えへ混ざらない
+    assert(!student.context.includes("8548"), "500 の就学の質問に 417 の condition 8548 が渡らない");
+    assert(!student.context.includes("4 months"), "500 の就学の質問に 417 の 4 months が渡らない");
+
+    // 417 の就労・滞在の質問に就学の4か月が混ざらない（§19 の回帰）
+    const work = simulate({ message: "ワーホリで働くことができますか？" });
+    assert(work.categories.join(",") === "work_rights", `就労の質問は work_rights（${work.categories.join(",")}）`);
+    assert(!work.context.includes("8548"), "就労の質問に condition 8548 が渡らない");
+    assert(!work.context.includes("4 months"), "就労の質問に就学の 4 months が渡らない");
+    const stay = simulate({ message: "ワーホリはどのくらい滞在できますか？" });
+    assert(stay.categories.includes("stay"), "滞在の質問は stay へ回る");
+    assert(stay.context.includes("12"), "滞在の 12 months が渡る");
+    assert(!stay.context.includes("8548"), "滞在の質問に condition 8548 が渡らない");
   }
 
   console.log("");

@@ -47,8 +47,26 @@
     "  時間の上限・職種制限の詳細・自営業・ビザ開始前と満了後の就労は unverified のまま。",
     "  時間を表す field（limit / unit など）は持たない。",
     "",
-    "■ まだ未登録（それぞれ別の公式ページを人間が確認してから登録する。推測で埋めてはいけない）",
-    "  study_rights",
+    "■ 2026-11-12 の人間確認",
+    "確認したページ: See your visa conditions（ビザ条件の一覧・解説）",
+    "  https://immi.homeaffairs.gov.au/visas/already-have-a-visa/check-visa-details-and-conditions/see-your-visa-conditions",
+    "確認したページ: Working Holiday visa (subclass 417)（First / Second / Third のカード）",
+    "  https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417",
+    "  → study_rights（condition 8548 - Maximum 4 months study）。就学・訓練はどちらも可能だが、",
+    "  **このビザでオーストラリアにいる間の就学と訓練の合計**で4か月を超えられない（17 weeks and 3 days）。",
+    "  4か月に含むもの（weekends / public holidays / non-teaching periods before exams）、含まないもの",
+    "  （orientation periods / holiday periods）、カウントしない活動（work-based training ／ オーストラリアの",
+    "  外でも受けられる correspondence courses）も確認済み。First / Second / Third のいずれにも同じ条件が",
+    "  付されるため sameAcrossStages: true。コース種別（語学学校・vocational・university）・フルタイムと",
+    "  パートタイムの違い・合算方法の詳細・4か月を超えた場合の取り扱いは未確認のまま。",
+    "",
+    "■ 未登録の formal category は無い（11 category すべて人間確認済み）",
+    "  ただし確認の深さは category ごとに違う。推測で埋めてはいけない。",
+    "  work_rights: 概要画面のみの【段階1】。働ける時間の上限・職種制限の詳細・自営業・複数雇用主・",
+    "    ビザ開始前と満了後の就労・ボランティアの一般的な扱いは未確認（段階2が必要）。",
+    "  study_rights: condition 8548 までは human-reviewed 済み。就学・訓練の可否／合計4か月／17週3日／",
+    "    カウント対象・除外対象は確認済みで、もう未確認扱いにしない。コース種別とフルタイム／パートタイムの",
+    "    違い、合算方法の詳細、超過時の取り扱いは未確認。",
     "",
     "■ 登録時の注意",
     "- サブクラス462（Work and Holiday）は別のビザ。462 の条件をこの JSON の entries に入れない。",
@@ -101,7 +119,7 @@
           "入国の期限（申請時の年齢条件とは別のもの。今回の資料では確認していない）",
           "資金要件の具体的な金額",
           "健康・人物（character）の要件で必要になる具体的な書類",
-          "就学できる期間などの他の条件の具体値"
+          "申請資格に関わる他の条件の具体値（就学と訓練の条件は study_rights の entry に登録済みなので、ここには含めない）"
         ]
       },
       "reviewedAt": "2026-10-01",
@@ -689,6 +707,83 @@
           "sourceUpdatedAt": "2024-12-09",
           "accessedAt": "2026-11-11",
           "notes": "概要画面の First / Second / Third の各カードの就労に関する記述を確認（First: You can work while you are here／Second・Third: You can do any kind of work while you are here）。働ける時間の上限・職種制限の詳細・自営業・ビザ開始前と満了後の就労はこのページでは確認していない。sourceUpdatedAt はページ全体の Last updated であり、就労条件の適用開始日ではない。"
+        }
+      ]
+    },
+    {
+      "category": "study_rights",
+      "summary": "このビザには condition 8548（Maximum 4 months study）が付されます。就学（study）も訓練（training）も認められていますが、このビザでオーストラリアにいる間の就学と訓練を合わせた合計で、4か月を超えることはできません。公式の文は「You can’t study or train for more than a total of 4 months while you are in Australia on this visa.」で、この4か月は「17 weeks and 3 days」と案内されています。この4か月には週末・祝日・試験前の授業の無い期間が含まれ、オリエンテーション期間と休暇期間は含まれません。work-based training と、オーストラリアの外でも受けられる通信講座（correspondence courses）は、この4か月にはカウントしないと案内されています。1回目・2回目・3回目のいずれにも同じ condition 8548 が付されます。",
+      "details": {
+        "appliesTo": "First / Second / Third Working Holiday visa（subclass 417）のすべてについて、condition 8548 を人間が公式画面で確認した内容",
+        "conditionNumber": 8548,
+        "conditionTitle": "Maximum 4 months study",
+        "studyAllowed": true,
+        "trainingAllowed": true,
+        "studyTrainingCombinedLimit": true,
+        "duration": 4,
+        "durationUnit": "months",
+        "durationBasis": "up_to",
+        "durationScope": "このビザでオーストラリアにいる間の就学（study）と訓練（training）を合わせた合計。公式の表現は「a total of 4 months while you are in Australia on this visa」",
+        "equivalentDuration": {
+          "weeks": 17,
+          "days": 3,
+          "officialWording": "Four months of study or training is 17 weeks and 3 days."
+        },
+        "sameAcrossStages": true,
+        "countsTowardLimit": [
+          "週末（weekends）",
+          "祝日（public holidays）",
+          "試験前の授業の無い期間（non-teaching periods before exams）"
+        ],
+        "doesNotCountTowardLimit": [
+          "オリエンテーション期間（orientation periods）",
+          "休暇期間（holiday periods）"
+        ],
+        "excludedActivities": [
+          {
+            "type": "work-based training",
+            "countsTowardFourMonthLimit": false,
+            "note": "公式の文は「You can do work-based training and correspondence courses that you could take outside Australia. These don’t count towards the 4 months study or training.」。**この記載の範囲でだけ**扱い、「work-based training は training に当たらない」と一般化しないこと"
+          },
+          {
+            "type": "correspondence courses that you could take outside Australia",
+            "countsTowardFourMonthLimit": false,
+            "note": "オーストラリアの外でも受けられる通信講座について、公式が4か月にカウントしないとしている扱い。どの講座がこれに当たるかの判断基準は確認していない"
+          }
+        ],
+        "officialWording": "You can’t study or train for more than a total of 4 months while you are in Australia on this visa.",
+        "combinedLimitNote": "この4か月は就学と訓練の**合計**。「就学で4か月、訓練でさらに4か月」のように別枠として説明しないこと。コースごと・提供機関ごとの上限としても説明しないこと",
+        "wordingNote": "公式に書かれているのは「最大4か月（合計）」「4か月は17週3日」「含むもの・含まないもの」「カウントしない活動」まで。コースの種類（語学学校・専門・大学など）やフルタイム・パートタイムの違いによる扱いはこの画面では確認していないため、踏み込まないこと",
+        "primarySourceVerified": true,
+        "unverified": [
+          "語学学校（ELICOS）がこの条件の対象として明示されているかどうか",
+          "専門（vocational）・大学・short course の個別の扱い",
+          "フルタイムとパートタイムで扱いが違うかどうか",
+          "雇用主が提供する訓練（employer-provided training）と work-based training の境界の詳細",
+          "複数のコース・複数の提供機関にまたがる場合の合算の具体的な方法",
+          "4か月を超えた場合の具体的な取り扱い"
+        ]
+      },
+      "reviewedAt": "2026-11-12",
+      "reviewNote": "Home Affairs のビザ条件のページで condition 8548（Maximum 4 months study）を人間が画面で確認した。確認した内容は、就学・訓練がどちらも可能であること／合計で4か月を超えられないこと（You can’t study or train for more than a total of 4 months while you are in Australia on this visa.）／4か月は17 weeks and 3 days であること／4か月に含まれるもの（weekends / public holidays / non-teaching periods before exams）／含まれないもの（orientation periods / holiday periods）／work-based training と「オーストラリアの外でも受けられる通信講座」は4か月にカウントしないこと。First / Second / Third のいずれにも同じ condition 8548 が付されることも確認したため sameAcrossStages: true とした。4か月は**合計**なので、就学と訓練を別枠にしないよう combinedLimitNote を保持している。Student 500 の就学条件（CRICOS 登録のフルタイムコース・CoE・packaged courses・2週間48時間）はまったく別のビザの条件なので、この entry には持ち込まない。語学学校（ELICOS）の明示・vocational / university の個別扱い・フルタイムとパートタイムの違い・合算方法の詳細・4か月を超えた場合の取り扱いはこの画面では確認していないため unverified のまま。",
+      "sources": [
+        {
+          "sourceName": "Australian Government Department of Home Affairs - See your visa conditions（condition 8548 - Maximum 4 months study）",
+          "sourceUrl": "https://immi.homeaffairs.gov.au/visas/already-have-a-visa/check-visa-details-and-conditions/see-your-visa-conditions",
+          "sourceType": "home_affairs",
+          "sourcePublishedAt": null,
+          "sourceUpdatedAt": null,
+          "accessedAt": "2026-11-12",
+          "notes": "condition 8548（Maximum 4 months study）の本文を確認。合計4か月・17 weeks and 3 days・含むもの（weekends / public holidays / non-teaching periods before exams）・含まないもの（orientation periods / holiday periods）・work-based training と「オーストラリアの外でも受けられる通信講座」はカウントしないこと。コース種別（語学学校・vocational・university）やフルタイム／パートタイムの違い、4か月を超えた場合の取り扱いはこのページでは確認していない。"
+        },
+        {
+          "sourceName": "Australian Government Department of Home Affairs - Working Holiday visa (subclass 417)",
+          "sourceUrl": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417",
+          "sourceType": "home_affairs",
+          "sourcePublishedAt": null,
+          "sourceUpdatedAt": "2024-12-09",
+          "accessedAt": "2026-11-12",
+          "notes": "First / Second / Third のいずれにも condition 8548 が付されることを確認。sourceUpdatedAt はページ全体の Last updated であり、この条件の適用開始日ではない。"
         }
       ]
     }

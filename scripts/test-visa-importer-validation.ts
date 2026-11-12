@@ -363,11 +363,11 @@ console.log("Test 12: 現在の working-holiday-417.json → accept（人間確�
   // 未確認のカテゴリ（stay 等）は空のまま。
   const categories = r.entries.map((e) => e.category).sort();
   assert(
-    categories.join(",") === "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay,work_rights",
-    `確認済みの10カテゴリだけが受理される（${categories.join(",")}）`,
+    categories.join(",") === "application,costs,documents,eligibility,processing,same_employer,second_third,specified_work,stay,study_rights,work_rights",
+    `確認済みの11カテゴリだけが受理される（${categories.join(",")}）`,
   );
   // 未確認のカテゴリは登録されていない
-  for (const unconfirmed of ["study_rights"]) {
+  for (const unconfirmed of ["health_insurance", "financial_capacity", "genuine_student", "arrival_preparation"]) {
     assert(!categories.includes(unconfirmed), `未確認の ${unconfirmed} は登録されていない`);
   }
   // same_employer は期間があるため、例外の記録が無ければ弾かれるルールを満たして通っている
@@ -755,6 +755,132 @@ console.log("Test 24: work_rights は公式文言と同一雇用主の参照を�
 
   const falseFlag = check(whvDoc([entry("work_rights", { ...base, generalWorkRight: false })]));
   assert(falseFlag.entries.length === 0, "generalWorkRight を false で埋めると受理されない");
+}
+
+console.log("Test 25: study_rights は期間の scope と「合計」であることを必須にし、矛盾を拒否する");
+{
+  // 417 の condition 8548 の形。値そのもの（8548 / 4 months）の検査は
+  // scripts/test-visa-reference-data.ts 側で行う。ここで見るのは entry 内の整合性だけ。
+  const base = {
+    conditionNumber: 8548,
+    conditionTitle: "Maximum 4 months study",
+    studyAllowed: true,
+    trainingAllowed: true,
+    studyTrainingCombinedLimit: true,
+    duration: 4,
+    durationUnit: "months",
+    durationBasis: "up_to",
+    durationScope: "このビザでオーストラリアにいる間の就学と訓練を合わせた合計",
+    combinedLimitNote: "就学と訓練を別枠にしない",
+    equivalentDuration: { weeks: 17, days: 3 },
+    sameAcrossStages: true,
+    countsTowardLimit: ["週末（weekends）"],
+    doesNotCountTowardLimit: ["休暇期間（holiday periods）"],
+    excludedActivities: [{ type: "work-based training", countsTowardFourMonthLimit: false }],
+  };
+
+  const ok = check(whvDoc([entry("study_rights", base)]));
+  assert(ok.entries.length === 1, `正しい形は受理される（${showProblems(ok.problems)}）`);
+
+  // 期間だけで「何に対する期間か」が無い → reject（「1コースあたり4か月」と読める）
+  const noScope = check(
+    whvDoc([entry("study_rights", { ...base, durationScope: undefined })]),
+  );
+  assert(noScope.entries.length === 0, "durationScope が無いと受理されない");
+  assert(rejectedFor(noScope.problems, "durationScope"), "scope の欠落を指摘する");
+
+  // 基準（up_to 等）が無い → reject
+  const noBasis = check(whvDoc([entry("study_rights", { ...base, durationBasis: undefined })]));
+  assert(noBasis.entries.length === 0, "durationBasis が無いと受理されない");
+
+  // 合計かどうかの明示が無い → reject（「就学で4か月、訓練で4か月」と読める）
+  const noCombined = check(
+    whvDoc([entry("study_rights", { ...base, studyTrainingCombinedLimit: undefined })]),
+  );
+  assert(noCombined.entries.length === 0, "合計の上限かどうかを明示しないと受理されない");
+  assert(rejectedFor(noCombined.problems, "studyTrainingCombinedLimit"), "合計の明示の欠落を指摘する");
+
+  // 合計だと記録しながら、別枠にしないための注記が無い → reject
+  const noNote = check(whvDoc([entry("study_rights", { ...base, combinedLimitNote: undefined })]));
+  assert(noNote.entries.length === 0, "合計の注記が無いと受理されない");
+
+  // 換算が本体の期間と一致しない → reject（4 months ≠ 8 weeks）
+  const badEquivalent = check(
+    whvDoc([entry("study_rights", { ...base, equivalentDuration: { weeks: 8, days: 0 } })]),
+  );
+  assert(badEquivalent.entries.length === 0, "期間と一致しない換算は受理されない");
+  assert(rejectedFor(badEquivalent.problems, "equivalentDuration"), "換算の不一致を指摘する");
+
+  // 換算だけを持つ（本体の期間が無い）→ reject
+  const onlyEquivalent = check(
+    whvDoc([
+      entry("study_rights", {
+        studyAllowed: true,
+        equivalentDuration: { weeks: 17, days: 3 },
+      }),
+    ]),
+  );
+  assert(onlyEquivalent.entries.length === 0, "換算だけを持つことはできない");
+
+  // 就学できないと記録しながら期間を持つ → reject
+  const contradiction = check(
+    whvDoc([entry("study_rights", { ...base, studyAllowed: false })]),
+  );
+  assert(contradiction.entries.length === 0, "可否と期間の矛盾は受理されない");
+  assert(rejectedFor(contradiction.problems, "studyAllowed"), "可否の矛盾を指摘する");
+
+  // 同じものが「含む」と「含まない」の両方に入っている → reject
+  const bothSides = check(
+    whvDoc([
+      entry("study_rights", {
+        ...base,
+        countsTowardLimit: ["週末（weekends）"],
+        doesNotCountTowardLimit: ["週末（weekends）"],
+      }),
+    ]),
+  );
+  assert(bothSides.entries.length === 0, "カウントする／しないの両方に入る項目は受理されない");
+
+  // カウントする活動を「カウントしない活動」へ混ぜる → reject
+  const wrongExcluded = check(
+    whvDoc([
+      entry("study_rights", {
+        ...base,
+        excludedActivities: [{ type: "語学学校のコース", countsTowardFourMonthLimit: true }],
+      }),
+    ]),
+  );
+  assert(wrongExcluded.entries.length === 0, "カウントする活動を除外リストへ入れると受理されない");
+
+  // 「すべての回で同じ」と記録しながら回ごとの条件を持つ → reject
+  const perStage = check(
+    whvDoc([entry("study_rights", { ...base, first: { duration: 4, durationUnit: "months" } })]),
+  );
+  assert(perStage.entries.length === 0, "回ごとに条件を分けると受理されない（sameAcrossStages: true のとき）");
+  assert(rejectedFor(perStage.problems, "first"), "回ごとの条件を指摘する");
+
+  // 未確認と書きながら期間を持つ → reject
+  const unverifiedContradiction = check(
+    whvDoc([
+      entry("study_rights", {
+        ...base,
+        unverified: ["就学できる期間"],
+      }),
+    ]),
+  );
+  assert(unverifiedContradiction.entries.length === 0, "未確認と書きながら期間を持つ状態は受理されない");
+
+  // Student 500 の study_rights（条件番号も期間も持たない形）は従来どおり受理される
+  const student = check(
+    studentDoc([
+      entry("study_rights", {
+        items: ["CRICOS に登録されたフルタイムのコースに在籍する"],
+        packagedCourses: ["すべての CoE のコードが必要"],
+        primarySourceVerified: true,
+      }),
+    ]),
+  );
+  assert(student.entries.length === 1, `500 の study_rights は壊れない（${showProblems(student.problems)}）`);
 }
 
 console.log("");

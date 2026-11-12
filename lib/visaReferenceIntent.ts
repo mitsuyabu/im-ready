@@ -29,7 +29,32 @@ const WORK_AND_HOLIDAY_462_WORDS = ["462", "work and holiday"];
 const CATEGORY_KEYWORDS: { category: VisaCategory; keywords: string[] }[] = [
   { category: "work_rights", keywords: ["何時間働", "働ける時間", "就労時間", "労働時間", "週何時間", "何時間まで", "就労制限", "work rights"] },
   { category: "same_employer", keywords: ["同一雇用主", "同じ雇用主", "同じ職場", "同じ会社", "same employer"] },
-  { category: "study_rights", keywords: ["学校に通え", "就学", "勉強できる", "語学学校に通"] },
+  // 「勉強できる」はここに置いていたが、(1)「勉強できますか」のような活用形に一致せず、
+  // (2) ビザと無関係な文（「英語が勉強できるアプリ」等）でもビザ層を起動してしまうため、
+  // 語幹（勉強でき）にしたうえで VISA_TOPIC_GATED_KEYWORDS 側へ移した。
+  // 「勉強できる」はここに置いていたが、(1)「勉強できますか」のような活用形に一致せず、
+  // (2) ビザと無関係な文（「英語が勉強できるアプリ」等）でもビザ層を起動してしまうため、
+  // 語幹（勉強でき）にしたうえで VISA_TOPIC_GATED_KEYWORDS 側へ移した。
+  //
+  // 「4か月に含まれるか」系は condition 8548 の**数え方**の質問。
+  // 「ワーホリ」等の語を言わない追い質問（「4か月には土日も含まれますか？」）で出るため、
+  // ここ（ungated）に置く。どのビザか決まらない場合は、どのビザの話かを確認する経路になる
+  // （数え方を勝手に答えない）。
+  {
+    category: "study_rights",
+    keywords: [
+      "学校に通え",
+      "就学",
+      "語学学校に通",
+      "4か月に含",
+      "4ヶ月に含",
+      "4カ月に含",
+      "4か月には",
+      "4ヶ月には",
+      "4カ月には",
+      "17週",
+    ],
+  },
   { category: "specified_work", keywords: ["specified work", "88日", "指定された仕事", "指定地域", "特定業種"] },
   { category: "second_third", keywords: ["セカンド", "サード", "2年目", "3年目", "二年目", "延長"] },
   { category: "documents", keywords: ["用意するもの", "document"] },
@@ -194,6 +219,34 @@ const VISA_TOPIC_GATED_KEYWORDS: { category: VisaCategory; keywords: string[] }[
       "police certificate",
       "police clearance",
       "character document",
+    ],
+  },
+  {
+    // 就学・訓練の質問。これらはビザ以外（学校選び・語学学習の相談）でも普通に出るため、
+    // ビザの語がある場合だけ有効にする（「英語を study しています」でビザ層を起動しない）。
+    //
+    // 入っていないと起きること（Phase の監査で実測した漏れ）:
+    //   - 「ワーホリで勉強できますか？」「ワーホリで何ヶ月勉強できますか？」「417でstudyできますか？」が
+    //     study_rights へ回らず基本セット（eligibility / work_rights / stay）へ落ちる。
+    //     就学の質問に**就労の条件**が渡るため、答えが別テーマの根拠を使いやすくなる。
+    category: "study_rights",
+    keywords: [
+      "勉強でき",
+      "勉強する",
+      "勉強したい",
+      "学校に通い",
+      "通学",
+      "学べ",
+      "何ヶ月勉強",
+      "何か月勉強",
+      // 訓練（training）。417 の condition 8548 は study と training を**合計**で見るため、
+      // training の質問も同じ category へ回す必要がある（別 category へ落ちると
+      // 「訓練は別枠で4か月使える」と読める根拠が渡ってしまう）。
+      "訓練",
+      "training",
+      // 英語表記。一般文でも頻出するため gate 側のみ。
+      "study",
+      "studying",
     ],
   },
   {

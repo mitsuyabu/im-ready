@@ -1,7 +1,7 @@
 -- visa_reference_data / visa_reference_sources の登録用 SQL
 -- scripts/import-visa-reference-data.ts が data/visas/ の JSON から生成
--- 生成: 2026-11-11T04:51:55.624Z
--- entry 数: 21（australia_student_500: 11 / australia_working_holiday_417: 10）
+-- 生成: 2026-11-11T23:31:06.057Z
+-- entry 数: 22（australia_student_500: 11 / australia_working_holiday_417: 11）
 -- 適用方法: 内容を目で確認したうえで、Supabase の SQL エディタで実行する。
 -- 対象 entry 以外は変更しない（upsert のみ。DELETE は対象 entry の出典の入れ替えだけ）。
 
@@ -402,7 +402,7 @@ with upserted as (
     visa_key, visa_code, visa_name, country_code, category, summary, details, reviewed_at, review_note, updated_at
   ) values (
     'australia_working_holiday_417', '417', 'Working Holiday visa (subclass 417)', 'AU',
-    'eligibility', '日本のパスポートを持つ人の場合、このビザの申請対象年齢は18〜30歳です。上限が30歳の国・地域では、31歳になる前に申請を提出する必要があり、締切は31歳の誕生日の前日の midnight（AEST / AEDST 基準）です。30歳のうちに期限内に申請していれば、結果が出る前に31歳になっても、他の条件を満たしていれば認められ得ます。年齢以外にも、パスポートの対象国・扶養している子どもを同伴しないこと・過去の WHM プログラムのビザでの入国歴などの条件があります。', '{"country":"Japan","eligiblePassport":true,"eligiblePassportNote":"日本のパスポートはこのビザの対象となる国・地域の一覧に掲載されている。ただしこれは「日本国籍なら必ず取得できる」という意味ではなく、年齢・資金・健康・人物などの他の条件も満たす必要がある","minimumAge":18,"maximumAge":30,"ageCountryScope":"この 18〜30歳 は日本のパスポートを持つ人についての条件。上限が異なる国・地域もあるが、その条件を日本国籍の人に当てはめて説明しないこと","applicationAgeDeadline":{"rule":"上限が30歳の国・地域では、31歳になる前に申請を提出する必要がある","deadline":"31歳の誕生日の前日の midnight","timezoneBasis":"AEST / AEDST","appliesAtLodgement":true,"turningAgeAfterLodgement":"30歳のうちに期限内に申請していれば、審査結果が出る前に31歳になっても、他の条件を満たしている場合はビザが認められ得る","notAnArrivalDeadline":"これは**申請を提出する時点**の年齢条件。「30歳までに渡航しなければならない」という意味ではない。入国の期限については今回の資料で確認していないため、推測して案内しないこと"},"dependentChildren":{"cannotBeAccompanied":true,"note":"扶養している子どもを同伴することはできない","familyInSameApplication":"1回目の申請では、家族を同じ申請に含めることはできない"},"previousVisaDisqualifyingHistory":{"appliesTo":"1回目（ファースト）の申請","rule":"過去に Working Holiday Maker プログラムのビザでオーストラリアへ入国したことがある場合は対象にならない","programScopeNote":"Working Holiday Maker プログラムには、このビザ（subclass 417）のほかに、対象の国・地域向けのもう1つのサブクラスが含まれる。もう1つのサブクラスの制度内容はこのデータでは扱わないため、本人が過去に別のサブクラスで入国している場合は、公式での確認を案内すること"},"primarySourceVerified":true,"unverified":["入国の期限（申請時の年齢条件とは別のもの。今回の資料では確認していない）","資金要件の具体的な金額","健康・人物（character）の要件で必要になる具体的な書類","就学できる期間などの他の条件の具体値"]}'::jsonb,
+    'eligibility', '日本のパスポートを持つ人の場合、このビザの申請対象年齢は18〜30歳です。上限が30歳の国・地域では、31歳になる前に申請を提出する必要があり、締切は31歳の誕生日の前日の midnight（AEST / AEDST 基準）です。30歳のうちに期限内に申請していれば、結果が出る前に31歳になっても、他の条件を満たしていれば認められ得ます。年齢以外にも、パスポートの対象国・扶養している子どもを同伴しないこと・過去の WHM プログラムのビザでの入国歴などの条件があります。', '{"country":"Japan","eligiblePassport":true,"eligiblePassportNote":"日本のパスポートはこのビザの対象となる国・地域の一覧に掲載されている。ただしこれは「日本国籍なら必ず取得できる」という意味ではなく、年齢・資金・健康・人物などの他の条件も満たす必要がある","minimumAge":18,"maximumAge":30,"ageCountryScope":"この 18〜30歳 は日本のパスポートを持つ人についての条件。上限が異なる国・地域もあるが、その条件を日本国籍の人に当てはめて説明しないこと","applicationAgeDeadline":{"rule":"上限が30歳の国・地域では、31歳になる前に申請を提出する必要がある","deadline":"31歳の誕生日の前日の midnight","timezoneBasis":"AEST / AEDST","appliesAtLodgement":true,"turningAgeAfterLodgement":"30歳のうちに期限内に申請していれば、審査結果が出る前に31歳になっても、他の条件を満たしている場合はビザが認められ得る","notAnArrivalDeadline":"これは**申請を提出する時点**の年齢条件。「30歳までに渡航しなければならない」という意味ではない。入国の期限については今回の資料で確認していないため、推測して案内しないこと"},"dependentChildren":{"cannotBeAccompanied":true,"note":"扶養している子どもを同伴することはできない","familyInSameApplication":"1回目の申請では、家族を同じ申請に含めることはできない"},"previousVisaDisqualifyingHistory":{"appliesTo":"1回目（ファースト）の申請","rule":"過去に Working Holiday Maker プログラムのビザでオーストラリアへ入国したことがある場合は対象にならない","programScopeNote":"Working Holiday Maker プログラムには、このビザ（subclass 417）のほかに、対象の国・地域向けのもう1つのサブクラスが含まれる。もう1つのサブクラスの制度内容はこのデータでは扱わないため、本人が過去に別のサブクラスで入国している場合は、公式での確認を案内すること"},"primarySourceVerified":true,"unverified":["入国の期限（申請時の年齢条件とは別のもの。今回の資料では確認していない）","資金要件の具体的な金額","健康・人物（character）の要件で必要になる具体的な書類","申請資格に関わる他の条件の具体値（就学と訓練の条件は study_rights の entry に登録済みなので、ここには含めない）"]}'::jsonb,
     '2026-10-01'::date, '2026-10-01 に人間が Home Affairs の Working Holiday visa (subclass 417) 公式ページを画面で確認した内容。日本が対象の国・地域の一覧に掲載されていること、日本は 18 to 30 years、31歳になる前の申請提出（締切は31歳の誕生日の前日の midnight AEST / AEDST）、提出後に31歳になった場合の扱い、扶養している子どもの同伴不可、1回目の申請での過去の入国歴の条件を登録した。過去の入国歴の条件はもう1つのサブクラスにも及ぶが、別サブクラスの制度情報をこの JSON へ混入させない方針（importer の分離検証）を維持するため、サブクラス番号は記録せず「Working Holiday Maker プログラムのビザ」として表現し、個別ケースは公式確認へ案内する形にした。入国の期限・資金額・申請料などは今回の画面では確認していないため unverified に残した。', now()
   )
   on conflict (visa_key, category) do update set
@@ -746,4 +746,40 @@ from upserted
 cross join (
   values
       ('Australian Government Department of Home Affairs - Working Holiday visa (subclass 417)', 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417', 'home_affairs', null::date, '2024-12-09'::date, '2026-11-11'::date, '概要画面の First / Second / Third の各カードの就労に関する記述を確認（First: You can work while you are here／Second・Third: You can do any kind of work while you are here）。働ける時間の上限・職種制限の詳細・自営業・ビザ開始前と満了後の就労はこのページでは確認していない。sourceUpdatedAt はページ全体の Last updated であり、就労条件の適用開始日ではない。')
+) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);
+
+-- australia_working_holiday_417 / study_rights（確認日: 2026-11-12）
+with upserted as (
+  insert into visa_reference_data (
+    visa_key, visa_code, visa_name, country_code, category, summary, details, reviewed_at, review_note, updated_at
+  ) values (
+    'australia_working_holiday_417', '417', 'Working Holiday visa (subclass 417)', 'AU',
+    'study_rights', 'このビザには condition 8548（Maximum 4 months study）が付されます。就学（study）も訓練（training）も認められていますが、このビザでオーストラリアにいる間の就学と訓練を合わせた合計で、4か月を超えることはできません。公式の文は「You can’t study or train for more than a total of 4 months while you are in Australia on this visa.」で、この4か月は「17 weeks and 3 days」と案内されています。この4か月には週末・祝日・試験前の授業の無い期間が含まれ、オリエンテーション期間と休暇期間は含まれません。work-based training と、オーストラリアの外でも受けられる通信講座（correspondence courses）は、この4か月にはカウントしないと案内されています。1回目・2回目・3回目のいずれにも同じ condition 8548 が付されます。', '{"appliesTo":"First / Second / Third Working Holiday visa（subclass 417）のすべてについて、condition 8548 を人間が公式画面で確認した内容","conditionNumber":8548,"conditionTitle":"Maximum 4 months study","studyAllowed":true,"trainingAllowed":true,"studyTrainingCombinedLimit":true,"duration":4,"durationUnit":"months","durationBasis":"up_to","durationScope":"このビザでオーストラリアにいる間の就学（study）と訓練（training）を合わせた合計。公式の表現は「a total of 4 months while you are in Australia on this visa」","equivalentDuration":{"weeks":17,"days":3,"officialWording":"Four months of study or training is 17 weeks and 3 days."},"sameAcrossStages":true,"countsTowardLimit":["週末（weekends）","祝日（public holidays）","試験前の授業の無い期間（non-teaching periods before exams）"],"doesNotCountTowardLimit":["オリエンテーション期間（orientation periods）","休暇期間（holiday periods）"],"excludedActivities":[{"type":"work-based training","countsTowardFourMonthLimit":false,"note":"公式の文は「You can do work-based training and correspondence courses that you could take outside Australia. These don’t count towards the 4 months study or training.」。**この記載の範囲でだけ**扱い、「work-based training は training に当たらない」と一般化しないこと"},{"type":"correspondence courses that you could take outside Australia","countsTowardFourMonthLimit":false,"note":"オーストラリアの外でも受けられる通信講座について、公式が4か月にカウントしないとしている扱い。どの講座がこれに当たるかの判断基準は確認していない"}],"officialWording":"You can’t study or train for more than a total of 4 months while you are in Australia on this visa.","combinedLimitNote":"この4か月は就学と訓練の**合計**。「就学で4か月、訓練でさらに4か月」のように別枠として説明しないこと。コースごと・提供機関ごとの上限としても説明しないこと","wordingNote":"公式に書かれているのは「最大4か月（合計）」「4か月は17週3日」「含むもの・含まないもの」「カウントしない活動」まで。コースの種類（語学学校・専門・大学など）やフルタイム・パートタイムの違いによる扱いはこの画面では確認していないため、踏み込まないこと","primarySourceVerified":true,"unverified":["語学学校（ELICOS）がこの条件の対象として明示されているかどうか","専門（vocational）・大学・short course の個別の扱い","フルタイムとパートタイムで扱いが違うかどうか","雇用主が提供する訓練（employer-provided training）と work-based training の境界の詳細","複数のコース・複数の提供機関にまたがる場合の合算の具体的な方法","4か月を超えた場合の具体的な取り扱い"]}'::jsonb,
+    '2026-11-12'::date, 'Home Affairs のビザ条件のページで condition 8548（Maximum 4 months study）を人間が画面で確認した。確認した内容は、就学・訓練がどちらも可能であること／合計で4か月を超えられないこと（You can’t study or train for more than a total of 4 months while you are in Australia on this visa.）／4か月は17 weeks and 3 days であること／4か月に含まれるもの（weekends / public holidays / non-teaching periods before exams）／含まれないもの（orientation periods / holiday periods）／work-based training と「オーストラリアの外でも受けられる通信講座」は4か月にカウントしないこと。First / Second / Third のいずれにも同じ condition 8548 が付されることも確認したため sameAcrossStages: true とした。4か月は**合計**なので、就学と訓練を別枠にしないよう combinedLimitNote を保持している。Student 500 の就学条件（CRICOS 登録のフルタイムコース・CoE・packaged courses・2週間48時間）はまったく別のビザの条件なので、この entry には持ち込まない。語学学校（ELICOS）の明示・vocational / university の個別扱い・フルタイムとパートタイムの違い・合算方法の詳細・4か月を超えた場合の取り扱いはこの画面では確認していないため unverified のまま。', now()
+  )
+  on conflict (visa_key, category) do update set
+    visa_code = excluded.visa_code,
+    visa_name = excluded.visa_name,
+    country_code = excluded.country_code,
+    summary = excluded.summary,
+    details = excluded.details,
+    reviewed_at = excluded.reviewed_at,
+    review_note = excluded.review_note,
+    updated_at = now()
+  returning id
+),
+cleared as (
+  delete from visa_reference_sources
+  where entry_id in (select id from upserted)
+  returning entry_id
+)
+insert into visa_reference_sources (
+  entry_id, source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes
+)
+select upserted.id, v.source_name, v.source_url, v.source_type, v.source_published_at, v.source_updated_at, v.accessed_at, v.notes
+from upserted
+cross join (
+  values
+      ('Australian Government Department of Home Affairs - See your visa conditions（condition 8548 - Maximum 4 months study）', 'https://immi.homeaffairs.gov.au/visas/already-have-a-visa/check-visa-details-and-conditions/see-your-visa-conditions', 'home_affairs', null::date, null::date, '2026-11-12'::date, 'condition 8548（Maximum 4 months study）の本文を確認。合計4か月・17 weeks and 3 days・含むもの（weekends / public holidays / non-teaching periods before exams）・含まないもの（orientation periods / holiday periods）・work-based training と「オーストラリアの外でも受けられる通信講座」はカウントしないこと。コース種別（語学学校・vocational・university）やフルタイム／パートタイムの違い、4か月を超えた場合の取り扱いはこのページでは確認していない。'),
+      ('Australian Government Department of Home Affairs - Working Holiday visa (subclass 417)', 'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/work-holiday-417', 'home_affairs', null::date, '2024-12-09'::date, '2026-11-12'::date, 'First / Second / Third のいずれにも condition 8548 が付されることを確認。sourceUpdatedAt はページ全体の Last updated であり、この条件の適用開始日ではない。')
 ) as v(source_name, source_url, source_type, source_published_at, source_updated_at, accessed_at, notes);

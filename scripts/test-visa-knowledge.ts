@@ -238,6 +238,60 @@ console.log("Test 13: 417 の未確認項目に固定値を置いていない");
   );
 }
 
+console.log("Test 15: 417 の就学・訓練の条件を常時注入の知識ベース側が持たない（正本は formal data）");
+{
+  // 以前は「就学できる期間にも制限がある」と、**制限の存在そのもの**を断定していた。
+  // 当時は study / training の可否も期間上限の有無も未確認で、「制限がある」も「制限がない」も
+  // 断定できなかった（実機では 2/3 でこの断定が再生産されていた）。
+  //
+  // 2026-11-12 に condition 8548（Maximum 4 months study）を人間が確認し、
+  // 417 の study_rights は formal data として登録した。ただし**正本は formal data 側**であり、
+  // 毎ターン注入されるこの知識ベースへ 4か月・17週・8548 を複製しない
+  // （複製すると、データが更新されても古い値が常時注入され続ける）。
+  //
+  // 禁止語は runtime の prompt へは入れない（列挙するとその語彙を思い出させるため）。
+  // ここ（テスト側）だけで検査する。
+  for (const asserted of [
+    "就学できる期間にも制限がある",
+    "就学期間には制限がある",
+    "就学できる期間には制限がある",
+    "就学には制限がある",
+    "study duration is limited",
+  ]) {
+    assert(!PROMPT.includes(asserted), `1. 未確認の断定「${asserted}」が無い`);
+  }
+  // 可否の断定（どちらの向きも）
+  for (const asserted of ["就学できます", "就学できません", "勉強できます", "勉強はできません", "就学は可能", "就学は不可"]) {
+    assert(!PROMPT.includes(asserted), `2. 就学の可否を断定していない（「${asserted}」が無い）`);
+  }
+  // 期間の具体値・条件番号（formal data が正本。常時注入側へ複製しない）
+  for (const value of ["4か月", "4ヶ月", "4カ月", "17週", "17 weeks", "four months", "4 months", "8548"]) {
+    assert(!PROMPT.includes(value), `3. 就学期間の具体値・条件番号「${value}」が常時注入側に無い`);
+  }
+  assert(!/就学は最長/.test(PROMPT), "3. 「就学は最長〜」の形も無い");
+  // 「この知識ベースは扱っていない」という方針そのものは残っていること（黙って消していない）。
+  // formal data が渡らないターン（未登録のビザ・category）でもこの安全文が効く必要がある。
+  assert(
+    PROMPT.includes("就学・訓練") &&
+      PROMPT.includes("この知識ベースは**何も扱っていない**") &&
+      PROMPT.includes("ワーキングホリデービザでの就学・訓練の条件を特定できません") &&
+      PROMPT.includes("制度の有無・可否・期間・条件の有無には、こちらから触れない"),
+    "4. 就学・訓練は知識ベースが扱っておらず、使う文と触れない範囲が明記されている",
+  );
+  // 確認済みデータが渡るターンは、そちらを正本として答えることが書かれている
+  assert(
+    PROMPT.includes("そちらだけを正本として答える"),
+    "4. 確認済みデータが渡るターンは formal data を正本にすることが書かれている",
+  );
+  // 417 の study_rights は formal data 側に登録済み（正本はこちら）
+  const whv417 = JSON.parse(readFileSync("data/visas/australia/working-holiday-417.json", "utf8"));
+  const entries = (whv417.entries ?? []) as { category: string; details?: Record<string, unknown> }[];
+  const study = entries.find((e) => e.category === "study_rights");
+  assert(study !== undefined, "5. 417 の study_rights は formal data に登録済み");
+  assert(study?.details?.conditionNumber === 8548, "5. formal data 側が condition 8548 を持つ");
+  assert(study?.details?.duration === 4, "5. formal data 側が 4 months を持つ");
+}
+
 console.log("Test 14: 417 の未確認な具体値・書類名が常時注入の知識ベースに無い（Phase 8.6）");
 {
   // 毎ターン注入されるこのセクションに、human-reviewed な 417 reference data で
