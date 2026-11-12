@@ -533,6 +533,95 @@ console.log("Test 8: dev snapshot（§12）— production 相当では最終 pro
   }
 }
 
+console.log("Test 11: 都市名つきの運賃上限の質問が公式データへ届く / 片側レンジを「?」で埋めない");
+{
+  // routing: 「上限」だけの聞き方でも、都市名があれば交通の公式データ（Opal の cap）へ届く。
+  const routed: { message: string; present: string[] }[] = [
+    { message: "シドニーの1日の上限はいくら？", present: ["AUD 19.30 /day", "AUD 9.65 /day"] },
+    { message: "シドニーの1週間の上限はいくら？", present: ["AUD 50 /week"] },
+    { message: "シドニーの上限はいくら？", present: ["AUD 19.30 /day", "AUD 50 /week"] },
+    { message: "シドニーのOpalの上限はいくら？", present: ["AUD 19.30 /day"] },
+    { message: "ゴールドコーストの運賃はいくら？", present: ["AUD 0.50 /trip"] },
+    { message: "ゴールドコーストのバスはいくら？", present: ["AUD 0.50 /trip"] },
+    { message: "ゴールドコーストの電車はいくら？", present: ["AUD 0.50 /trip"] },
+  ];
+  for (const { message, present } of routed) {
+    const city = cityContextFor(message);
+    assert(city.usedFormal === true, `「${message}」→ 公式の都市データへ届く`);
+    const context = city.context ?? "";
+    const prompt = finalPrompt(message);
+    for (const value of present) {
+      assert(context.includes(value), `「${message}」→ ${value} が登録どおり渡る`);
+      assert(prompt.includes(value), `「${message}」→ 最終 prompt にも ${value} が残る`);
+    }
+    // 既存の grounding ルールは維持
+    assert(context.includes("この単位のまま伝えてください"), `「${message}」→ 単位保持のルールが残っている`);
+    assert(context.includes("表示されている数字をそのまま"), `「${message}」→ 数値厳守のルールが残っている`);
+    // 丸めた値は渡らない
+    for (const rounded of ["AUD 19 /day", "AUD 10 /day", "AUD 1 /trip"]) {
+      assert(!context.includes(rounded), `「${message}」→ 丸めた値「${rounded}」が渡らない`);
+    }
+  }
+
+  // ビザ・就労・年齢・予算の「上限」は都市層を起動せず、都市の運賃も渡らない。
+  for (const message of [
+    "ワーホリの働ける時間の上限は？",
+    "学生ビザの就労時間の上限は？",
+    "ビザの滞在期間の上限は？",
+    "年齢の上限は？",
+    "学費の上限は？",
+    "予算の上限は？",
+  ]) {
+    assert(detectCityReferenceIntent(message) === null, `「${message}」→ 都市層を起動しない`);
+    const prompt = finalPrompt(message);
+    for (const value of ["AUD 19.30 /day", "AUD 50 /week", "AUD 0.50 /trip"]) {
+      assert(!prompt.includes(value), `「${message}」→ 都市の運賃「${value}」が渡らない`);
+    }
+    const leaked = cityAmountLines(prompt);
+    assert(leaked.length === 0, `「${message}」→ 「都市名 + 金額」の行が無い`);
+  }
+
+  // 片側だけのレンジ（min のみ）は「AUD 200〜」と出し、「?」を混ぜない。
+  const openEnded = [
+    { message: "ゴールドコーストの家賃は？", present: ["AUD 200〜 /week", "AUD 550〜 /week"] },
+    { message: "ゴールドコーストの食費は？", present: ["AUD 2,400〜 /semester"] },
+    { message: "ゴールドコーストの光熱費は？", present: ["AUD 60〜 /month", "AUD 10〜 /month"] },
+  ];
+  for (const { message, present } of openEnded) {
+    const context = cityContextFor(message).context ?? "";
+    const prompt = finalPrompt(message);
+    for (const value of present) {
+      assert(context.includes(value), `「${message}」→ 片側レンジが「${value}」で渡る`);
+      assert(prompt.includes(value), `「${message}」→ 最終 prompt にも「${value}」が残る`);
+    }
+    assert(!/〜\s*\?/.test(prompt), `「${message}」→ 「〜?」が最終 prompt に無い`);
+    assert(!/\?\s*〜/.test(prompt), `「${message}」→ 「?〜」が最終 prompt に無い`);
+    assert(
+      !/(AUD|A\$)\s*\?/.test(prompt),
+      `「${message}」→ 通貨のあとに「?」が付いた金額が最終 prompt に無い`,
+    );
+    assert(
+      context.includes("確認できているのは下限だけ"),
+      `「${message}」→ 片側レンジの読み方が金額と同じ場所にある`,
+    );
+    assert(
+      context.includes("足りない側の数字を自分で補わないでください"),
+      `「${message}」→ 欠けている側を補わせない指示がある`,
+    );
+    // 下限を 0 として扱ったり、単位を変えたりしない
+    assert(!context.includes("AUD 0〜"), `「${message}」→ null を 0 として扱わない`);
+    assert(context.includes("この単位のまま伝えてください"), `「${message}」→ 単位保持のルールが残っている`);
+  }
+
+  // 両側あるレンジ・単値は従来どおり（片側レンジの説明を足さない）
+  const transport = cityContextFor("ゴールドコーストの交通費は？").context ?? "";
+  assert(transport.includes("AUD 0.50 /trip"), "単値の小数はそのまま");
+  assert(!transport.includes("確認できているのは下限だけ"), "片側レンジが無い項目に説明を足さない");
+  const sydney = cityContextFor("シドニーの家賃は？").context ?? "";
+  assert(sydney.includes("AUD 980〜3,500 /month"), "両側あるレンジは従来どおり");
+  assert(!sydney.includes("確認できているのは下限だけ"), "両側あるレンジに片側の説明を足さない");
+}
+
 console.log("");
 console.log(`passed: ${pass} / failed: ${fail}`);
 if (fail > 0) process.exit(1);

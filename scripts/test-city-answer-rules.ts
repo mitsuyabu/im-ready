@@ -578,6 +578,167 @@ async function main() {
     assert(ctx.includes("距離帯ごとの運賃は未確認"), "公開の補足はコンテキストへ渡る");
   }
 
+  console.log("routing: 都市名つきの運賃上限の質問を交通へ、ビザ等の上限は交通へ流さない（Phase 8）");
+  {
+    // 実機で「シドニーの1日の上限はいくら？」が detectCityReferenceIntent = null になり、
+    // 交通の公式データ（Opal の daily / weekly cap）が渡らないまま一般的な費用の話へ流れていた。
+    // 「上限」は交通以外（就労時間・滞在期間・年齢・予算）でも使う語なので、
+    // transport キーワードに単独で足さず、**都市名があり他ドメインの語が無いときだけ** gate を開ける。
+    const shouldRouteTransport = [
+      "シドニーの1日の上限はいくら？",
+      "シドニーの1週間の上限はいくら？",
+      "シドニーの上限はいくら？",
+      "シドニーの交通の上限はいくら？",
+      "シドニーのOpalの上限はいくら？",
+      "シドニーのオパールの上限は？",
+      "ゴールドコーストの運賃はいくら？",
+      "ゴールドコーストのバスはいくら？",
+      "ゴールドコーストの電車はいくら？",
+    ];
+    for (const message of shouldRouteTransport) {
+      const intent = detectCityReferenceIntent(message);
+      assert(intent !== null, `「${message}」→ 都市層を起動する`);
+      assert(
+        intent?.categories.includes("transport") === true,
+        `「${message}」→ transport が対象（実際: ${JSON.stringify(intent?.categories)}）`,
+      );
+      assert(intent?.citiesInMessage.length === 1, `「${message}」→ 都市が1つ取れている`);
+    }
+
+    // ビザ・就労・滞在・年齢・学費・予算の「上限」は、都市の交通へ流さない。
+    const mustNotRouteCity = [
+      "ワーホリの働ける時間の上限は？",
+      "学生ビザの就労時間の上限は？",
+      "ビザの滞在期間の上限は？",
+      "年齢の上限は？",
+      "学費の上限は？",
+      "予算の上限は？",
+    ];
+    for (const message of mustNotRouteCity) {
+      const intent = detectCityReferenceIntent(message);
+      assert(intent === null, `「${message}」→ 都市層を起動しない（実際: ${JSON.stringify(intent?.categories)}）`);
+      assert(
+        intent?.categories.includes("transport") !== true,
+        `「${message}」→ transport を起動しない`,
+      );
+    }
+
+    // 都市名がついても、別ドメインの上限なら交通にしない。
+    for (const message of [
+      "シドニーで学生ビザの就労時間の上限は？",
+      "シドニーでワーホリの働ける時間の上限は？",
+      "シドニーの予算の上限は？",
+    ]) {
+      const intent = detectCityReferenceIntent(message);
+      assert(
+        intent?.categories.includes("transport") !== true,
+        `「${message}」→ 都市の交通として扱わない（実際: ${JSON.stringify(intent?.categories)}）`,
+      );
+    }
+
+    // より具体的な費目が書かれている「上限」は、その費目のまま（交通を足さない）。
+    const rentCap = detectCityReferenceIntent("シドニーの家賃の上限は？");
+    assert(rentCap?.categories.join(",") === "housing", "「家賃の上限」は住居費のまま（交通を足さない）");
+    const livingCap = detectCityReferenceIntent("シドニーの生活費の上限は？");
+    assert(
+      livingCap?.categories.includes("housing") === true && livingCap?.categories.includes("transport") === true,
+      "「生活費の上限」は従来どおり生活費の概観（明示 > 上限の gate）",
+    );
+
+    // 英単語の部分一致で交通を起動しない（"business" の中の "bus" など）。
+    for (const message of ["business visaについて教えて", "ビジネスクラスの航空券はいくら？", "welfareの制度について"]) {
+      const intent = detectCityReferenceIntent(message);
+      assert(
+        intent?.categories.includes("transport") !== true,
+        `「${message}」→ 英単語の部分一致で交通を起動しない（実際: ${JSON.stringify(intent?.categories)}）`,
+      );
+    }
+
+    // 既存の routing は変わらない。
+    const unchanged: { message: string; expect: CityReferenceCategory[] }[] = [
+      { message: "シドニーの交通費は？", expect: ["transport"] },
+      { message: "シドニーの家賃はいくら？", expect: ["housing"] },
+      { message: "シドニーの食費は？", expect: ["food"] },
+      { message: "シドニーの治安は？", expect: ["safety"] },
+      { message: "シドニーの生活費は？", expect: ["housing", "food", "transport"] },
+      { message: "シドニーの物価は高い？", expect: ["housing", "food", "transport"] },
+    ];
+    for (const { message, expect } of unchanged) {
+      const intent = detectCityReferenceIntent(message);
+      assert(intent?.categories.join(",") === expect.join(","), `「${message}」→ ${expect.join("+")}（変わっていない）`);
+    }
+  }
+
+  console.log("回答ルール: 片側だけのレンジを「?」で埋めない（Phase 8）");
+  {
+    // 以前は min のみ（例: 週 AUD 200 から）の金額を「AUD 200〜? /week」と書いていた。
+    // 「?」は「分からない」と読めてしまうため、データの意味どおり片側レンジで出す。
+    const lowerOnly = publicEntry("goldcoast", "housing", {
+      summary: "学外のシェアは週 AUD 200 程度からとされています。",
+      estimates: [
+        {
+          sourceName: "テスト用の公的出典",
+          label: "学外のシェア（一室）",
+          min: 200,
+          max: null,
+          currency: "AUD",
+          period: "week",
+          basis: "下限のみ",
+        },
+      ],
+    });
+    const lowerCtx = buildCityReferenceContext([lowerOnly], ["goldcoast"]) ?? "";
+    assert(lowerCtx.includes("AUD 200〜 /week"), "下限のみは「AUD 200〜 /week」で渡る");
+    assert(!lowerCtx.includes("?"), "「?」を渡さない");
+    assert(!lowerCtx.includes("AUD 200〜0"), "null を 0 として扱わない");
+    assert(
+      lowerCtx.includes("確認できているのは下限だけ"),
+      "片側レンジの読み方（下限だけ）を金額の近くで説明している",
+    );
+    assert(
+      lowerCtx.includes("足りない側の数字を自分で補わないでください"),
+      "欠けている側の数字を補わせない",
+    );
+
+    const upperOnly = publicEntry("goldcoast", "utilities", {
+      summary: "上限だけが示されている費目のテスト。",
+      estimates: [
+        {
+          sourceName: "テスト用の公的出典",
+          label: "上限だけが分かっている費目",
+          min: null,
+          max: 500,
+          currency: "AUD",
+          period: "week",
+          basis: null,
+        },
+      ],
+    });
+    const upperCtx = buildCityReferenceContext([upperOnly], ["goldcoast"]) ?? "";
+    assert(upperCtx.includes("〜AUD 500 /week"), "上限のみは「〜AUD 500 /week」で渡る");
+    assert(!upperCtx.includes("?"), "上限のみでも「?」を渡さない");
+    assert(upperCtx.includes("確認できているのは上限だけ"), "片側レンジの読み方（上限だけ）を説明している");
+
+    // 両側ある場合・単値は従来どおり（小数も単位もそのまま）。
+    const both = publicEntry("sydney", "housing", {
+      summary: "住居費のテスト。",
+      estimates: [
+        { sourceName: "テスト用の公的出典", label: "住居費", min: 980, max: 3500, currency: "AUD", period: "month", basis: null },
+        { sourceName: "テスト用の公的出典", label: "均一運賃", min: 0.5, max: 0.5, currency: "AUD", period: "trip", basis: null },
+        { sourceName: "テスト用の公的出典", label: "1日の上限", min: 19.3, max: 19.3, currency: "AUD", period: "day", basis: null },
+      ],
+    });
+    const bothCtx = buildCityReferenceContext([both], ["sydney"]) ?? "";
+    assert(bothCtx.includes("AUD 980〜3,500 /month"), "両側あるレンジは従来どおり");
+    assert(bothCtx.includes("AUD 0.50 /trip"), "単値の小数は 0.50 のまま");
+    assert(bothCtx.includes("AUD 19.30 /day"), "単値の小数は 19.30 のまま");
+    assert(!bothCtx.includes("AUD 1 /trip") && !bothCtx.includes("AUD 19 /day"), "丸めた値を渡さない");
+    assert(
+      !bothCtx.includes("確認できているのは下限だけ"),
+      "両側あるときは片側レンジの説明を入れない",
+    );
+  }
+
   console.log("");
   console.log(`passed: ${pass} / failed: ${fail}`);
   if (fail > 0) process.exit(1);

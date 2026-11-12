@@ -60,16 +60,42 @@ function formatExactAmount(value: number): string {
     : value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+/**
+ * min / max のどちらか片方しか無い金額（curated データでは「AUD 200 から」のような下限のみ）を
+ * **片側レンジ**として書く。
+ *
+ * ここは以前、欠けている側を "?" で埋めていた:
+ *   min 200 / max null → 「AUD 200〜? /week」
+ * `?` は値が分からないという意味ではなく、**上限が決まっていない**という意味なので、
+ * そのまま渡すと「上限は不明」と読み替えられる余地が残る。データの意味どおりに
+ *   下限のみ → 「AUD 200〜」
+ *   上限のみ → 「〜AUD 500」
+ * と書く（null を 0 として扱ったり、欠けている側を補ったりはしない）。
+ *
+ * min === max（単値）は従来どおり1つの金額として出す。
+ * 両方 null の場合は金額そのものが無いので null を返す（importer 側で
+ * 「min / max のどちらかが必要」と検証しているため、確認済みデータでは発生しない）。
+ */
+function formatAmountRange(currency: string, min: number | null, max: number | null): string | null {
+  const prefix = currency ? `${currency} ` : "";
+  if (min !== null && max !== null) {
+    return min === max
+      ? `${prefix}${formatExactAmount(min)}`
+      : `${prefix}${formatExactAmount(min)}〜${formatExactAmount(max)}`;
+  }
+  if (min !== null) return `${prefix}${formatExactAmount(min)}〜`;
+  if (max !== null) return `〜${prefix}${formatExactAmount(max)}`;
+  return null;
+}
+
 function estimateLines(entry: CityReferenceEntry): string[] {
   const lines: string[] = [];
   for (const estimate of entry.estimates.slice(0, 6)) {
     const parts: string[] = [];
     const currency = estimate.currency && /^[A-Z]{3}$/.test(estimate.currency) ? estimate.currency : "";
-    if (estimate.min !== null || estimate.max !== null) {
-      const min = estimate.min !== null ? formatExactAmount(estimate.min) : "?";
-      const max = estimate.max !== null ? formatExactAmount(estimate.max) : "?";
-      const amount = estimate.min !== null && estimate.max !== null && estimate.min === estimate.max ? min : `${min}〜${max}`;
-      parts.push(`${currency ? `${currency} ` : ""}${amount}`);
+    const amount = formatAmountRange(currency, estimate.min, estimate.max);
+    if (amount) {
+      parts.push(amount);
     }
     if (estimate.period) parts.push(`/${asData(estimate.period, 20)}`);
     const label = asData(estimate.label, NAME_MAX);
@@ -93,6 +119,19 @@ function estimateLines(entry: CityReferenceEntry): string[] {
     lines.push(
       `    - 上の金額は「${periods.join("」「")}」あたりの値です。**この単位のまま伝えてください。**他の期間の金額（1か月ぶん・1年ぶんなど）に直した数字を書かないでください。上限額（キャップ）も、その期間の上限としてだけ伝えてください。`,
     );
+  }
+  // 片側だけのレンジ（下限のみ・上限のみ）の読み方も、**金額の直後**で言う。
+  // 「AUD 200〜」は「200 から上がる」という意味で、上限が確認できているわけではない。
+  const hasLowerOnly = entry.estimates.slice(0, 6).some((e) => e.min !== null && e.max === null);
+  const hasUpperOnly = entry.estimates.slice(0, 6).some((e) => e.min === null && e.max !== null);
+  if (lines.length > 0 && (hasLowerOnly || hasUpperOnly)) {
+    const howTo = [
+      hasLowerOnly ? "「〜」で終わっている金額（例: 「AUD 200〜」）は、**確認できているのは下限だけ**で、そこから上がり得るという意味です" : null,
+      hasUpperOnly ? "「〜」で始まっている金額（例: 「〜AUD 500」）は、**確認できているのは上限だけ**という意味です" : null,
+    ]
+      .filter((s): s is string => s !== null)
+      .join("。");
+    lines.push(`    - ${howTo}。足りない側の数字を自分で補わないでください（「〜400程度」のような範囲を作らないでください）。`);
   }
   // 数値そのものの保持も、**金額の直後**で言う。
   // 公的に決まっている運賃は、丸めた時点で誤案内になる（AUD 0.50 と AUD 1 は別の制度の話になる）。
