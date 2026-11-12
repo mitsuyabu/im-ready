@@ -1,8 +1,20 @@
 /**
  * 留学カウンセリングAI 知識ベース
  *
- * 都市別の生活費数値は lib/data/cities.ts が唯一の出所。このファイルはそこから
- * プロンプト用の説明文を生成する（数値をこのファイルに直書きしない）。
+ * **都市名 + 具体的な金額を LLM へ渡してよいのは formal city reference data だけ**
+ * （remote の city_reference_data → lib/cityReferenceContext.ts）。毎ターン注入される
+ * この知識ベースからは、**都市別の具体的な金額を渡さない**。
+ *
+ * 以前は lib/data/cities.ts の家賃・食費・外食・交通費・州平均週収を都市ごとに文章化して
+ * 常時注入していた。そのため formal city reference が無い都市（メルボルン・ブリスベン・
+ * ケアンズ・パース）についても prompt 内に都市別の実額が存在し、実機で
+ * 「メルボルンの家賃は週A$150〜400」のような確認済みでない値が、その都市の相場として
+ * （あるいは全国の目安として）使われていた。lib/data/cities.ts 自体は他用途のために残し、
+ * **LLM への常時注入経路からだけ金額を外す**。
+ *
+ * 国レベルの一般的な目安（GENERAL_COST_SECTION）は残すが、**オーストラリア全体の目安**で
+ * あり特定都市の相場ではないことを明示する。
+ *
  * ビザ情報・費用の全体感は編集者による一般的な説明文であり、
  * 商用利用が制限された特定データソース（Numbeo等）に基づくものではない。
  *
@@ -16,11 +28,7 @@
  * ※ 費用・ビザ情報は変動するため、AIは「目安」として扱い断定しないこと。
  */
 
-import {
-  AUSTRALIA_CITIES,
-  type CityCostOfLiving,
-  type MoneyRange,
-} from "./data/cities";
+import { AUSTRALIA_CITIES, type CityCostOfLiving } from "./data/cities";
 import {
   AUSTRALIA_SCHOOLS,
   type AccommodationOption,
@@ -30,47 +38,21 @@ import {
 } from "./data/schools";
 import { cityMatches } from "./proposal/matching";
 
-const PERIOD_LABEL: Record<MoneyRange["period"], string> = {
-  week: "週",
-  month: "月",
-  meal: "食",
-  year: "年",
-};
-
-function formatAmount(n: number): string {
-  return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
-}
-
-function formatMoneyRange(range: MoneyRange): string {
-  const unit = PERIOD_LABEL[range.period];
-  const amount =
-    range.min === range.max
-      ? formatAmount(range.min)
-      : `${formatAmount(range.min)}〜${formatAmount(range.max)}`;
-  return `約A$${amount}/${unit}`;
-}
-
+/**
+ * 都市1件ぶんの説明。**金額は出さない**（定性的な情報だけ）。
+ *
+ * 家賃・食費・外食・交通費・州平均週収は lib/data/cities.ts に残っているが、ここで
+ * 文章化すると毎ターンの prompt に都市別の実額が入り、formal city reference data が
+ * 無い都市についても「その都市の相場」として使われてしまう（実測で再現）。
+ * 都市別の金額は formal city reference（出典・確認日つき）だけが持つ。
+ * 出典行も、金額が無くなったので出さない（特徴・向いている人は編集者による説明文）。
+ */
 function buildCitySection(c: CityCostOfLiving): string {
-  const lines = [
+  return [
     `### ${c.city}`,
     `- 特徴: ${c.characteristics}`,
     `- 向いている人: ${c.suitedFor}`,
-    `- 家賃: ${formatMoneyRange(c.rent)}`,
-  ];
-  if (c.food) lines.push(`- 食費（自炊中心）: ${formatMoneyRange(c.food)}`);
-  if (c.eatingOut) lines.push(`- 外食（1食）: ${formatMoneyRange(c.eatingOut)}`);
-  if (c.transport) lines.push(`- 交通費: ${formatMoneyRange(c.transport)}`);
-  if (c.stateAvgWeeklyEarningsPreTaxAUD) {
-    lines.push(
-      `- 州平均週収（税引前・州全体の参考値）: 約A$${formatAmount(c.stateAvgWeeklyEarningsPreTaxAUD)}`,
-    );
-  }
-  const confidenceNote =
-    c.confidence === "secondary" ? "※二次情報源のため要再確認。" : "";
-  lines.push(
-    `- 出典: ${c.source}（${c.fetchedAt}取得）${confidenceNote}${c.notes ? ` ${c.notes}` : ""}`,
-  );
-  return lines.join("\n");
+  ].join("\n");
 }
 
 function buildCitiesSection(): string {
@@ -238,7 +220,10 @@ export function buildCitySchoolKnowledge(preferredCity: string): string | null {
 // 金額は AUD のみで持つ。固定の為替レートを埋め込まず、円換算もしない
 // （最新レートを参照する仕組みがないため、古いレートでの換算は誤解を生む）。
 // 円でいくらかを聞かれた場合は、最新レートを本人に確認してもらう案内に留めること。
-const GENERAL_COST_SECTION = `## 費用の全体感（目安）
+const GENERAL_COST_SECTION = `## 費用の全体感（**オーストラリア全体**の一般的な目安）
+
+この表は**オーストラリア全体の一般的な目安**です。**特定の都市の相場ではありません**。
+都市名と金額を結びつけて答えてよいのは、そのターンに確認済みの都市情報（出典つき）が渡っている場合だけです。
 
 | 項目 | 目安 |
 |---|---|
@@ -247,6 +232,10 @@ const GENERAL_COST_SECTION = `## 費用の全体感（目安）
 | シェアハウス家賃 | 週A$200〜400（都市・立地による） |
 | 食費（自炊中心） | 月A$400〜600 |
 | 交通費 | 月A$150〜220（都市による） |
+
+この目安に触れるときは、**記載されている費目と単位のまま**伝えてください（週あたりは週あたり、月あたりは月あたりのまま）。
+費目の値を足し合わせて「月いくら必要」という**合計額を作らないでください**。合計を知りたいと言われた場合は、費目ごとの目安を並べたうえで、本人の滞在期間・住まい方・自炊の度合いによって変わることを伝え、一緒に整理する形にしてください。
+「オーストラリア全体の目安」として伝え、「〇〇（都市名）では」「〇〇の相場は」という言い方へ置き換えないでください。
 
 ビザの申請料はこの表に含めていません（変更されるため、上の「ビザの種類」に出典つきで書いた内容だけを使い、具体的な金額は公式情報での確認を促してください）。
 
@@ -262,7 +251,10 @@ ${VISA_SECTION}
 
 ---
 
-## 主要6都市の特徴と費用目安
+## 主要6都市の特徴（**金額は持っていません**）
+
+ここには都市別の金額がありません。**都市別の家賃・食費・交通費を、この知識ベースから答えることはできません。**
+都市別の具体的な金額は、確認済みの都市情報（出典つき）が渡っているターンでだけ使えます。
 
 ${buildCitiesSection()}
 
