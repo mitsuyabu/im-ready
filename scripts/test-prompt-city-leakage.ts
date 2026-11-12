@@ -101,7 +101,10 @@ function loadCitySeed(): CityReferenceEntry[] {
         category: e.category as CityReferenceCategory,
         summary: e.summary,
         notes: e.notes ?? null,
-        estimates: e.details?.estimates ?? [],
+        // curated JSON は estimates を entry の直下に持つ（details の中ではない）。
+        // details 側だけを見ると estimates が常に空になり、金額の行が渡らない状態を
+        // 検査してしまう（remote から読む本番経路では entry 直下の値が入る）。
+        estimates: e.estimates ?? e.details?.estimates ?? [],
         reviewedAt: e.reviewedAt,
         sources: (e.sources ?? []).map((s: Record<string, unknown>) => ({
           sourceName: s.sourceName,
@@ -380,6 +383,64 @@ console.log("Test 7: ブリスベン・ケアンズ・パース — 都市別金
       `「${message}」→ 全国の目安であることを明示させる指示が渡る`,
     );
   }
+}
+
+console.log("Test 9: 単位の保持と未確認費目のルールが、データの直前に局所ルールとして入る");
+{
+  // 一般ルールとして離れた場所に置いていたときは実機でドリフトした（各 1/5）:
+  //   - 交通の weekly cap（AUD 50 / week）から「月約 AUD 200」を計算した
+  //   - 食費の確認済みデータが無いのに「シドニーは物価が高めなのでもっとかかる」と補った
+  // データ本体の直前にあることまでを固定する（距離が戻ると同じ漏れが再発する）。
+  for (const message of ["シドニーの生活費は？", "ゴールドコーストの生活費は？", "シドニーの交通費は？"]) {
+    const context = cityContextFor(message).context ?? "";
+    const header = context.indexOf("## 情報");
+    assert(header >= 0, `「${message}」→ データ見出しがある`);
+    const local = context.slice(header);
+    assert(
+      local.includes("別の期間の金額を計算して書かないでください"),
+      `「${message}」→ 単位のまま引用する局所ルールがデータの直前にある`,
+    );
+    assert(
+      local.includes("傾向も補わないでください"),
+      `「${message}」→ 未確認費目の傾向を補わせない局所ルールがデータの直前にある`,
+    );
+    // 局所ルールは、データ本体（都市名の行）より前にある
+    const firstDataLine = local.indexOf("- **");
+    assert(
+      firstDataLine > local.indexOf("別の期間の金額を計算して書かないでください"),
+      `「${message}」→ 局所ルールがデータ本体より前に置かれている`,
+    );
+    // 「積み上げる」という計算を促す言い方が残っていない
+    assert(
+      !context.includes("積み上げる形で説明してください"),
+      `「${message}」→ 合計を促す旧い言い方が残っていない`,
+    );
+    assert(
+      context.includes("あなたが合計額を出さないでください"),
+      `「${message}」→ 合計額を出さない指示がある`,
+    );
+  }
+  // 単位のルールは、金額そのものの**直後**にも入る（セクション冒頭だけでは 1/10 で換算が残った）
+  for (const [message, needle] of [
+    ["シドニーの交通費は？", "AUD 50 /week"],
+    ["ゴールドコーストの交通費は？", "/trip"],
+    ["シドニーの家賃は？", "/month"],
+  ] as const) {
+    const context = cityContextFor(message).context ?? "";
+    assert(context.includes(needle), `「${message}」→ 公式の単位つきの金額が渡る（${needle}）`);
+    const amountLine = context.split("\n").findIndex((l) => l.includes(needle));
+    const unitLine = context.split("\n").findIndex((l) => l.includes("この単位のまま伝えてください"));
+    assert(unitLine > amountLine, `「${message}」→ 単位のルールが金額の直後にある`);
+    assert(
+      context.includes("他の期間の金額（1か月ぶん・1年ぶんなど）に直した数字を書かないでください"),
+      `「${message}」→ 別の期間へ換算させない指示が金額と同じ場所にある`,
+    );
+  }
+
+  // 最終 prompt にも同じ局所ルールが残る（他のセクションに埋もれて消えない）
+  const prompt = finalPrompt("シドニーの生活費は？");
+  assert(prompt.includes("## 情報（ここに無い費目は、その都市について確認できていません）"), "最終 prompt に局所ルールつきの見出しが入る");
+  assert(prompt.includes("傾向も補わないでください"), "最終 prompt に未確認費目のルールが入る");
 }
 
 console.log("Test 8: dev snapshot（§12）— production 相当では最終 prompt に入らない");
