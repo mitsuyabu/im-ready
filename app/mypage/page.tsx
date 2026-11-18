@@ -8,6 +8,7 @@ import HomePlanCard from "@/components/HomePlanCard";
 import MobileBrandHeader from "@/components/MobileBrandHeader";
 import CreatePlanForm from "@/components/CreatePlanForm";
 import NewPlanButton from "@/components/NewPlanButton";
+import PlanCardMenu from "@/components/PlanCardMenu";
 
 export const metadata: Metadata = {
   title: "マイページ",
@@ -118,18 +119,22 @@ export default async function MyPagePage() {
 
               <div className={gridClass}>
                 {enriched.map(({ plan, index, lastUpdatedIso, summary }) => (
-                  <HomePlanCard
-                    key={plan.id}
-                    plan={{
-                      id: plan.id,
-                      index,
-                      title: plan.title,
-                      city: summary?.city ?? null,
-                      departureTiming: summary?.departureTiming ?? null,
-                      stage: summary?.stage ?? null,
-                      lastUpdatedText: formatLastUpdated(lastUpdatedIso),
-                    }}
-                  />
+                  // カード本体（HomePlanCard）はカード全面が Link の純粋表示コンポーネントなので触らず、
+                  // 操作メニュー（削除）はこのセルに absolute で重ねる。
+                  <div key={plan.id} className="relative">
+                    <HomePlanCard
+                      plan={{
+                        id: plan.id,
+                        index,
+                        title: plan.title,
+                        city: summary?.city ?? null,
+                        departureTiming: summary?.departureTiming ?? null,
+                        stage: summary?.stage ?? null,
+                        lastUpdatedText: formatLastUpdated(lastUpdatedIso),
+                      }}
+                    />
+                    <PlanCardMenu planId={plan.id} planTitle={plan.title} userId={user.id} />
+                  </div>
                 ))}
               </div>
 

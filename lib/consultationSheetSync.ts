@@ -223,6 +223,15 @@ export function createConsultationSheetSync(opts: ConsultationSheetSyncOptions):
 
 const PENDING_KEY_PREFIX = "ryugaku-consultation-pending:plan:";
 
+/**
+ * **この Plan に属すると確認できる** localStorage キーだけを列挙する（Plan 削除時の後片付け用）。
+ * キーの組み立てはこのモジュールが持っているため、列挙もここで行う（前方一致で消さない）。
+ */
+export function planConsultationStorageKeys(planId: string): string[] {
+  if (!planId) return [];
+  return [`${PENDING_KEY_PREFIX}${planId}`];
+}
+
 export function savePendingConsultationChange(planId: string, pending: PendingConsultationChange | null): void {
   try {
     if (pending === null) window.localStorage.removeItem(`${PENDING_KEY_PREFIX}${planId}`);

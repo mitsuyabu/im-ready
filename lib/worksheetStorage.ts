@@ -90,6 +90,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 const PENDING_KEY_PREFIX = "ryugaku-worksheet-pending:plan:";
 
+/**
+ * **この Plan に属すると確認できる** localStorage キーだけを列挙する（Plan 削除時の後片付け用）。
+ *
+ * キーの組み立てはこのモジュールが持っているため、列挙もここで行う。
+ * 呼び出し側が文字列を組み立て直したり、前方一致で消したりしないこと
+ * （`ryugaku-worksheet-answers` は匿名 Worksheet（planId なし）の保存先で、
+ * Plan とは無関係なので消してはいけない）。
+ */
+export function planWorksheetStorageKeys(planId: string): string[] {
+  if (!planId) return [];
+  return [getStorageKey(planId), `${PENDING_KEY_PREFIX}${planId}`];
+}
+
 export type PendingWorksheetChange = {
   /** 変更のもとになったサーバーの revision（null はサーバーにまだ行が無かった）。 */
   baseRevision: number | null;

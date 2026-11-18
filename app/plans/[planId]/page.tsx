@@ -12,6 +12,7 @@ import PlanTravelHero from "@/components/PlanTravelHero";
 import PlanJourneyRibbon from "@/components/PlanJourneyRibbon";
 import PlanWorksheetProgress from "@/components/PlanWorksheetProgress";
 import MobileBrandHeader from "@/components/MobileBrandHeader";
+import DeletePlanButton from "@/components/DeletePlanButton";
 import { toCityChipText, toDeparturePlanInfoText } from "@/lib/planHeroImage";
 
 export const metadata: Metadata = {
@@ -325,6 +326,10 @@ export default async function PlanPage({ params }: PlanPageProps) {
           <div className="flex items-center gap-3">
             <span aria-hidden className="font-serif text-sm italic text-[#7a8a76]">Keep going!</span>
             <BoardingPass />
+          </div>
+          {/* Plan の整理用。確認ダイアログで「消えるもの」を示してから削除する（一覧のカードメニューと同じダイアログ）。 */}
+          <div className="w-full">
+            <DeletePlanButton planId={typedPlan.id} planTitle={typedPlan.title} userId={user.id} />
           </div>
         </div>
       </div>
