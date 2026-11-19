@@ -39,15 +39,31 @@
    */
   --worksheet-sage: #dde8e1;
   --worksheet-sage-hover: #c9ddd2;
+
+  /*
+   * アプリ全体の基本フォント（**ここ1か所**で全画面に効く）。
+   * font file は追加しない（repo へ同梱しない / CDN も @font-face も使わない）。
+   * Tazugane が端末に入っていない場合は system-ui → -apple-system →
+   * Hiragino Kaku Gothic ProN → Noto Sans JP → sans-serif へ自然にフォールバックする。
+   *
+   * 本文・ナビ・ボタン・フォーム・Chat・カード本文などの UI はすべてこの値で描画する
+   * （body と --font-sans が参照）。editorial な大見出し・装飾数字だけは下の --font-serif
+   * （OS 標準の serif）を使う役割分担にしている。
+   */
+  --font-app:
+    TazuganeGothicStdN-Medium, system-ui, -apple-system,
+    "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-app);
   --font-mono: var(--font-geist-mono);
-  /* HOMEの大見出しだけに使うeditorialなserifスタック。新しいfont packageは追加せず、
-     OS標準のserif（Mac/Winは明朝、他はGeorgia等）へフォールバックする。本文・UIはsansのまま。 */
+  /* 大見出し・装飾数字だけに使う editorial な serif スタック（`font-serif` クラス）。
+     新しい font package は追加せず、OS 標準の serif（Mac/Win は明朝、他は Georgia 等）へ
+     フォールバックする。本文・ナビ・ボタン・フォーム・Chat などの UI は上の --font-sans
+     （= --font-app / Tazugane 系）のままで、ここだけ serif に戻している。 */
   --font-serif:
     ui-serif, Georgia, Cambria, "Hiragino Mincho ProN", "Yu Mincho", YuMincho,
     "Noto Serif JP", "Times New Roman", serif;
@@ -76,7 +92,8 @@
 body {
   background-color: #fcfbf8;
   color: #172033;
-  font-family: Arial, Helvetica, sans-serif;
+  /* 以前は Arial, Helvetica, sans-serif。基本フォントは :root の --font-app に集約した。 */
+  font-family: var(--font-app);
 }
 
 /*

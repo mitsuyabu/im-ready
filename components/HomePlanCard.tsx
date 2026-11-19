@@ -240,7 +240,9 @@ export default function HomePlanCard({ plan }: { plan: HomePlanCardData }) {
 
       {/* Plan 情報はカード下部に集約（§8/§14/§21）: title → 📍行き先 → 📅時期 → metadata。 */}
       <div className="relative z-10 mt-auto">
-        <h2 className={`line-clamp-2 font-serif text-xl font-semibold leading-snug ${inkCls}`}>
+        {/* カードタイトルは通常の UI 見出しなので、global の sans（--font-sans）を継承する。
+            serif は左上の装飾数字など、装飾目的の箇所だけに使う。 */}
+        <h2 className={`line-clamp-2 text-xl font-semibold leading-snug ${inkCls}`}>
           {plan.title}
         </h2>
 

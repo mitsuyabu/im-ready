@@ -188,7 +188,8 @@ export default function DeletePlanDialog({
         aria-busy={busy}
         className="w-full max-w-md rounded-t-[22px] border border-black/[0.08] bg-[#fffdf8] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.18)] sm:rounded-[22px] sm:p-7"
       >
-        <h2 id="delete-plan-title" className="font-serif text-xl font-normal text-worksheet-primary">
+        {/* モーダルタイトルは通常の UI 見出しなので、global の sans（--font-sans）を継承する。 */}
+        <h2 id="delete-plan-title" className="text-xl font-normal text-worksheet-primary">
           「{planTitle}」を削除しますか？
         </h2>
 
