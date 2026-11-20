@@ -744,6 +744,60 @@ export interface QuestionCardProps {
   layout?: "card" | "inline" | "bare";
   /** layout="inline"のときだけ使う「1 / 5」のような通し番号表示。省略時はcard表示の丸番号バッジを使う */
   stepLabel?: string;
+  /**
+   * freeText の「記入例」をこのカード内に出すか（既定: 出す）。
+   * テーマ詳細（C案）は記入例を**質問カード側**に置くため false を渡す。記入例の中身・開閉 state・
+   * 回答UI・保存ロジックは共通のままで、描画位置だけを呼び出し側へ移すためのフラグ。
+   */
+  showExamples?: boolean;
+}
+
+/**
+ * freeText の「記入例」トグル（ボタン ＋ 展開パネル）。
+ * QuestionCard の中と、テーマ詳細の質問カード側の**どちらからも同じ見た目で使える**ように切り出した。
+ * 開閉 state は呼び出し側が持つ（既存の openExamples をそのまま使う）。
+ */
+export function QuestionExamples({
+  examples,
+  open,
+  onToggle,
+}: {
+  examples: readonly string[];
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-worksheet-sage px-3 py-1.5 text-xs font-medium text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage-hover"
+      >
+        記入例
+        <ChevronDownIcon
+          className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      <div
+        className={`grid transition-all duration-200 ease-out ${
+          open ? "mt-2 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="flex flex-col gap-1.5 overflow-hidden">
+          {examples.map((example) => (
+            <span
+              key={example}
+              className="rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-3 py-1.5 text-[13px] leading-relaxed text-worksheet-secondary"
+            >
+              {example}
+            </span>
+          ))}
+        </div>
+      </div>
+    </>
+  );
 }
 
 export function QuestionCard({
@@ -769,41 +823,19 @@ export function QuestionCard({
   onToggleMulti,
   layout = "card",
   stepLabel,
+  showExamples = true,
 }: QuestionCardProps) {
   const answerBody = (
     <>
       {question.kind === "freeText" && (
         <>
-          <button
-            type="button"
-            onClick={onToggleExamples}
-            aria-expanded={examplesOpen}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-worksheet-sage px-3 py-1.5 text-xs font-medium text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage-hover"
-          >
-            記入例
-            <ChevronDownIcon
-              className={`h-3.5 w-3.5 transition-transform duration-200 ${
-                examplesOpen ? "rotate-180" : ""
-              }`}
+          {showExamples && (
+            <QuestionExamples
+              examples={question.examples}
+              open={examplesOpen}
+              onToggle={onToggleExamples}
             />
-          </button>
-
-          <div
-            className={`grid transition-all duration-200 ease-out ${
-              examplesOpen ? "mt-2 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-            }`}
-          >
-            <div className="flex flex-col gap-1.5 overflow-hidden">
-              {question.examples.map((example) => (
-                <span
-                  key={example}
-                  className="rounded-xl border-[0.5px] border-worksheet-border bg-worksheet-surface px-3 py-1.5 text-[13px] leading-relaxed text-worksheet-secondary"
-                >
-                  {example}
-                </span>
-              ))}
-            </div>
-          </div>
+          )}
 
           <textarea
             value={textValue}

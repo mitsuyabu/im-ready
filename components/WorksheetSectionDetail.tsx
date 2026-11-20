@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { QuestionCard, useWorksheetAnswers } from "@/components/Worksheet";
+import { QuestionCard, QuestionExamples, useWorksheetAnswers } from "@/components/Worksheet";
 import { CATEGORIES } from "@/lib/worksheetQuestions";
 import { WORKSHEET_SECTION_META } from "@/lib/worksheetSectionMeta";
 import type { Karte } from "@/lib/karte";
@@ -17,8 +17,17 @@ import type { LoadedPlanWorksheet } from "@/lib/planWorksheet";
  * 「I'm ready!」のテーマ詳細画面（presentation のみ）。
  *
  * カテゴリ内の設問を1問ずつ切り替えるのではなく、共有デザインどおり **全設問を縦に並べ**、
- * 最後の設問の下にだけ「次のテーマへ」CTA を置く。回答 state・localStorage 保存・Karte 同期・
- * completion 判定・ルーティングは useWorksheetAnswers（既存ロジック）のまま一切変更していない。
+ * 最後の設問の下にだけ「次のテーマへ」CTA を置く。
+ *
+ * 設問ごとの表示は「質問」と「回答」を別カードに分けた 4 層構成（C案）:
+ *   ① 質問カード（深緑ヘッダー・装飾番号・質問文 / 補足説明 / 記入例）
+ *   ② 回答カードの「回答の要点」（**正式な生成・保存の仕組みが入るまで非表示**。
+ *      SHOW_ANSWER_SUMMARY を true に戻すだけで再表示できる形でマークアップだけ残している）
+ *   ③ 回答カードの「回答全文」（既存の回答UI = QuestionCard の answerBody をそのまま使う）
+ *   ④ 回答カードの「AIと整理する」（既存の /widget 導線と同じ action）
+ *
+ * 回答 state・localStorage 保存・Karte 同期・completion 判定・ルーティングは
+ * useWorksheetAnswers（既存ロジック）のまま一切変更していない。
  * 入力は従来どおり1文字ごとに自動保存され、CTA は次カテゴリへの遷移のみで保存処理を持たない。
  * route は /plans/[planId]/worksheet/[sectionId] のままで、設問ごとの URL は作らない。
  */
@@ -51,6 +60,16 @@ function ChatIcon({ className }: IconProps) {
   );
 }
 
+/** 回答カードの見出しに添える鉛筆（components/EditablePlanTitle.tsx と同じ形）。 */
+function PencilIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
 function LightbulbIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
@@ -70,6 +89,15 @@ const SECTION_HEADER: Record<string, { bg: string; numeral: string }> = {
   nextstep: { bg: "#c07a63", numeral: "rgba(255,255,255,0.22)" },
 };
 const NEUTRAL_HEADER = { bg: "#5b5a55", numeral: "rgba(255,255,255,0.18)" };
+
+/**
+ * 「回答の要点」ブロックを表示するか。
+ *
+ * 要点を**生成・保存する正式な仕組みがまだ無い**ため、現時点では表示しない
+ * （空の状態だけを出す意味が薄い）。回答本文からクライアント側で要約を作ることはしないので、
+ * 正式な要点データが入ったときに true へ戻すだけで再表示できるよう、ブロックは残してある。
+ */
+const SHOW_ANSWER_SUMMARY: boolean = false;
 
 /** その場の入力（このテーマの freeText 回答）から、機械的に短いチップを切り出す。AI 要約はしない。 */
 function deriveWrittenChips(texts: string[]): string[] {
@@ -289,9 +317,17 @@ export default function WorksheetSectionDetail({
         <div className="min-w-0 space-y-6 sm:space-y-8">
           {category.questions.map((q, i) => {
             const num = String(i + 1).padStart(2, "0");
+            const answered = isQuestionAnswered(q);
+            const candidate = candidateByQuestionId.get(q.id);
+            // 自由記述（選択式に添えた記入欄も含む）のときだけ「回答全文」の見出しを出す。
+            // rating / ranking などは UI 自体が答え方を示しているため、見出しを足さない。
+            const hasWrittenAnswer =
+              q.kind === "freeText" ||
+              ((q.kind === "singleSelect" || q.kind === "multiSelect") && q.freeText != null);
             return (
+              <div key={q.id} className="space-y-3 sm:space-y-4">
+              {/* ① 質問（深緑カード。質問であることが一目で分かるようにする） */}
               <article
-                key={q.id}
                 className="overflow-hidden rounded-[22px] border border-[#e5dfd6] bg-white shadow-[0_1px_3px_rgba(30,28,24,0.05)]"
               >
                 {/* header 帯（縦に並ぶので少しコンパクトに。デザインは維持） */}
@@ -316,24 +352,72 @@ export default function WorksheetSectionDetail({
                     >
                       {num}
                     </span>
-                    <h2 className="text-[18px] font-bold leading-snug text-white sm:text-xl">
-                      {q.heading}
-                    </h2>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold tracking-wide text-white/70">質問</p>
+                      <h2 className="mt-0.5 text-[18px] font-bold leading-snug text-white sm:text-xl">
+                        {q.heading}
+                      </h2>
+                    </div>
                   </div>
                 </div>
 
-                {/* 本文: supplement + 既存の回答UI（記入例トグル・textarea・kind別body） */}
+                {/* 質問の補足説明 ＋ 記入例（記入例は「質問の補足情報」なので回答カードには入れない） */}
                 <div className="px-5 py-5 sm:px-7 sm:py-6">
                   <p className="whitespace-pre-line text-[17px] leading-[1.75] text-[#6f6a64]">
                     {q.supplement}
                   </p>
-                  <div className="mt-4">
+                  {q.kind === "freeText" && (
+                    <QuestionExamples
+                      examples={q.examples}
+                      open={openExamples[q.id] ?? false}
+                      onToggle={() => toggleExamples(q.id)}
+                    />
+                  )}
+                </div>
+              </article>
+
+              {/* ②③④ 回答カード（質問とは別の視覚ブロック。白系・同じ角丸と枠） */}
+              <section className="overflow-hidden rounded-[22px] border border-[#e5dfd6] bg-white shadow-[0_1px_3px_rgba(30,28,24,0.05)]">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-[#efeae1] px-5 py-3.5 sm:px-7">
+                  <p className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#1c1c1c]">
+                    <PencilIcon className="h-4 w-4 text-[#5f7050]" />
+                    あなたの回答
+                  </p>
+                  {/* 既存の AI 相談導線（/widget）と同じ action・同じ route。新しい API は作らない。 */}
+                  <Link
+                    href="/widget"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[#eef2e8] px-3 py-1.5 text-xs font-medium text-[#4b5b3e] transition-colors hover:bg-[#e3ead9]"
+                  >
+                    <ChatIcon className="h-3.5 w-3.5" />
+                    AIと整理する
+                  </Link>
+                </div>
+
+                <div className="px-5 py-5 sm:px-7 sm:py-6">
+                  {/* ② 回答の要点。**この回答から要点を生成する仕組みはまだ無い**ため、
+                      既存データから出せる値が無い状態では文章を作らず、空の状態だけを示す
+                      （回答本文からクライアント側で要約を作ることはしない）。 */}
+                  {SHOW_ANSWER_SUMMARY && answered && (
+                    <div className="rounded-[14px] bg-[#f3f6ef] px-4 py-3">
+                      <p className="text-[11px] font-semibold tracking-wide text-[#5f7050]">回答の要点</p>
+                      <p className="mt-1 text-[13px] leading-relaxed text-[#8a8578]">
+                        回答を整理すると、ここに要点が表示されます。
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ③ 回答全文（既存の回答UI。1文字ごとの自動保存をそのまま使う） */}
+                  <div className={SHOW_ANSWER_SUMMARY && answered ? "mt-4" : ""}>
+                    {hasWrittenAnswer && (
+                      <p className="text-[11px] font-semibold tracking-wide text-[#8a8578]">回答全文</p>
+                    )}
                     <QuestionCard
                       layout="bare"
+                      showExamples={false}
                       question={q}
                       index={i}
                       isOpen
-                      hasAnswer={isQuestionAnswered(q)}
+                      hasAnswer={answered}
                       examplesOpen={openExamples[q.id] ?? false}
                       onToggle={() => {}}
                       onToggleExamples={() => toggleExamples(q.id)}
@@ -352,18 +436,17 @@ export default function WorksheetSectionDetail({
                       onToggleMulti={(optionId) => handleToggleMulti(q.id, optionId)}
                     />
                   </div>
-                  {(() => {
-                    const candidate = candidateByQuestionId.get(q.id);
-                    if (!candidate) return null;
-                    return (
-                      <CandidateCard
-                        text={candidate.displayText}
-                        onAdopt={() => adoptCandidate(candidate)}
-                      />
-                    );
-                  })()}
+
+                  {/* AI相談からの回答候補（既存機能。採用経路・保存経路は変更なし） */}
+                  {candidate && (
+                    <CandidateCard
+                      text={candidate.displayText}
+                      onAdopt={() => adoptCandidate(candidate)}
+                    />
+                  )}
                 </div>
-              </article>
+              </section>
+              </div>
             );
           })}
 
