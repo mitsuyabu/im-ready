@@ -191,11 +191,13 @@ export default async function PlanPage({ params }: PlanPageProps) {
           <PlanJourneyRibbon currentIndex={journeyIndex} />
         </div>
 
-        <div className="mt-6 flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)] lg:gap-6">
-          {/* 左カラム（広め）: AI相談 → Worksheet */}
-          <div className="flex flex-col gap-4">
-            {/* AI相談 */}
-            <section className={`${CARD} bg-white flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:min-h-[160px]`}>
+        {/* PC（lg 以上）は 2 カラム。左に AI相談 → Worksheet → My Karte、右に About This Plan を置く。
+            mobile は従来どおり 1 カラムで DOM 順（AI相談 → Worksheet → About This Plan → My Karte）に並ぶため、
+            カードは DOM 順を変えずに lg の grid placement だけで配置している。
+            gap は従来と同じ（カード間 16px / 左右 24px）で、右カラムは self-start で高さを揃えない。 */}
+        <div className="mt-6 flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)] lg:gap-x-6 lg:gap-y-4">
+            {/* AI相談（PC: 左カラム 1 段目） */}
+            <section className={`${CARD} bg-white flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:col-start-1 lg:row-start-1 lg:min-h-[160px]`}>
               <Image
                 src="/plan-icons/ai-chat.webp"
                 alt=""
@@ -220,8 +222,8 @@ export default async function PlanPage({ params }: PlanPageProps) {
               </Link>
             </section>
 
-            {/* Worksheet */}
-            <section className={`${CARD} bg-white flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:min-h-[160px]`}>
+            {/* Worksheet（PC: 左カラム 2 段目） */}
+            <section className={`${CARD} bg-white flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:col-start-1 lg:row-start-2 lg:min-h-[160px]`}>
               <Image
                 src="/plan-icons/worksheet.webp"
                 alt=""
@@ -246,15 +248,12 @@ export default async function PlanPage({ params }: PlanPageProps) {
                 見直す →
               </Link>
             </section>
-          </div>
 
-          {/* 右カラム（狭め）: About This Plan → Documents */}
-          <div className="flex flex-col gap-4">
-            {/* About This Plan。手描き・紙もの装飾（ピン / 星 / 波線下線 / 破れた下辺）は持たず、
+            {/* About This Plan（PC: 右カラム。高さは揃えず self-start のまま）。手描き・紙もの装飾（ピン / 星 / 波線下線 / 破れた下辺）は持たず、
                 落ち着いた panel として見せる。他カードが white なのに対しここだけ warm ivory で、
                 Plan の要約であることをおだやかに示す（＝残す「特別感」はこの地色だけ）。 */}
             <section
-              className={`${ABOUT_CARD} bg-[#fdfbf4] p-5 sm:p-6 lg:min-h-[220px]`}
+              className={`${ABOUT_CARD} bg-[#fdfbf4] p-5 sm:p-6 lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:min-h-[220px] lg:self-start`}
             >
               <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-[#1f2d43] sm:text-[24px]">
                 About This Plan
@@ -289,11 +288,11 @@ export default async function PlanPage({ params }: PlanPageProps) {
               </Link>
             </section>
 
-            {/* Documents */}
-            <section className={`${CARD} bg-white overflow-hidden p-5 sm:p-6 lg:min-h-[165px]`}>
-              {/* 右カラムは幅が狭い（lg で 350px 前後）。説明が 2 文あるため、アイコン横の
-                  細い列に押し込まず、アイコン＋見出しの行の下でカード幅いっぱいに折り返す
-                  （truncate / line-clamp は使わず、自然に 2〜3 行）。 */}
+            {/* My Karte（PC: 左カラム 3 段目 = Worksheet の直下） */}
+            <section className={`${CARD} bg-white overflow-hidden p-5 sm:p-6 lg:col-start-1 lg:row-start-3 lg:min-h-[165px]`}>
+              {/* 説明が 2 文あるため、アイコン横の細い列に押し込まず、アイコン＋見出しの行の下で
+                  カード幅いっぱいに折り返す（truncate / line-clamp は使わず、自然に 2〜3 行）。
+                  mobile と、PC の左カラム（広め）のどちらでも同じ組み方で破綻しない。 */}
               <div className="flex items-center gap-4">
                 <Image
                   src="/plan-icons/documents.webp"
@@ -314,7 +313,6 @@ export default async function PlanPage({ params }: PlanPageProps) {
                 資料を見る →
               </Link>
             </section>
-          </div>
         </div>
 
         {/* フッター：実データの最終更新 ＋ 手書き風の一言 ＋ boarding pass 風チケット */}
