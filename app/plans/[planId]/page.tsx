@@ -1,5 +1,5 @@
+import type { CSSProperties } from "react";
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -27,7 +27,7 @@ interface PlanPageProps {
 
 /** カード共通の枠・角丸・影（背景色は各カード側で指定する）。 */
 const CARD =
-  "relative rounded-[18px] border border-[#e7ddc9] shadow-[0_2px_6px_rgba(0,0,0,0.08)]";
+  "relative overflow-hidden rounded-[18px] border border-[#e7ddc9] shadow-card";
 
 /**
  * About This Plan だけの card chrome。radius は他カードと同じ 18px のまま、
@@ -35,10 +35,224 @@ const CARD =
  * CARD 本体は AI相談 / Worksheet / My Karte が共有しているため変更しない。
  */
 const ABOUT_CARD =
-  "relative rounded-[18px] border border-[#e6e1d8] shadow-[0_1px_2px_rgba(30,28,24,0.05)]";
+  "relative overflow-hidden rounded-[18px] border border-[#e6e1d8] shadow-card";
 
-/** AI相談 / Worksheet / Documents の左アイコンは提供画像（背景色・角丸・線画込み）。共通サイズ。 */
+/**
+ * Mindtrip 参考の 4 点きらめき。直線の星ではなく辺がくぼんだ形にするのが特徴。
+ * 中心が原点（-10〜10）なので translate + scale だけで好きな位置・大きさに置ける。
+ */
+const SPARKLE_D =
+  "M0-10C1.3-4.2 4.2-1.3 10 0 4.2 1.3 1.3 4.2 0 10-1.3 4.2-4.2 1.3-10 0-4.2-1.3-1.3-4.2 0-10Z";
+
+/** SVG 文字列を background-image で使える data URI にする（サーバー側で 1 回だけ組み立てる）。 */
+function svgUrl(svg: string) {
+  return `url("data:image/svg+xml,${encodeURIComponent(svg.replace(/\s+/g, " ").trim())}")`;
+}
+
+/**
+ * カード右側に敷く「きらめき」の装飾レイヤー。
+ * 雲（白い円の集合）は不採用。大小・不透明度の違うきらめきだけを散らして奥行きを出す。
+ */
+const decorSvg = (spark: string) => `
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="200" viewBox="0 0 420 200">
+  <g fill="${spark}">
+    <path opacity=".5" transform="translate(245 113) scale(.75)" d="${SPARKLE_D}"/>
+    <path opacity=".32" transform="translate(333 70) scale(1.1)" d="${SPARKLE_D}"/>
+    <path opacity=".26" transform="translate(372 150) scale(.55)" d="${SPARKLE_D}"/>
+  </g>
+</svg>`;
+
+/** 地紋（パターン）。ごく薄いきらめきと点を 64px 角でリピートし、紙に散った粒のように見せる。 */
+const patternSvg = (spark: string) => `
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <g fill="${spark}" opacity=".15">
+    <path transform="translate(15 15) scale(.3)" d="${SPARKLE_D}"/>
+    <path transform="translate(47 41) scale(.22)" d="${SPARKLE_D}"/>
+    <circle cx="52" cy="13" r="1.3"/><circle cx="19" cy="48" r="1"/>
+  </g>
+</svg>`;
+
+/**
+ * Plan Home の 4 カードだけの表層（グラデーション + 地紋 + きらめき）。
+ *
+ * - グラデーション: 前フェーズのパステル 1 色をやめ、同系色の 3 段へ。彩度は低いまま
+ *   「左上が少し濃く、右下へ抜ける」Mindtrip 的な流れにする。
+ * - 地紋 / きらめき: background-image で敷くので必ず本文より背面に入り、カードの角丸で
+ *   自動的に切り取られる（z-index も overflow も増やさない）。
+ * - 重ね順は先頭が手前: きらめき → 地紋 → グラデーション。
+ * 他ページへ波及させないため global token にはせず、このページ内で閉じている。
+ */
+function cardSurface(spark: string, gradient: string): CSSProperties {
+  return {
+    backgroundImage: `${svgUrl(decorSvg(spark))}, ${svgUrl(patternSvg(spark))}, ${gradient}`,
+    backgroundRepeat: "no-repeat, repeat, no-repeat",
+    backgroundPosition: "right bottom, left top, left top",
+    backgroundSize: "auto 100%, 64px 64px, 100% 100%",
+  };
+}
+
+const CARD_SURFACE = {
+  /** AI相談: ピーチ。コーラル CTA（#e0806a）を載せても沈まない明度に保つ。 */
+  chat: cardSurface("#e2947a", "linear-gradient(115deg,#ffe0cd 0%,#ffece1 45%,#fff5ef 100%)"),
+  /** Worksheet: セージ。既存の進捗 pill（#eef1ec）と喧嘩しない範囲で。 */
+  worksheet: cardSurface("#8aa875", "linear-gradient(115deg,#e2eed1 0%,#edf5e1 45%,#f6fbef 100%)"),
+  /** My Karte: クリーム。白の outline ボタンが見えるよう黄みは最小限。 */
+  myKarte: cardSurface("#d9b263", "linear-gradient(115deg,#ffeabb 0%,#fff4d8 45%,#fffaec 100%)"),
+  /** About This Plan: ラベンダー。従来の warm ivory の役割（Plan の要約面）を引き継ぐ。 */
+  about: cardSurface("#a68fc8", "linear-gradient(135deg,#e8daf7 0%,#f2ecfa 50%,#faf7fd 100%)"),
+} as const;
+
+/**
+ * カード左の図版の共通サイズ。Worksheet / My Karte はまだ提供画像（webp）、
+ * AI相談だけ AiConsultIllustration（SVG）に差し替え済み。サイズ枠は 3 枚とも共通にして
+ * 横並びのリズムを保つ（次フェーズで残り 2 枚を差し替えてもここは変えない）。
+ */
 const CARD_ICON_CLASS = "h-16 w-16 shrink-0 sm:h-20 sm:w-20 lg:h-24 lg:w-24";
+
+/**
+ * AI相談カードのイラスト（Mindtrip 参考のエディトリアル表現）。
+ *
+ * 既製の 3D アイコン（/plan-icons/ai-chat.webp）をやめ、カードの地色（ピーチ #fff3ed）と
+ * 一体に見える「紙に描いたような」作りにしている:
+ *   - 背景に水彩のにじみ（セージ／ピーチ）を薄く重ねてコラージュ感を出す
+ *   - 前景は navy outline + pastel fill のシンプルなオブジェクト（吹き出し 2 つ＝対話）
+ *   - 図形はわざと左右非対称・線端は丸め、幾何学的になりすぎないようにする
+ *   - 背景は塗らない（透過）ので、カードの地色がそのまま下地になる
+ * ラスター画像ではなく SVG なので 64 / 80 / 96px のどのサイズでも潰れない。
+ */
+function AiConsultIllustration({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 96 96" className={className} fill="none" aria-hidden>
+      {/* 水彩のにじみ（下地）。輪郭をぼかして「塗り残しのある絵の具」に見せる。
+          id はこのイラスト専用（ページ内で 1 回しか描画されない）。 */}
+      <defs>
+        <filter id="aiIlloWash" x="-25%" y="-25%" width="150%" height="150%">
+          <feGaussianBlur stdDeviation="3.2" />
+        </filter>
+      </defs>
+      <g filter="url(#aiIlloWash)" opacity="0.8">
+        <ellipse cx="37" cy="37" rx="30" ry="27" fill="#e3ede4" opacity="0.75" />
+        <ellipse cx="71" cy="59" rx="22" ry="20" fill="#fbdfd1" opacity="0.8" />
+        <ellipse cx="23" cy="66" rx="12" ry="10" fill="#f3e6d6" opacity="0.7" />
+      </g>
+
+      {/* 紙片のような小さな点（コラージュの余白要素） */}
+      <circle cx="13" cy="70" r="2.4" fill="#cdd9cd" />
+      <circle cx="88" cy="34" r="1.8" fill="#e8b7a4" />
+
+      <g transform="rotate(-2 48 48)" stroke="#2b3a55" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {/* 奥の吹き出し（相手の声）: セージ地 */}
+        <path
+          d="M 59 36 h 18 a 11 11 0 0 1 11 11 v 12 a 11 11 0 0 1 -11 11 h -4 l 1.5 8 -10 -8 h -5.5 a 11 11 0 0 1 -11 -11 v -12 a 11 11 0 0 1 11 -11 z"
+          fill="#dde8e1"
+        />
+        <path d="M 67 50 h 13" opacity="0.55" />
+        <path d="M 67 58 h 8" opacity="0.55" />
+
+        {/* 手前の吹き出し（自分の声）: 白地。尾は左下へ少し長めに流す */}
+        <path
+          d="M 20 16 h 30 a 12 12 0 0 1 12 12 v 14 a 12 12 0 0 1 -12 12 h -18 l -11 9 1.5 -9 h -2.5 a 12 12 0 0 1 -12 -12 v -14 a 12 12 0 0 1 12 -12 z"
+          fill="#ffffff"
+        />
+        <path d="M 20 30 h 28" opacity="0.7" />
+        <path d="M 20 39 h 19" opacity="0.7" />
+      </g>
+
+      {/* きらめき（カード装飾と同じ 4 点の形で揃える） */}
+      <path d={SPARKLE_D} transform="translate(80 18) scale(0.62)" fill="#e0806a" opacity="0.85" />
+      <path d={SPARKLE_D} transform="translate(90 32) scale(0.3)" fill="#e0806a" opacity="0.5" />
+    </svg>
+  );
+}
+
+/**
+ * Worksheet カードのイラスト。AiConsultIllustration と同じ描き方
+ * （navy outline + pastel fill / ぼかした水彩の下地 / 透過背景 / 少し傾ける）で揃えている。
+ * モチーフは「チェックを入れていく記入シートと鉛筆」。
+ */
+function WorksheetIllustration({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 96 96" className={className} fill="none" aria-hidden>
+      <defs>
+        <filter id="wsIlloWash" x="-25%" y="-25%" width="150%" height="150%">
+          <feGaussianBlur stdDeviation="3.2" />
+        </filter>
+      </defs>
+      <g filter="url(#wsIlloWash)" opacity="0.8">
+        <ellipse cx="42" cy="42" rx="30" ry="29" fill="#dfeccf" opacity="0.8" />
+        <ellipse cx="72" cy="66" rx="20" ry="18" fill="#f1e7d4" opacity="0.7" />
+      </g>
+      <circle cx="12" cy="30" r="2.2" fill="#cdd9cd" />
+
+      <g transform="rotate(-3 48 48)" stroke="#2b3a55" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {/* 記入シート */}
+        <path d="M 24 12 h 42 a 6 6 0 0 1 6 6 v 58 a 6 6 0 0 1 -6 6 h -42 a 6 6 0 0 1 -6 -6 v -58 a 6 6 0 0 1 6 -6 z" fill="#ffffff" />
+        {/* チェック欄（上 2 つは記入済み＝セージ、3 つめはこれから） */}
+        <rect x="26" y="26" width="11" height="11" rx="3.5" fill="#dde8e1" />
+        <rect x="26" y="44" width="11" height="11" rx="3.5" fill="#dde8e1" />
+        <rect x="26" y="62" width="11" height="11" rx="3.5" fill="#ffffff" />
+        <path d="M 29 31.6 l 2.2 2.3 4.1 -4.7" />
+        <path d="M 29 49.6 l 2.2 2.3 4.1 -4.7" />
+        {/* 回答の行 */}
+        <path d="M 43 31 h 22" opacity="0.6" />
+        <path d="M 43 49 h 17" opacity="0.6" />
+        <path d="M 43 67 h 22" opacity="0.6" />
+      </g>
+
+      {/* 鉛筆（シートの右下に重ねてコラージュらしく） */}
+      <g transform="rotate(-3 48 48)" stroke="#2b3a55" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M 66 84 l 16 -16 7 7 -16 16 -9 2 z" fill="#fbe3c9" />
+        <path d="M 66 84 l 4 -9 5 5 z" fill="#2b3a55" />
+      </g>
+
+      <path d={SPARKLE_D} transform="translate(82 20) scale(0.62)" fill="#7f9a6a" opacity="0.8" />
+      <path d={SPARKLE_D} transform="translate(90 33) scale(0.3)" fill="#7f9a6a" opacity="0.45" />
+    </svg>
+  );
+}
+
+/**
+ * My Karte カードのイラスト。参考画像の「浮いている小カード」を資料の重なりに読み替えたもの。
+ * 奥からクリーム → 白 → 白の 3 枚を少しずつ角度を変えて重ね、紙が束ねてある感じを出す。
+ */
+function MyKarteIllustration({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 96 96" className={className} fill="none" aria-hidden>
+      <defs>
+        <filter id="mkIlloWash" x="-25%" y="-25%" width="150%" height="150%">
+          <feGaussianBlur stdDeviation="3.2" />
+        </filter>
+      </defs>
+      <g filter="url(#mkIlloWash)" opacity="0.8">
+        <ellipse cx="46" cy="44" rx="31" ry="28" fill="#f6e8c6" opacity="0.8" />
+        <ellipse cx="26" cy="68" rx="18" ry="15" fill="#e4ece2" opacity="0.6" />
+      </g>
+      <circle cx="87" cy="64" r="2.1" fill="#e6d2a3" />
+
+      <g stroke="#2b3a55" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {/* 奥の 1 枚（クリーム） */}
+        <g transform="rotate(-11 48 52)">
+          <rect x="18" y="26" width="48" height="52" rx="7" fill="#fdf0cf" />
+        </g>
+        {/* 中の 1 枚 */}
+        <g transform="rotate(-4 48 52)">
+          <rect x="24" y="22" width="48" height="54" rx="7" fill="#ffffff" />
+        </g>
+        {/* 手前の 1 枚（見出しの帯と本文の行） */}
+        <g transform="rotate(4 48 52)">
+          <rect x="30" y="20" width="48" height="56" rx="7" fill="#ffffff" />
+          <rect x="37" y="29" width="20" height="7" rx="3.5" fill="#dde8e1" />
+          <path d="M 37 46 h 34" opacity="0.6" />
+          <path d="M 37 55 h 27" opacity="0.6" />
+          <path d="M 37 64 h 31" opacity="0.6" />
+        </g>
+      </g>
+
+      <path d={SPARKLE_D} transform="translate(16 20) scale(0.6)" fill="#cf9f4c" opacity="0.8" />
+      <path d={SPARKLE_D} transform="translate(8 33) scale(0.29)" fill="#cf9f4c" opacity="0.45" />
+    </svg>
+  );
+}
 
 function CalendarIcon({ className }: { className?: string }) {
   return (
@@ -162,9 +376,9 @@ export default async function PlanPage({ params }: PlanPageProps) {
   const cityGuideDescription = getCityGuideDescription(destinationCity);
 
   return (
-    <div className="min-h-dvh bg-[#fbf8f1]">
+    <div className="min-h-dvh bg-worksheet-surface">
       {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、mobileのみこのheader（ロゴ＋タグライン） */}
-      <header className="border-b border-[#e7ddc9] bg-[#fdfbf4] px-4 py-4 sm:px-6 lg:hidden">
+      <header className="border-b border-[#e7ddc9] bg-worksheet-surface px-4 py-4 sm:px-6 lg:hidden">
         <MobileBrandHeader />
       </header>
 
@@ -197,14 +411,11 @@ export default async function PlanPage({ params }: PlanPageProps) {
             gap は従来と同じ（カード間 16px / 左右 24px）で、右カラムは self-start で高さを揃えない。 */}
         <div className="mt-6 flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)] lg:gap-x-6 lg:gap-y-4">
             {/* AI相談（PC: 左カラム 1 段目） */}
-            <section className={`${CARD} bg-white flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:col-start-1 lg:row-start-1 lg:min-h-[160px]`}>
-              <Image
-                src="/plan-icons/ai-chat.webp"
-                alt=""
-                width={96}
-                height={96}
-                className={CARD_ICON_CLASS}
-              />
+            <section
+              style={CARD_SURFACE.chat}
+              className={`${CARD} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:col-start-1 lg:row-start-1 lg:min-h-[160px]`}
+            >
+              <AiConsultIllustration className={CARD_ICON_CLASS} />
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-bold text-[#2b3a55]">AI相談</h2>
                 <p className="mt-1 text-[15px] leading-relaxed text-[#6b6357]">
@@ -223,14 +434,11 @@ export default async function PlanPage({ params }: PlanPageProps) {
             </section>
 
             {/* Worksheet（PC: 左カラム 2 段目） */}
-            <section className={`${CARD} bg-white flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:col-start-1 lg:row-start-2 lg:min-h-[160px]`}>
-              <Image
-                src="/plan-icons/worksheet.webp"
-                alt=""
-                width={96}
-                height={96}
-                className={CARD_ICON_CLASS}
-              />
+            <section
+              style={CARD_SURFACE.worksheet}
+              className={`${CARD} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:col-start-1 lg:row-start-2 lg:min-h-[160px]`}
+            >
+              <WorksheetIllustration className={CARD_ICON_CLASS} />
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-bold text-[#2b3a55]">Worksheet</h2>
                 <p className="mt-1 text-[15px] leading-relaxed text-[#6b6357]">
@@ -250,10 +458,11 @@ export default async function PlanPage({ params }: PlanPageProps) {
             </section>
 
             {/* About This Plan（PC: 右カラム。高さは揃えず self-start のまま）。手描き・紙もの装飾（ピン / 星 / 波線下線 / 破れた下辺）は持たず、
-                落ち着いた panel として見せる。他カードが white なのに対しここだけ warm ivory で、
+                落ち着いた panel として見せる。他 3 枚（ピーチ / セージ / クリーム）に対しここだけラベンダーで、
                 Plan の要約であることをおだやかに示す（＝残す「特別感」はこの地色だけ）。 */}
             <section
-              className={`${ABOUT_CARD} bg-[#fdfbf4] p-5 sm:p-6 lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:min-h-[220px] lg:self-start`}
+              style={CARD_SURFACE.about}
+              className={`${ABOUT_CARD} p-5 sm:p-6 lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:min-h-[220px] lg:self-start`}
             >
               <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-[#1f2d43] sm:text-[24px]">
                 About This Plan
@@ -289,26 +498,23 @@ export default async function PlanPage({ params }: PlanPageProps) {
             </section>
 
             {/* My Karte（PC: 左カラム 3 段目 = Worksheet の直下） */}
-            <section className={`${CARD} bg-white overflow-hidden p-5 sm:p-6 lg:col-start-1 lg:row-start-3 lg:min-h-[165px]`}>
-              {/* 説明が 2 文あるため、アイコン横の細い列に押し込まず、アイコン＋見出しの行の下で
-                  カード幅いっぱいに折り返す（truncate / line-clamp は使わず、自然に 2〜3 行）。
-                  mobile と、PC の左カラム（広め）のどちらでも同じ組み方で破綻しない。 */}
-              <div className="flex items-center gap-4">
-                <Image
-                  src="/plan-icons/documents.webp"
-                  alt=""
-                  width={96}
-                  height={96}
-                  className={CARD_ICON_CLASS}
-                />
-                <h2 className="min-w-0 text-lg font-bold text-[#2b3a55]">My Karte</h2>
-              </div>
-              <p className="mt-2 text-[15px] leading-relaxed text-[#6b6357]">
+            {/* 内部は grid。mobile は従来どおり 2 列で「アイコン＋見出しの行 → カード幅いっぱいの説明文 → ボタン」。
+                PC（lg 以上）だけ 3 列（アイコン / テキスト / CTA）に切り替え、AI相談 / Worksheet と同じ
+                「アイコン左・テキスト中央・CTA が右端」の視覚リズムに揃える。
+                アイコンと CTA は行をまたいで縦中央、テキスト列だけが伸縮する（minmax(0,1fr)）。
+                アイコン幅（CARD_ICON_CLASS）・文言・route・card chrome は変更していない。 */}
+            <section
+              style={CARD_SURFACE.myKarte}
+              className={`${CARD} overflow-hidden grid grid-cols-[auto_minmax(0,1fr)] content-start items-center gap-x-4 p-5 sm:p-6 lg:col-start-1 lg:row-start-3 lg:min-h-[165px] lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:content-center lg:gap-x-6 lg:p-7`}
+            >
+              <MyKarteIllustration className={`${CARD_ICON_CLASS} col-start-1 row-start-1 lg:row-span-3 lg:self-center`} />
+              <h2 className="col-start-2 row-start-1 min-w-0 text-lg font-bold text-[#2b3a55]">My Karte</h2>
+              <p className="col-span-2 col-start-1 row-start-2 mt-2 text-[15px] leading-relaxed text-[#6b6357] lg:col-span-1 lg:col-start-2 lg:mt-1">
                 考えたことや決めたことを、相談や共有に使いやすい資料にまとめます。自分の考えを振り返るときにも役立ちます。
               </p>
               <Link
                 href={`/plans/${typedPlan.id}/documents`}
-                className="mt-3 inline-block rounded-full border border-[#2b3a55]/30 bg-white px-5 py-2 text-sm font-medium text-[#2b3a55] transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
+                className="col-span-2 col-start-1 row-start-3 mt-3 inline-block justify-self-start rounded-full border border-[#2b3a55]/30 bg-white px-5 py-2 text-sm font-medium text-[#2b3a55] transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:row-span-3 lg:mt-0 lg:self-center lg:justify-self-end"
               >
                 資料を見る →
               </Link>
