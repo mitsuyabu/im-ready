@@ -62,7 +62,7 @@ export default async function PlanWorksheetSectionPage({ params }: PlanWorksheet
   ]);
 
   return (
-    <div className="min-h-dvh bg-[#fcfbf8]">
+    <div className="min-h-dvh bg-worksheet-surface">
       {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ロゴだけの単独headerは二重表示を避けて隠す */}
       <header className="border-b border-[#e5dfd6] px-4 py-4 sm:px-6 lg:hidden">
         <MobileBrandHeader />

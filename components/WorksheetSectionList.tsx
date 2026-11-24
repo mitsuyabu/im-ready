@@ -111,7 +111,7 @@ export default function WorksheetSectionList({
   return (
     <div className="mt-8">
       {/* summary bar（実データ由来の進捗表示） */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-[#e4ddcf] bg-[#fdfbf4] px-5 py-4 shadow-[0_1px_3px_rgba(40,33,20,0.04)] sm:flex-row sm:items-center sm:gap-5 sm:px-6">
+      <div className="flex flex-col gap-3 rounded-2xl border border-[#e4ddcf] bg-[#fdfbf4] px-5 py-4 shadow-card sm:flex-row sm:items-center sm:gap-5 sm:px-6">
         <div className="flex items-center gap-3 sm:gap-5">
           <span className="text-sm font-medium text-[#3f3d38]">{totalThemes}つのテーマ</span>
           <span aria-hidden className="hidden h-4 w-px bg-[#d8d1c1] sm:block" />

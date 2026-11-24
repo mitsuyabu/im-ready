@@ -155,7 +155,7 @@ export default async function SchoolComparisonPage({ params }: SchoolComparisonP
     parsedContent && row?.updated_at ? formatLastUpdated(row.updated_at) : null;
 
   return (
-    <div className="min-h-dvh bg-[#fcfbf8]">
+    <div className="min-h-dvh bg-worksheet-surface">
       {/* lg以上ではAppNavの左sidebarにロゴがあるため、この上部barはmobileのみ。戻る導線は本文側に持つ。 */}
       <header className="flex items-center border-b border-[#e5dfd6] px-4 py-3 sm:px-6 lg:hidden">
         <BrandLogo href="/mypage" className="h-[35px] w-auto sm:h-[43px]" />

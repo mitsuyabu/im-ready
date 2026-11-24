@@ -47,7 +47,7 @@ const ACCENT: Record<DocumentWorkspaceVariant, { surface: string; icon: string }
 };
 
 const CARD_BASE =
-  "group flex h-full flex-col rounded-[18px] border border-[#e6e1d8] p-5 shadow-[0_1px_2px_rgba(30,28,24,0.03)] transition-colors duration-150 hover:border-[#cfc8bb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent sm:p-6";
+  "group flex h-full flex-col rounded-[18px] border border-[#e6e1d8] p-5 shadow-card transition-colors duration-150 hover:border-[#cfc8bb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent sm:p-6";
 
 function CardIcon({
   variant,

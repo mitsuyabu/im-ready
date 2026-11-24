@@ -41,6 +41,18 @@
   --worksheet-sage-hover: #c9ddd2;
 
   /*
+   * カードの elevation（**ここ1か所**で主要カードに効く）。
+   * アプリ背景が白になったぶん、カードが背景に溶けないように「やわらかく浮かせる」。
+   * 1 層目は輪郭を締める接地影、2 層目は広い blur の拡散影で、どちらも opacity は低め。
+   * color / border / radius / サイズは各カード側の既存指定のまま（ここでは影だけを定義する）。
+   * hover で持ち上がる既存カード（My Page の Plan カード）だけ -hover を使う。
+   */
+  --elevation-card:
+    0 1px 2px rgba(20, 30, 45, 0.04), 0 6px 18px rgba(20, 30, 45, 0.06);
+  --elevation-card-hover:
+    0 2px 4px rgba(20, 30, 45, 0.05), 0 10px 28px rgba(20, 30, 45, 0.09);
+
+  /*
    * アプリ全体の基本フォント（**ここ1か所**で全画面に効く）。
    * font file は追加しない（repo へ同梱しない / CDN も @font-face も使わない）。
    * Tazugane が端末に入っていない場合は system-ui → -apple-system →
@@ -81,6 +93,8 @@
   --color-worksheet-accent-contrast: var(--worksheet-accent-contrast);
   --color-worksheet-sage: var(--worksheet-sage);
   --color-worksheet-sage-hover: var(--worksheet-sage-hover);
+  --shadow-card: var(--elevation-card);
+  --shadow-card-hover: var(--elevation-card-hover);
 }
 
 /*
@@ -90,7 +104,8 @@
  */
 
 body {
-  background-color: #fcfbf8;
+  /* アプリ全体の背景。生成り（#fcfbf8）から既存トークンの白へ切り替えた。 */
+  background-color: var(--background);
   color: #172033;
   /* 以前は Arial, Helvetica, sans-serif。基本フォントは :root の --font-app に集約した。 */
   font-family: var(--font-app);

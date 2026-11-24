@@ -71,7 +71,7 @@ export default function PlanCard({ plan }: { plan: PlanCardData }) {
   return (
     <Link
       href={`/plans/${plan.id}`}
-      className="group relative block overflow-hidden rounded-[24px] shadow-sm transition-shadow duration-150 hover:shadow-md"
+      className="group relative block overflow-hidden rounded-[24px] shadow-card transition-shadow duration-150 hover:shadow-card-hover"
     >
       <div
         className={`relative aspect-video w-full overflow-hidden bg-linear-to-br ${fallbackGradientForPlan(plan.id)}`}

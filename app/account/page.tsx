@@ -73,7 +73,7 @@ export default async function AccountPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-[#fcfbf8]">
+    <div className="min-h-dvh bg-worksheet-surface">
       <div className="mx-auto max-w-3xl px-4 pt-10 pb-24 sm:px-6 sm:py-14">
         <p className="text-xs font-medium tracking-wide text-[#5f7050]">Account</p>
         <h1 className="mt-1 text-[27px] font-bold tracking-tight text-[#172033] sm:text-[34px]">

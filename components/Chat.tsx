@@ -791,7 +791,7 @@ export default function Chat({
 
   return (
     <div
-      className={isPlanChat ? "flex h-full flex-col bg-[#faf8f3]" : "flex h-full flex-col"}
+      className={isPlanChat ? "flex h-full flex-col bg-worksheet-surface" : "flex h-full flex-col"}
       style={
         isPlanChat
           ? {
@@ -803,7 +803,7 @@ export default function Chat({
       }
     >
       {isPlanChat && (
-        <header className="sticky top-0 z-20 border-b border-[#e7dfce] bg-[#faf8f3]/95 backdrop-blur-sm">
+        <header className="sticky top-0 z-20 border-b border-[#e7dfce] bg-worksheet-surface/95 backdrop-blur-sm">
           <div className="flex items-center gap-3 px-3 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
             {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ここでは隠す（sticky・戻る導線は維持） */}
             <BrandLogo href="/mypage" className="h-8 w-auto shrink-0 sm:h-9 lg:hidden" />
@@ -956,7 +956,7 @@ export default function Chat({
         !showStartScreen && (
           <form
             onSubmit={handleSubmit}
-            className="border-t border-[#e7dfce] bg-[#faf8f3] px-4 pb-5 pt-4 sm:px-6"
+            className="border-t border-[#e7dfce] bg-worksheet-surface px-4 pb-5 pt-4 sm:px-6"
           >
             <div className="mx-auto max-w-[820px]">
               {/* サジェストチップ。押すと入力欄に文言を入れるだけ（既存 handleQuickStart と同じ。送信はしない）。 */}

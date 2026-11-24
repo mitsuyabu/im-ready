@@ -328,7 +328,7 @@ export default function WorksheetSectionDetail({
               <div key={q.id} className="space-y-3 sm:space-y-4">
               {/* ① 質問（深緑カード。質問であることが一目で分かるようにする） */}
               <article
-                className="overflow-hidden rounded-[22px] border border-[#e5dfd6] bg-white shadow-[0_1px_3px_rgba(30,28,24,0.05)]"
+                className="overflow-hidden rounded-[22px] border border-[#e5dfd6] bg-white shadow-card"
               >
                 {/* header 帯（縦に並ぶので少しコンパクトに。デザインは維持） */}
                 <div
@@ -377,7 +377,7 @@ export default function WorksheetSectionDetail({
               </article>
 
               {/* ②③④ 回答カード（質問とは別の視覚ブロック。白系・同じ角丸と枠） */}
-              <section className="overflow-hidden rounded-[22px] border border-[#e5dfd6] bg-white shadow-[0_1px_3px_rgba(30,28,24,0.05)]">
+              <section className="overflow-hidden rounded-[22px] border border-[#e5dfd6] bg-white shadow-card">
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-[#efeae1] px-5 py-3.5 sm:px-7">
                   <p className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#1c1c1c]">
                     <PencilIcon className="h-4 w-4 text-[#5f7050]" />

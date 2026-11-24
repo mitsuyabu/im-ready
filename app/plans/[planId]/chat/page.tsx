@@ -51,7 +51,7 @@ export default async function PlanChatPage({ params }: PlanChatPageProps) {
   ]);
 
   return (
-    <div className="flex h-dvh flex-1 flex-col bg-[#faf8f3]">
+    <div className="flex h-dvh flex-1 flex-col bg-worksheet-surface">
       <Chat
         planId={planId}
         sessionId={session.id}

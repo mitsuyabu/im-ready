@@ -153,7 +153,7 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
   );
 
   return (
-    <div className="min-h-dvh bg-[#fbfaf6]">
+    <div className="min-h-dvh bg-worksheet-surface">
       <header className="flex items-center justify-between border-b border-black/[0.06] bg-worksheet-surface px-4 py-3 sm:px-6">
         {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ここでは隠す（戻る導線は残す） */}
         <div className="lg:hidden">

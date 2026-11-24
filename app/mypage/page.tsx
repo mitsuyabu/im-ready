@@ -78,7 +78,7 @@ export default async function MyPagePage() {
   const gridClass = "mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4";
 
   return (
-    <div className="min-h-dvh bg-[#f6f2ea]">
+    <div className="min-h-dvh bg-worksheet-surface">
       {/* PCではAppNavの左sidebarに同じロゴがあるため、mobileだけこのheaderを表示する（ロゴ＋タグライン） */}
       <header className="border-b border-[#e7decd] bg-worksheet-surface px-4 py-4 sm:px-6 lg:hidden">
         <MobileBrandHeader />
@@ -86,7 +86,7 @@ export default async function MyPagePage() {
 
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:max-w-7xl lg:py-12">
         {/* 参考デザインの「一枚の大きな紙」。tablet では角丸を弱め、mobile は素の面。 */}
-        <div className="rounded-none bg-transparent p-0 sm:rounded-[22px] sm:border sm:border-black/[0.06] sm:bg-[#fffdf8] sm:p-9 lg:rounded-[32px] lg:p-14 lg:shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+        <div className="rounded-none bg-transparent p-0 sm:rounded-[22px] sm:border sm:border-black/[0.06] sm:bg-[#fffdf8] sm:p-9 lg:rounded-[32px] lg:p-14 lg:shadow-card">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h1 className="font-serif text-[2rem] font-normal leading-[1.12] tracking-tight text-worksheet-primary sm:text-[2.75rem] lg:text-[3.25rem]">

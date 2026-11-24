@@ -47,7 +47,7 @@ export default async function PlanWorksheetPage({ params }: PlanWorksheetPagePro
   const worksheet = await loadPlanWorksheet(supabase, planId);
 
   return (
-    <div className="min-h-dvh bg-[#f7f4ec]">
+    <div className="min-h-dvh bg-worksheet-surface">
       {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ロゴだけの単独headerは二重表示を避けて隠す */}
       <header className="border-b border-[#e4ddcf] px-4 py-4 sm:px-6 lg:hidden">
         <MobileBrandHeader />

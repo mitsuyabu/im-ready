@@ -761,7 +761,7 @@ function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline 
   return (
     <section
       id="myplan-yearly"
-      className="mt-6 scroll-mt-6 rounded-[18px] border border-[#e7e1d7] bg-[#fcfbf8] p-5 shadow-[0_1px_2px_rgba(30,28,24,0.04)] sm:p-6 lg:p-7"
+      className="mt-6 scroll-mt-6 rounded-[18px] border border-[#e7e1d7] bg-[#fcfbf8] p-5 shadow-card sm:p-6 lg:p-7"
     >
       <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
         <div>
@@ -826,7 +826,7 @@ function MyPlanCard({
   return (
     <section
       id={`myplan-${id}`}
-      className={`relative scroll-mt-6 overflow-hidden rounded-[18px] border border-[#e5dfd6] bg-white p-5 shadow-[0_1px_3px_rgba(30,28,24,0.05)] sm:p-6 lg:p-7 ${span}`}
+      className={`relative scroll-mt-6 overflow-hidden rounded-[18px] border border-[#e5dfd6] bg-white p-5 shadow-card sm:p-6 lg:p-7 ${span}`}
     >
       <span
         aria-hidden
@@ -1121,7 +1121,7 @@ export default function MyPlan({
       {/* ヒーローサマリー。行き先の都市画像があればカード全面の背景に敷き（左は明るい余白・右に景観）、
           無ければ従来の淡いグリーン地 ＋ CSS グラデーションへ fallback（§6）。 */}
       <section
-        className={`relative mt-6 overflow-hidden rounded-[20px] border shadow-[0_1px_3px_rgba(30,40,36,0.06)] ${
+        className={`relative mt-6 overflow-hidden rounded-[20px] border shadow-card ${
           heroImage ? "border-[#e2e6e0] bg-[#eef1ec]" : "border-[#dfe6e3] bg-[#e8eee9]"
         }`}
         style={
