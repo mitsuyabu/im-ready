@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { CATEGORIES } from "@/lib/worksheetQuestions";
 import type { WorksheetPersistedData } from "@/lib/worksheetStorage";
 import type { LoadedPlanWorksheet } from "@/lib/planWorksheet";
@@ -28,21 +27,123 @@ function PaperclipIcon({ className }: { className?: string }) {
 }
 
 /**
- * 各テーマカードのビジュアル。共有された6枚のカード画像をそのまま使う
- * （背景色・枠・角丸・大きな連番・タイトル・サブコピー・右下の矢印・装飾線は画像側が持つ）。
- * 画像は public/worksheet-cards/*.webp（拡張子どおりの本物のWebP・再書き出し / resize はしない）。
- * 6枚は number / title / subtitle / arrow / 装飾まで含む完成アートなので、共通 aspect への
- * crop（object-cover）はしない。intrinsic size を next/image に渡し、幅だけ grid 列に合わせ
- * （w-full）高さは元比率に任せる（h-auto）＝ 画像が一切切れない。
- * key は既存 CATEGORIES の category.id で、遷移先ルートも既存のまま。
+ * 各テーマのイラスト。6枚で 1 つのアイコンセットに見えるよう、次の 4 点を必ず揃える:
+ *   - viewBox は 0 0 48 48（正方形）
+ *   - 線は currentColor / strokeWidth 1.5 / 端と角は round（カード側で色を一度だけ指定する）
+ *   - 塗りは「いま選ばれている / 進んでいる部分」だけ。色はテーマごと（SECTION_THEME.accent）
+ *   - モチーフは 1 テーマ 1〜2 要素まで（説明しすぎない）
+ * ラスター画像ではなくインライン SVG なので、どの解像度でもにじまず、assets も増えない。
  */
-const CARD_IMAGE: Record<string, { src: string; w: number; h: number }> = {
-  motivation: { src: "/worksheet-cards/why.webp", w: 1536, h: 1024 },
-  future: { src: "/worksheet-cards/my-future.webp", w: 1536, h: 1024 },
-  conditions: { src: "/worksheet-cards/conditions.webp", w: 1570, h: 1002 },
-  priorities: { src: "/worksheet-cards/my-priorities.webp", w: 1609, h: 977 },
-  anxiety: { src: "/worksheet-cards/worries.webp", w: 1663, h: 945 },
-  nextstep: { src: "/worksheet-cards/next-step.webp", w: 1557, h: 1010 },
+type IlloProps = { className?: string; accent: string };
+
+function illoProps(className?: string) {
+  return {
+    viewBox: "0 0 48 48",
+    fill: "none" as const,
+    stroke: "currentColor",
+    strokeWidth: 1.5,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    className,
+    "aria-hidden": true,
+  };
+}
+
+/** 01 WHY: 問いかけ（はてな 1 つだけ）。 */
+function WhyIllo({ className, accent }: IlloProps) {
+  return (
+    <svg {...illoProps(className)}>
+      <path d="M17.8 19.2a6.2 6.2 0 1 1 6.2 6.9v3.2" />
+      <circle cx="24" cy="34.4" r="2" fill={accent} />
+    </svg>
+  );
+}
+
+/**
+ * 02 MY FUTURE: この先へ続く戸口（向こう側に光がある）。
+ * 「道 + 太陽」「地平線 + 太陽」も試したが、44px ではどちらも
+ * 人のシルエット（頭と肩）に見えたため、戸口のかたちにしている。
+ */
+function FutureIllo({ className, accent }: IlloProps) {
+  return (
+    <svg {...illoProps(className)}>
+      <path d="M15 37V22a9 9 0 0 1 18 0v15" fill={accent} />
+    </svg>
+  );
+}
+
+/** 03 CONDITIONS: 複数の条件を少しずつ決めていく（つまみの位置がそれぞれ違う）。 */
+function ConditionsIllo({ className, accent }: IlloProps) {
+  return (
+    <svg {...illoProps(className)}>
+      <path d="M9 15h30M9 24h30M9 33h30" />
+      <circle cx="19" cy="15" r="3" fill={accent} />
+      <circle cx="29" cy="24" r="3" fill={accent} />
+      <circle cx="15" cy="33" r="3" fill={accent} />
+    </svg>
+  );
+}
+
+/** 04 MY PRIORITIES: 並べた中の 1 番目だけを選び取る。 */
+function PrioritiesIllo({ className, accent }: IlloProps) {
+  return (
+    <svg {...illoProps(className)}>
+      <rect x="9" y="10" width="30" height="7" rx="3.5" fill={accent} />
+      <rect x="9" y="21.5" width="22" height="7" rx="3.5" />
+      <rect x="9" y="33" width="14" height="7" rx="3.5" />
+    </svg>
+  );
+}
+
+/** 05 WORRIES: 小さな雲（重くしない。うしろに光を残す）。 */
+function WorriesIllo({ className, accent }: IlloProps) {
+  return (
+    <svg {...illoProps(className)}>
+      <circle cx="33.5" cy="16.5" r="4.2" fill={accent} />
+      <path
+        d="M16.5 33h15a6 6 0 0 0 .6-12 8.2 8.2 0 0 0-15.3 2.2A5 5 0 0 0 16.5 33Z"
+        fill="#ffffff"
+      />
+    </svg>
+  );
+}
+
+/** 06 NEXT STEP: 低い階段と、いま上がる一段。 */
+function NextStepIllo({ className, accent }: IlloProps) {
+  return (
+    <svg {...illoProps(className)}>
+      <path d="M8 35h10v-7h10v-7h12" />
+      <circle cx="34" cy="18" r="3" fill={accent} />
+    </svg>
+  );
+}
+
+/**
+ * category.id とイラストの対応。テーマが増減したときに気づけるよう、
+ * 描画側では「無ければ何も描かない」ではなく必ずここを引く。
+ */
+const SECTION_ILLO: Record<string, (props: IlloProps) => React.JSX.Element> = {
+  motivation: WhyIllo,
+  future: FutureIllo,
+  conditions: ConditionsIllo,
+  priorities: PrioritiesIllo,
+  anxiety: WorriesIllo,
+  nextstep: NextStepIllo,
+};
+
+/**
+ * テーマごとの色。**カード本体は白のまま**で、色が付くのは下部フッター帯と
+ * イラストのアクセント（塗り）だけ。彩度は低く、白との差は 1.1 倍程度に留める。
+ * 進捗の状態（整理済み / 整理中 / 未整理）とは無関係で、状態はドットの色だけで表す。
+ * テーマを増減するときはここだけ足せばよい（引けなければ色を付けずに描画する）。
+ */
+const SECTION_THEME: Record<string, { footer: string; accent: string }> = {
+  motivation: { footer: "bg-[#fff1ea]", accent: "#f0c9b5" },
+  future: { footer: "bg-[#edf6f7]", accent: "#c6dde2" },
+  conditions: { footer: "bg-[#f0f5e9]", accent: "#c9ddd2" },
+  priorities: { footer: "bg-[#fff6df]", accent: "#ecd8a8" },
+  anxiety: { footer: "bg-[#f5f0f8]", accent: "#d7cbe6" },
+  nextstep: { footer: "bg-[#eef6f4]", accent: "#c3ddd6" },
 };
 
 type SectionState = "complete" | "partial" | "empty";
@@ -65,9 +166,10 @@ function statusDotClass(state: SectionState): string {
  * サーバーに回答があれば初回描画から出し、無ければ（未移行・migration 未適用）マウント後に
  * この端末の localStorage から集計する（lib/planWorksheetClient.ts。移行もそこで1回だけ行う）。
  *
- * 見た目は、共有された6枚のカード画像を next/image でそのままカードUIとして表示する。
+ * 見た目は、番号 / 英語タイトル / 日本語の一行 / 小さなイラスト を実テキストと SVG で組む
+ * （以前は 6 枚の完成画像をそのまま貼っていたため、文字がにじみ・教材的に見えていた）。
  * 上部の summary bar（テーマ数・整理済み数・見直し導線）は実データ由来のまま維持。
- * カードごとの進捗は、画像デザインを邪魔しないよう画像の「下」に小さく添えるだけにする。
+ * カードごとの進捗はカード下端に小さく添える。読み込み前後で高さが動かないよう枠は常に置く。
  */
 function progressFor(data: WorksheetPersistedData | null): Record<string, WorksheetProgress> {
   const next: Record<string, WorksheetProgress> = {};
@@ -132,11 +234,17 @@ export default function WorksheetSectionList({
         </Link>
       </div>
 
-      {/* テーマカード一覧: 横幅は grid 列で揃え、高さは各画像の元比率に任せる（crop しない） */}
-      <div className="mt-6 grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
-        {CATEGORIES.map((category) => {
+      {/*
+        テーマカード一覧。
+        カードは白地 + 細い border + 既存の shadow-card。色でテーマを塗り分けず、
+        番号・小さなイラストだけに控えめなアクセントを置く（見やすさを優先する）。
+        高さは 1 行の中で揃え（items-stretch）、進捗行は常に下端に来るようにする。
+      */}
+      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+        {CATEGORIES.map((category, index) => {
           const meta = WORKSHEET_SECTION_META[category.id];
-          const img = CARD_IMAGE[category.id];
+          const Illo = SECTION_ILLO[category.id];
+          const theme = SECTION_THEME[category.id];
           const progress = progressByCategory?.[category.id];
           const state: SectionState | null = progress
             ? progress.answered >= progress.total
@@ -150,31 +258,46 @@ export default function WorksheetSectionList({
             <Link
               key={category.id}
               href={`/plans/${planId}/worksheet/${category.id}`}
-              className="group block rounded-[18px] transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b2a26]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f7f4ec]"
+              className="group flex min-h-[208px] flex-col overflow-hidden rounded-[18px] border border-[#e9e4d9] bg-white p-7 shadow-card transition duration-200 hover:-translate-y-0.5 hover:border-[#d8d1c1] hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b2a26]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:min-h-[232px] sm:p-8"
             >
-              {img ? (
-                // 横幅は grid 列いっぱい、高さは元画像の比率どおり（crop しない・完成アートを全部見せる）
-                <Image
-                  src={img.src}
-                  alt={`${meta.enName} — ${meta.tagline}`}
-                  width={img.w}
-                  height={img.h}
-                  className="h-auto w-full"
-                  sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 92vw"
-                />
-              ) : (
-                // 画像が無い場合のフォールバック（通常発生しない。CATEGORIES は6テーマ固定）
-                <span className="block rounded-[18px] border border-[#e4ddcf] bg-white px-5 py-6 font-serif text-2xl text-[#2b2a26]">
-                  {meta.enName}
+              <div className="flex items-start justify-between gap-4">
+                <span className="font-serif text-[13px] tracking-[0.2em] text-[#a8a296]">
+                  {String(index + 1).padStart(2, "0")}
                 </span>
-              )}
+                {Illo && (
+                  <Illo
+                    className="h-12 w-12 shrink-0 text-[#3f3d38] sm:h-14 sm:w-14"
+                    accent={theme?.accent ?? "#c9ddd2"}
+                  />
+                )}
+              </div>
 
-              {state && (
-                <p className="mt-3 flex items-center gap-1.5 px-1 text-[11px] text-[#6f6b62]">
-                  <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${statusDotClass(state)}`} />
-                  {statusLabel(state, progress!)}
-                </p>
-              )}
+              <h2 className="mt-5 font-serif text-[28px] leading-[1.15] tracking-tight text-[#26251f] sm:text-[31px]">
+                {meta.enName}
+              </h2>
+              <p className="mt-2 text-[14px] leading-relaxed text-[#6f6b62]">{meta.tagline}</p>
+
+              {/*
+                フッター帯。負の margin でカード内側の余白を打ち消し、カード幅いっぱいの
+                帯にする（カードの大きさ・余白そのものは変えない。角丸は overflow-hidden 任せ）。
+                state が決まる前も帯と高さはそのまま出すので、描画後に高さが動かない。
+              */}
+              <div
+                className={`-mx-7 -mb-7 mt-auto flex min-h-[22px] items-center gap-2 px-7 py-3.5 text-[12px] text-[#67635b] sm:-mx-8 sm:-mb-8 sm:px-8 ${theme?.footer ?? ""}`}
+              >
+                {state && (
+                  <>
+                    <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDotClass(state)}`} />
+                    {statusLabel(state, progress!)}
+                  </>
+                )}
+                <span
+                  aria-hidden
+                  className="ml-auto text-[#8f8a80] transition-transform duration-200 group-hover:translate-x-0.5"
+                >
+                  →
+                </span>
+              </div>
             </Link>
           );
         })}
