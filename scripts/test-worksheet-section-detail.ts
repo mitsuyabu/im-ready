@@ -31,6 +31,7 @@ function assert(condition: boolean, message: string) {
 
 const detail = readFileSync("components/WorksheetSectionDetail.tsx", "utf8");
 const worksheet = readFileSync("components/Worksheet.tsx", "utf8");
+const globals = readFileSync("app/globals.css", "utf8");
 
 /** 「していないこと」や並び順の検査は、説明コメントを除いた**実際に描画されるコード**だけを見る。 */
 function stripComments(src: string): string {
@@ -51,11 +52,14 @@ console.log("Test 1: 質問と回答が別カードに分かれている");
   assert(answerCardStart > questionCardStart, "回答カードは質問カードの後ろにある");
   assert(detail.includes("{q.heading}"), "質問文を表示している");
   assert(detail.includes("{q.supplement}"), "質問の補足説明を表示している");
-  assert(detail.includes('<p className="text-[11px] font-semibold tracking-wide text-white/70">質問</p>'), "質問カードに「質問」ラベルがある");
+  assert(
+    detail.includes('<p className="text-[11px] font-semibold tracking-wide text-[var(--ws-ink)]">質問</p>'),
+    "質問カードに「質問」ラベルがある",
+  );
   assert(detail.includes("あなたの回答"), "回答カードの見出し「あなたの回答」がある");
-  // 質問カードのヘッダー（深緑 + 装飾番号）は維持
-  assert(detail.includes("style={{ backgroundColor: theme.bg }}"), "深緑ヘッダーの配色を維持している");
-  assert(detail.includes('style={{ color: theme.numeral }}'), "装飾番号を維持している");
+  // 質問カードのヘッダー（テーマ色の帯 + 装飾番号）は維持
+  assert(detail.includes("bg-[var(--ws-tint)] px-5 py-4 sm:px-7 sm:py-5"), "ヘッダー帯にテーマ色を敷いている");
+  assert(detail.includes("text-[var(--ws-ink-numeral)]"), "装飾番号を維持している");
   assert(detail.includes("font-serif"), "装飾番号は serif のまま（装飾用途）");
 }
 
@@ -153,10 +157,24 @@ console.log("Test 6: 匿名 Worksheet（/worksheet）の表示は変わってい
   assert(worksheet.includes("export function QuestionExamples"), "記入例を共通コンポーネントとして切り出した");
   assert(worksheet.includes("showExamples = true"), "既定では記入例を従来どおりカード内に出す");
   assert(worksheet.includes("{showExamples && ("), "記入例の描画位置だけをフラグで切り替えている");
-  // 記入例の見た目（クラス）は従来と同一
+  // 記入例の形・余白は従来と同一。色だけ CSS 変数にしてテーマへ連動させている。
   assert(
-    worksheet.includes("bg-worksheet-sage px-3 py-1.5 text-xs font-medium text-worksheet-primary"),
-    "記入例ボタンのスタイルは従来と同じ",
+    worksheet.includes("bg-[var(--ws-tint)] px-3 py-1.5 text-xs font-medium text-[var(--ws-ink)]"),
+    "記入例ボタンの形・余白は従来と同じで、色だけテーマ変数から引く",
+  );
+  assert(
+    worksheet.includes("hover:bg-[var(--ws-tint-hover)]"),
+    "記入例ボタンの hover もテーマ変数から引く",
+  );
+  // 変数の既定値がセージなので、テーマの外（/worksheet）では従来と同じ色で出る
+  assert(
+    globals.includes("--ws-tint: var(--worksheet-sage);"),
+    "テーマ外の既定値は従来のセージ（匿名 Worksheet の見た目を変えない）",
+  );
+  assert(
+    globals.includes("--ws-tint-hover: var(--worksheet-sage-hover);") &&
+      globals.includes("--ws-ink: var(--worksheet-primary);"),
+    "hover と文字色の既定値も従来どおり",
   );
   assert(
     worksheet.includes('grid-rows-[1fr] opacity-100'),

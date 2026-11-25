@@ -756,6 +756,11 @@ export interface QuestionCardProps {
  * freeText の「記入例」トグル（ボタン ＋ 展開パネル）。
  * QuestionCard の中と、テーマ詳細の質問カード側の**どちらからも同じ見た目で使える**ように切り出した。
  * 開閉 state は呼び出し側が持つ（既存の openExamples をそのまま使う）。
+ *
+ * ボタンの色だけは CSS 変数（--ws-tint / --ws-tint-hover / --ws-ink）経由にしてある。
+ * テーマ詳細画面の中ではそのテーマの淡い地色＋同系の濃い文字色になり、変数を上書きしていない
+ * 匿名 Worksheet（/worksheet）では globals.css の既定値＝従来のセージのままになる。
+ * 形・余白・文字サイズ・開閉アニメーションは変えていない。
  */
 export function QuestionExamples({
   examples,
@@ -772,7 +777,7 @@ export function QuestionExamples({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-worksheet-sage px-3 py-1.5 text-xs font-medium text-worksheet-primary transition-colors duration-150 hover:bg-worksheet-sage-hover"
+        className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[var(--ws-tint)] px-3 py-1.5 text-xs font-medium text-[var(--ws-ink)] transition-colors duration-150 hover:bg-[var(--ws-tint-hover)]"
       >
         記入例
         <ChevronDownIcon

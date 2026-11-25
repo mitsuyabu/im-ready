@@ -5,6 +5,7 @@ import Link from "next/link";
 import { QuestionCard, QuestionExamples, useWorksheetAnswers } from "@/components/Worksheet";
 import { CATEGORIES } from "@/lib/worksheetQuestions";
 import { WORKSHEET_SECTION_META } from "@/lib/worksheetSectionMeta";
+import { worksheetSectionTheme, worksheetSectionThemeVars } from "@/lib/worksheetSectionTheme";
 import type { Karte } from "@/lib/karte";
 import {
   buildWorksheetKarteCandidates,
@@ -78,17 +79,17 @@ function LightbulbIcon({ className }: IconProps) {
   );
 }
 
-/* ---------- section color (Worksheet 一覧の各テーマカードと同じ色系。白文字が乗るよう少し濃く) ---------- */
-
-const SECTION_HEADER: Record<string, { bg: string; numeral: string }> = {
-  motivation: { bg: "#3f5142", numeral: "rgba(255,255,255,0.18)" },
-  future: { bg: "#5f7f99", numeral: "rgba(255,255,255,0.2)" },
-  conditions: { bg: "#8a7a5e", numeral: "rgba(255,255,255,0.2)" },
-  priorities: { bg: "#2f3b4d", numeral: "rgba(255,255,255,0.16)" },
-  anxiety: { bg: "#7c7a75", numeral: "rgba(255,255,255,0.2)" },
-  nextstep: { bg: "#c07a63", numeral: "rgba(255,255,255,0.22)" },
-};
-const NEUTRAL_HEADER = { bg: "#5b5a55", numeral: "rgba(255,255,255,0.18)" };
+/* ---------- section color ----------
+ * テーマ色は lib/worksheetSectionTheme.ts（一覧カードと共用の唯一の定義元）から引く。
+ * 以前はこのファイルに独自の濃い帯色 + 白文字の SECTION_HEADER を持っていたため、
+ * 一覧カードの淡いテーマ色とまったく別系統で、表紙と質問画面が繋がって見えなかった。
+ *
+ * いまは一覧カードのフッター帯と同じ淡い地色（theme.tint）を質問カードのヘッダーに敷き、
+ * 文字は地色の上で AA を満たす同系の濃色（theme.ink）にしている。地色が淡いので
+ * 白文字は使えない（6 テーマすべて濃色文字）。
+ * 色は worksheetSectionThemeVars() で CSS 変数として流し込み、hover も含めて
+ * Tailwind のクラスで書く（共通の QuestionExamples にも変数のまま届く）。
+ */
 
 /**
  * 「回答の要点」ブロックを表示するか。
@@ -185,7 +186,7 @@ export default function WorksheetSectionDetail({
   if (!category) return null;
 
   const meta = WORKSHEET_SECTION_META[category.id];
-  const theme = SECTION_HEADER[category.id] ?? NEUTRAL_HEADER;
+  const theme = worksheetSectionTheme(category.id);
   const total = category.questions.length;
   const answeredCount = category.questions.filter((q) => isQuestionAnswered(q)).length;
   const categoryNum = String(categoryIndex + 1).padStart(2, "0");
@@ -271,19 +272,20 @@ export default function WorksheetSectionDetail({
   }
 
   return (
-    <div>
+    // テーマ色はここで CSS 変数として一度だけ流し込む（配下すべてが同じテーマを参照する）。
+    <div style={worksheetSectionThemeVars(theme)}>
       {/* ページ上部: ラベル + タイトル（左） / completion（右） */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div>
           <PlanContextLabel planTitle={planTitle} />
-          <p className="text-sm font-medium tracking-wide text-[#5f7050]">
+          <p className="text-sm font-medium tracking-wide text-[var(--ws-ink)]">
             {categoryNum} <span className="text-[#b7b1a6]">/</span> {meta.enName}
           </p>
           <h1 className="mt-1.5 text-[27px] font-bold leading-[1.2] tracking-tight text-[#151515] sm:text-[42px]">
             {category.title}
           </h1>
         </div>
-        <span className="shrink-0 whitespace-nowrap rounded-full bg-[#eef2e8] px-3 py-1 text-[13px] font-medium text-[#4b5b3e] sm:mt-2">
+        <span className="shrink-0 whitespace-nowrap rounded-full bg-[var(--ws-tint)] px-3 py-1 text-[13px] font-medium text-[var(--ws-ink)] sm:mt-2">
           {answeredCount} / {total} 回答済み
         </span>
       </div>
@@ -291,7 +293,7 @@ export default function WorksheetSectionDetail({
       {/* 自動保存の状態 + AI相談導線（カテゴリ内で1回だけ） */}
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#8a8578]">
         <span className="inline-flex items-center gap-1.5">
-          <CheckIcon className="h-3.5 w-3.5 text-[#5f7050]" />
+          <CheckIcon className="h-3.5 w-3.5 text-[var(--ws-ink)]" />
           {saveStatus === "saving"
             ? "保存中…"
             : hasRestored && answeredCount > 0
@@ -330,31 +332,29 @@ export default function WorksheetSectionDetail({
               <article
                 className="overflow-hidden rounded-[22px] border border-[#e5dfd6] bg-white shadow-card"
               >
-                {/* header 帯（縦に並ぶので少しコンパクトに。デザインは維持） */}
-                <div
-                  className="relative overflow-hidden px-5 py-4 sm:px-7 sm:py-5"
-                  style={{ backgroundColor: theme.bg }}
-                >
+                {/* header 帯。地色は一覧カードのフッター帯と同じテーマ色（--ws-tint）。
+                    大きな番号・曲線・点という装飾の構成と alpha の考え方はそのままで、
+                    地色が淡くなったぶん白→同系の濃色（--ws-ink-*）に反転させている。 */}
+                <div className="relative overflow-hidden bg-[var(--ws-tint)] px-5 py-4 sm:px-7 sm:py-5">
                   <svg
                     aria-hidden
                     viewBox="0 0 200 110"
                     preserveAspectRatio="none"
                     className="pointer-events-none absolute right-0 top-0 h-full w-1/2"
                   >
-                    <path d="M40 120 C 120 110, 150 35, 210 -10" fill="none" stroke="rgba(255,255,255,0.26)" strokeWidth="1.4" />
-                    <circle cx="196" cy="13" r="2.6" fill="rgba(255,255,255,0.45)" />
+                    <path d="M40 120 C 120 110, 150 35, 210 -10" fill="none" stroke="var(--ws-ink-line)" strokeWidth="1.4" />
+                    <circle cx="196" cy="13" r="2.6" fill="var(--ws-ink-dot)" />
                   </svg>
                   <div className="relative flex items-center gap-4">
                     <span
                       aria-hidden
-                      className="select-none font-serif text-[30px] font-semibold leading-none sm:text-[48px]"
-                      style={{ color: theme.numeral }}
+                      className="select-none font-serif text-[30px] font-semibold leading-none text-[var(--ws-ink-numeral)] sm:text-[48px]"
                     >
                       {num}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-[11px] font-semibold tracking-wide text-white/70">質問</p>
-                      <h2 className="mt-0.5 text-[18px] font-bold leading-snug text-white sm:text-xl">
+                      <p className="text-[11px] font-semibold tracking-wide text-[var(--ws-ink)]">質問</p>
+                      <h2 className="mt-0.5 text-[18px] font-bold leading-snug text-[#1c1c1c] sm:text-xl">
                         {q.heading}
                       </h2>
                     </div>
@@ -380,13 +380,13 @@ export default function WorksheetSectionDetail({
               <section className="overflow-hidden rounded-[22px] border border-[#e5dfd6] bg-white shadow-card">
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-[#efeae1] px-5 py-3.5 sm:px-7">
                   <p className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#1c1c1c]">
-                    <PencilIcon className="h-4 w-4 text-[#5f7050]" />
+                    <PencilIcon className="h-4 w-4 text-[var(--ws-ink)]" />
                     あなたの回答
                   </p>
                   {/* 既存の AI 相談導線（/widget）と同じ action・同じ route。新しい API は作らない。 */}
                   <Link
                     href="/widget"
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[#eef2e8] px-3 py-1.5 text-xs font-medium text-[#4b5b3e] transition-colors hover:bg-[#e3ead9]"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--ws-tint)] px-3 py-1.5 text-xs font-medium text-[var(--ws-ink)] transition-colors hover:bg-[var(--ws-tint-hover)]"
                   >
                     <ChatIcon className="h-3.5 w-3.5" />
                     AIと整理する
@@ -398,8 +398,8 @@ export default function WorksheetSectionDetail({
                       既存データから出せる値が無い状態では文章を作らず、空の状態だけを示す
                       （回答本文からクライアント側で要約を作ることはしない）。 */}
                   {SHOW_ANSWER_SUMMARY && answered && (
-                    <div className="rounded-[14px] bg-[#f3f6ef] px-4 py-3">
-                      <p className="text-[11px] font-semibold tracking-wide text-[#5f7050]">回答の要点</p>
+                    <div className="rounded-[14px] bg-[var(--ws-tint)] px-4 py-3">
+                      <p className="text-[11px] font-semibold tracking-wide text-[var(--ws-ink)]">回答の要点</p>
                       <p className="mt-1 text-[13px] leading-relaxed text-[#8a8578]">
                         回答を整理すると、ここに要点が表示されます。
                       </p>
@@ -488,8 +488,8 @@ export default function WorksheetSectionDetail({
         <aside className="lg:sticky lg:top-8 lg:self-start">
           <div className="rounded-[18px] border border-[#e5dfd6] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#eef2e8]">
-                <LightbulbIcon className="h-4 w-4 text-[#5f7050]" />
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--ws-tint)]">
+                <LightbulbIcon className="h-4 w-4 text-[var(--ws-ink)]" />
               </span>
               <p className="text-[15px] font-semibold text-[#1c1c1c]">このテーマで見えてきたこと</p>
             </div>
@@ -503,7 +503,7 @@ export default function WorksheetSectionDetail({
                   {writtenChips.map((chip) => (
                     <li
                       key={chip}
-                      className="rounded-lg bg-[#eef2e8] px-3 py-1.5 text-[13px] leading-snug text-[#3f3a34]"
+                      className="rounded-lg bg-[var(--ws-tint)] px-3 py-1.5 text-[13px] leading-snug text-[#3f3a34]"
                     >
                       {chip}
                     </li>

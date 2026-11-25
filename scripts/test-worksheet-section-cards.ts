@@ -141,17 +141,16 @@ console.log("Test 5: hover は控えめ / 読み込みで高さが動かない")
 
 console.log("Test 6: 色が付くのはフッター帯だけ / 6 テーマぶんそろっている");
 {
-  const footers = [...src.matchAll(/(\w+): \{ footer: "bg-\[(#[0-9a-f]{6})\]", accent: "(#[0-9a-f]{6})" \},/g)];
-  assert(footers.length === CATEGORIES.length, `テーマ色は ${CATEGORIES.length} 件ぶん定義されている（実際: ${footers.length}）`);
-  for (const category of CATEGORIES) {
-    assert(
-      footers.some((m) => m[1] === category.id),
-      `${category.id} のフッター色とアクセント色が SECTION_THEME にある`,
-    );
-  }
-  assert(new Set(footers.map((m) => m[2])).size === CATEGORIES.length, "6 テーマのフッター色はすべて違う");
-  assert(src.includes("${theme?.footer ?? \"\"}"), "フッターの地色は SECTION_THEME 1 か所から受け取る");
-  assert(src.includes('accent={theme?.accent ?? "#c9ddd2"}'), "イラストのアクセントも同じテーマから受け取る");
+  // 色の中身は scripts/test-worksheet-section-theme.ts（一覧と詳細の共通定義元）で確認する。
+  // ここで固定するのは「一覧カードがその共通定義だけを見ている」こと。
+  assert(
+    src.includes('from "@/lib/worksheetSectionTheme"'),
+    "テーマ色は共通モジュール（lib/worksheetSectionTheme.ts）から読む",
+  );
+  assert(!src.includes("const SECTION_THEME"), "一覧カードの中にテーマ色を二重定義していない");
+  assert(src.includes("worksheetSectionTheme(category.id)"), "テーマは既存の category.id で引く");
+  assert(src.includes("style={{ backgroundColor: theme.tint }}"), "フッターの地色は共通テーマの tint");
+  assert(src.includes("accent={theme.accent}"), "イラストのアクセントも同じテーマから受け取る");
 
   // ステータス自体には地色を付けない（状態はドットと文言だけで表す）
   assert(!code.includes("statusPillClass"), "ステータスのピル背景（statusPillClass）は残っていない");

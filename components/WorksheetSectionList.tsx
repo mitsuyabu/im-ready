@@ -8,6 +8,7 @@ import type { LoadedPlanWorksheet } from "@/lib/planWorksheet";
 import { resolvePlanWorksheetForDisplay, serverWorksheetStateOrNull } from "@/lib/planWorksheetClient";
 import { countAnsweredInCategory, type WorksheetProgress } from "@/lib/worksheetProgress";
 import { WORKSHEET_SECTION_META } from "@/lib/worksheetSectionMeta";
+import { worksheetSectionTheme } from "@/lib/worksheetSectionTheme";
 
 function PaperclipIcon({ className }: { className?: string }) {
   return (
@@ -131,20 +132,12 @@ const SECTION_ILLO: Record<string, (props: IlloProps) => React.JSX.Element> = {
   nextstep: NextStepIllo,
 };
 
-/**
- * テーマごとの色。**カード本体は白のまま**で、色が付くのは下部フッター帯と
- * イラストのアクセント（塗り）だけ。彩度は低く、白との差は 1.1 倍程度に留める。
+/*
+ * テーマごとの色は lib/worksheetSectionTheme.ts に集約した（テーマ詳細画面と共用）。
+ * **カード本体は白のまま**で、色が付くのは下部フッター帯（theme.tint）と
+ * イラストのアクセント（theme.accent）だけ。彩度は低く、白との差は 1.1 倍程度。
  * 進捗の状態（整理済み / 整理中 / 未整理）とは無関係で、状態はドットの色だけで表す。
- * テーマを増減するときはここだけ足せばよい（引けなければ色を付けずに描画する）。
  */
-const SECTION_THEME: Record<string, { footer: string; accent: string }> = {
-  motivation: { footer: "bg-[#fff1ea]", accent: "#f0c9b5" },
-  future: { footer: "bg-[#edf6f7]", accent: "#c6dde2" },
-  conditions: { footer: "bg-[#f0f5e9]", accent: "#c9ddd2" },
-  priorities: { footer: "bg-[#fff6df]", accent: "#ecd8a8" },
-  anxiety: { footer: "bg-[#f5f0f8]", accent: "#d7cbe6" },
-  nextstep: { footer: "bg-[#eef6f4]", accent: "#c3ddd6" },
-};
 
 type SectionState = "complete" | "partial" | "empty";
 
@@ -244,7 +237,7 @@ export default function WorksheetSectionList({
         {CATEGORIES.map((category, index) => {
           const meta = WORKSHEET_SECTION_META[category.id];
           const Illo = SECTION_ILLO[category.id];
-          const theme = SECTION_THEME[category.id];
+          const theme = worksheetSectionTheme(category.id);
           const progress = progressByCategory?.[category.id];
           const state: SectionState | null = progress
             ? progress.answered >= progress.total
@@ -267,7 +260,7 @@ export default function WorksheetSectionList({
                 {Illo && (
                   <Illo
                     className="h-12 w-12 shrink-0 text-[#3f3d38] sm:h-14 sm:w-14"
-                    accent={theme?.accent ?? "#c9ddd2"}
+                    accent={theme.accent}
                   />
                 )}
               </div>
@@ -283,7 +276,8 @@ export default function WorksheetSectionList({
                 state が決まる前も帯と高さはそのまま出すので、描画後に高さが動かない。
               */}
               <div
-                className={`-mx-7 -mb-7 mt-auto flex min-h-[22px] items-center gap-2 px-7 py-3.5 text-[12px] text-[#67635b] sm:-mx-8 sm:-mb-8 sm:px-8 ${theme?.footer ?? ""}`}
+                className="-mx-7 -mb-7 mt-auto flex min-h-[22px] items-center gap-2 px-7 py-3.5 text-[12px] text-[#67635b] sm:-mx-8 sm:-mb-8 sm:px-8"
+                style={{ backgroundColor: theme.tint }}
               >
                 {state && (
                   <>

@@ -41,6 +41,18 @@
   --worksheet-sage-hover: #c9ddd2;
 
   /*
+   * Worksheet のテーマ別カラーの既定値。
+   * 色そのものは lib/worksheetSectionTheme.ts が持っていて、テーマ詳細画面が
+   * worksheetSectionThemeVars() でこの 3 つを上書きする。ここで既定値を置いているのは、
+   * テーマの外（= 匿名 Worksheet /worksheet）で同じクラスを使っている記入例ボタンが
+   * 従来どおりセージのまま出るようにするため。--worksheet-sage 自体は
+   * Chat のアバターや AppNav の hover など他でも使っているので、そちらは変えない。
+   */
+  --ws-tint: var(--worksheet-sage);
+  --ws-tint-hover: var(--worksheet-sage-hover);
+  --ws-ink: var(--worksheet-primary);
+
+  /*
    * カードの elevation（**ここ1か所**で主要カードに効く）。
    * アプリ背景が白になったぶん、カードが背景に溶けないように「やわらかく浮かせる」。
    * 1 層目は輪郭を締める接地影、2 層目は広い blur の拡散影で、どちらも opacity は低め。
