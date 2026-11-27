@@ -39,7 +39,7 @@ function XIcon({ className }: { className?: string }) {
 }
 
 const SELECT_CLS =
-  "min-h-[40px] w-full max-w-[220px] rounded-xl border border-[#d8d1c5] bg-[#fffefa] px-2.5 py-1.5 text-base font-medium text-[#3f3c37] focus:outline-none focus:ring-2 focus:ring-[#c9d3bb]/50 disabled:opacity-50 sm:text-[13px]";
+  "min-h-[40px] w-full max-w-[220px] rounded-xl border border-[var(--mk-border)] bg-[#ffffff] px-2.5 py-1.5 text-base font-medium text-[var(--mk-body)] focus:outline-none focus:ring-2 focus:ring-[#c9d3bb]/50 disabled:opacity-50 sm:text-[13px]";
 
 export default function EditableAccommodation({
   planId,
@@ -132,8 +132,8 @@ export default function EditableAccommodation({
     <div>
       {accs.length === 0 && !showCandidate && (
         <div className="mt-4">
-          <p className="text-sm text-[#7d776c]">滞在方法はまだ設定していません。</p>
-          <p className="mt-1 text-xs leading-relaxed text-[#8a8578]">
+          <p className="text-sm text-[var(--mk-sub)]">滞在方法はまだ設定していません。</p>
+          <p className="mt-1 text-xs leading-relaxed text-[var(--mk-sub)]">
             ホームステイやシェアハウスなど、どんなふうに住むかを期間つきで残せます。
           </p>
         </div>
@@ -142,7 +142,7 @@ export default function EditableAccommodation({
       {accs.length > 0 && (
         <ul className="mt-4 space-y-2">
           {accs.map((a) => (
-            <li key={a.id} className="rounded-xl border border-[#e5dfd6] bg-white px-3 py-2.5">
+            <li key={a.id} className="rounded-xl border border-[var(--mk-border)] bg-white px-3 py-2.5">
               <div className="flex items-center justify-between gap-2">
                 {editingEnabled ? (
                   <label className="min-w-0 flex-1">
@@ -171,7 +171,7 @@ export default function EditableAccommodation({
                     onClick={() => handleDelete(a.id)}
                     disabled={disabled}
                     aria-label="この滞在方法を削除"
-                    className="shrink-0 rounded-lg p-1 text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
+                    className="shrink-0 rounded-lg p-1 text-[var(--mk-sub)] transition-colors hover:bg-[var(--mk-block)] hover:text-[var(--mk-label)] disabled:opacity-40"
                   >
                     <XIcon className="h-3.5 w-3.5" />
                   </button>
@@ -190,12 +190,12 @@ export default function EditableAccommodation({
                       void handleLabel(a.id, e.target.value);
                     }
                   }}
-                  className="mt-2 w-full max-w-[280px] rounded-lg border border-[#e6e2d8] bg-white px-3 py-1.5 text-sm text-[#172033] placeholder:text-[#a7a08f] focus:outline-none focus:ring-2 focus:ring-[#c9d3bb]/40 disabled:opacity-60"
+                  className="mt-2 w-full max-w-[280px] rounded-lg border border-[var(--mk-border)] bg-white px-3 py-1.5 text-sm text-[var(--mk-ink)] placeholder:text-[var(--mk-sub)] focus:outline-none focus:ring-2 focus:ring-[#c9d3bb]/40 disabled:opacity-60"
                 />
               )}
 
               {editingEnabled && (
-                <div className="mt-2 border-t border-[#eef0e9] pt-2.5">
+                <div className="mt-2 border-t border-[var(--mk-block)] pt-2.5">
                   <PlanTimingControl
                     startMonth={a.startMonth}
                     durationMonths={a.durationMonths}
@@ -229,18 +229,18 @@ export default function EditableAccommodation({
       )}
 
       {showCandidate && candidate && editingEnabled && (
-        <div className="mt-4 rounded-xl border border-dashed border-[#d9d3c8] bg-[#f6f4ec] px-4 py-3">
-          <p className="text-[10px] font-semibold tracking-wide text-[#6b665d]">Karteからの候補</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-[#7d776c]">
+        <div className="mt-4 rounded-xl border border-dashed border-[var(--mk-border)] bg-[var(--mk-block)] px-4 py-3">
+          <p className="text-[10px] font-semibold tracking-wide text-[var(--mk-label)]">Karteからの候補</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--mk-sub)]">
             会話やWorksheetから見えている滞在方法の希望
           </p>
           <div className="mt-2 flex items-center justify-between gap-3">
-            <span className="min-w-0 text-sm leading-snug text-[#6f6a64]">{candidate.label}</span>
+            <span className="min-w-0 text-sm leading-snug text-[var(--mk-sub)]">{candidate.label}</span>
             <button
               type="button"
               onClick={handleAdoptCandidate}
               disabled={disabled}
-              className="shrink-0 rounded-full border border-[#c9c2b4] bg-white px-2.5 py-1 text-[11px] font-medium text-[#3a4a5f] transition-colors hover:bg-[#efe9db] disabled:opacity-40"
+              className="shrink-0 rounded-full border border-[var(--mk-border)] bg-white px-2.5 py-1 text-[11px] font-medium text-[#3a4a5f] transition-colors hover:bg-[var(--mk-block)] disabled:opacity-40"
             >
               {busy === "adopt" ? "追加中…" : "＋ Planに追加"}
             </button>

@@ -216,8 +216,8 @@ export default function EditableDestination({
     <div>
       {nothing && (
         <div className="mt-4">
-          <p className="text-sm text-[#7d776c]">行ってみたい都市がまだありません。</p>
-          <p className="mt-1 text-xs leading-relaxed text-[#8a8578]">
+          <p className="text-sm text-[var(--mk-sub)]">行ってみたい都市がまだありません。</p>
+          <p className="mt-1 text-xs leading-relaxed text-[var(--mk-sub)]">
             暮らしたい場所や旅してみたい場所を、ここに残していきます。
           </p>
         </div>
@@ -225,7 +225,7 @@ export default function EditableDestination({
 
       {primary && (
         <div className="mt-4">
-          <p className="text-[10px] font-medium tracking-wide text-[#6b665d]">最初の滞在都市</p>
+          <p className="text-[10px] font-medium tracking-wide text-[var(--mk-label)]">最初の滞在都市</p>
           <div className="mt-1 flex items-center gap-2">
             <span className="inline-flex rounded-xl border border-[#cfdbe6] bg-[#eef3f7] px-4 py-2 text-base font-semibold text-[#2f3a4a]">
               {primary.label}
@@ -236,7 +236,7 @@ export default function EditableDestination({
                 onClick={handleDeletePrimary}
                 disabled={disabled}
                 aria-label={`最初の滞在都市「${primary.label}」を外す`}
-                className="rounded-lg p-1 text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
+                className="rounded-lg p-1 text-[var(--mk-sub)] transition-colors hover:bg-[var(--mk-block)] hover:text-[var(--mk-label)] disabled:opacity-40"
               >
                 <XIcon className="h-4 w-4" />
               </button>
@@ -247,14 +247,14 @@ export default function EditableDestination({
 
       {interested.length > 0 && (
         <div className="mt-4">
-          <p className="text-[10px] font-medium tracking-wide text-[#6b665d]">行ってみたい都市</p>
+          <p className="text-[10px] font-medium tracking-wide text-[var(--mk-label)]">行ってみたい都市</p>
           <ul className="mt-1.5 space-y-1.5">
             {interested.map((d) => (
               <li
                 key={d.id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-[#e5dfd6] bg-white px-3 py-2"
+                className="flex items-center justify-between gap-2 rounded-xl border border-[var(--mk-border)] bg-white px-3 py-2"
               >
-                <span className="min-w-0 text-[13px] text-[#3f3a34]">{d.label}</span>
+                <span className="min-w-0 text-[13px] text-[var(--mk-body)]">{d.label}</span>
                 {editingEnabled && (
                   <span className="flex shrink-0 items-center gap-1">
                     <button
@@ -270,7 +270,7 @@ export default function EditableDestination({
                       onClick={() => handleDeleteInterested(d.id)}
                       disabled={disabled}
                       aria-label={`「${d.label}」を削除`}
-                      className="rounded-full p-1 text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
+                      className="rounded-full p-1 text-[var(--mk-sub)] transition-colors hover:bg-[var(--mk-block)] hover:text-[var(--mk-label)] disabled:opacity-40"
                     >
                       <XIcon className="h-3.5 w-3.5" />
                     </button>
@@ -285,7 +285,7 @@ export default function EditableDestination({
       {editingEnabled && (
         <div className="mt-3">
           {adding ? (
-            <div className="rounded-xl border border-[#e0d9ca] bg-[#faf8f2] p-3">
+            <div className="rounded-xl border border-[var(--mk-border)] bg-[var(--mk-block)] p-3">
               <label htmlFor="add-destination" className="sr-only">
                 行ってみたい都市を追加
               </label>
@@ -304,14 +304,14 @@ export default function EditableDestination({
                 maxLength={120}
                 autoFocus
                 disabled={disabled}
-                className="w-full rounded-lg border border-[#e6e2d8] bg-white px-3 py-2 text-sm text-[#172033] placeholder:text-[#a7a08f] focus:outline-none focus:ring-2 focus:ring-worksheet-accent/30 disabled:opacity-60"
+                className="w-full rounded-lg border border-[var(--mk-border)] bg-white px-3 py-2 text-sm text-[var(--mk-ink)] placeholder:text-[var(--mk-sub)] focus:outline-none focus:ring-2 focus:ring-worksheet-accent/30 disabled:opacity-60"
               />
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
                   onClick={handleAdd}
                   disabled={disabled}
-                  className="inline-flex min-h-[36px] items-center rounded-full bg-[#1e2b3d] px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#172033] disabled:opacity-40"
+                  className="btn-primary min-h-[36px] px-4 py-1.5 disabled:opacity-40"
                 >
                   {busy === "add" ? "追加中…" : "追加"}
                 </button>
@@ -323,7 +323,7 @@ export default function EditableDestination({
                     setError(null);
                   }}
                   disabled={disabled}
-                  className="inline-flex min-h-[36px] items-center rounded-full px-3 py-1.5 text-sm text-[#6f6a64] transition-colors hover:bg-[#f0ece2] disabled:opacity-40"
+                  className="inline-flex min-h-[36px] items-center rounded-full px-3 py-1.5 text-sm text-[var(--mk-sub)] transition-colors hover:bg-[var(--mk-block)] disabled:opacity-40"
                 >
                   キャンセル
                 </button>
@@ -337,7 +337,7 @@ export default function EditableDestination({
                 setSaved(false);
                 setError(null);
               }}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#e0d9ca] bg-[#f6f2e8] px-3.5 py-1.5 text-[13px] font-medium text-[#3a4a5f] transition-colors hover:bg-[#efe9db]"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--mk-border)] bg-[var(--mk-block)] px-3.5 py-1.5 text-[13px] font-medium text-[#3a4a5f] transition-colors hover:bg-[var(--mk-block)]"
             >
               <span aria-hidden>＋</span>
               都市を追加
@@ -349,15 +349,15 @@ export default function EditableDestination({
       {/* 滞在スケジュール（stays）: 都市 / 開始時期（0=到着時）/ 期間。同じ都市を複数回可。 */}
       {(stays.length > 0 || (editingEnabled && cityOptions.length > 0)) && (
         <div className="mt-5">
-          <p className="text-[10px] font-medium tracking-wide text-[#6b665d]">滞在スケジュール</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-[#8a8578]">
+          <p className="text-[10px] font-medium tracking-wide text-[var(--mk-label)]">滞在スケジュール</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--mk-sub)]">
             どの都市に、いつから、どれくらい滞在するか。同じ都市を後から追加すれば「戻る」も表せます。
           </p>
           <ul className="mt-2 space-y-2">
             {stays.map((s) => {
               const opts = cityOptions.includes(s.city) ? cityOptions : [s.city, ...cityOptions];
               return (
-                <li key={s.id} className="rounded-xl border border-[#e5dfd6] bg-white px-3 py-2.5">
+                <li key={s.id} className="rounded-xl border border-[var(--mk-border)] bg-white px-3 py-2.5">
                   <div className="flex items-center justify-between gap-2">
                     {editingEnabled ? (
                       <label className="min-w-0 flex-1">
@@ -366,7 +366,7 @@ export default function EditableDestination({
                           value={s.city}
                           disabled={disabled}
                           onChange={(e) => handleStayCity(s.id, e.target.value)}
-                          className="min-h-[36px] w-full max-w-[220px] rounded-lg border border-[#d8d1c5] bg-[#fffefa] px-2 py-1 text-base font-medium text-[#2f3a4a] focus:outline-none focus:ring-2 focus:ring-[#c9d3bb]/50 disabled:opacity-50 sm:text-[13px]"
+                          className="min-h-[36px] w-full max-w-[220px] rounded-lg border border-[var(--mk-border)] bg-[#ffffff] px-2 py-1 text-base font-medium text-[#2f3a4a] focus:outline-none focus:ring-2 focus:ring-[#c9d3bb]/50 disabled:opacity-50 sm:text-[13px]"
                         >
                           {opts.map((c) => (
                             <option key={c} value={c}>
@@ -384,14 +384,14 @@ export default function EditableDestination({
                         onClick={() => handleDeleteStay(s.id)}
                         disabled={disabled}
                         aria-label={`「${s.city}」の滞在を削除`}
-                        className="shrink-0 rounded-lg p-1 text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
+                        className="shrink-0 rounded-lg p-1 text-[var(--mk-sub)] transition-colors hover:bg-[var(--mk-block)] hover:text-[var(--mk-label)] disabled:opacity-40"
                       >
                         <XIcon className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
                   {editingEnabled && (
-                    <div className="mt-2 border-t border-[#eef0e9] pt-2.5">
+                    <div className="mt-2 border-t border-[var(--mk-block)] pt-2.5">
                       <PlanTimingControl
                         startMonth={s.startMonth}
                         durationMonths={s.durationMonths}
@@ -421,7 +421,7 @@ export default function EditableDestination({
             </button>
           )}
           {editingEnabled && cityOptions.length === 0 && (
-            <p className="mt-1 text-[11px] text-[#8a8578]">
+            <p className="mt-1 text-[11px] text-[var(--mk-sub)]">
               先に「都市を追加」から滞在する都市を登録してください。
             </p>
           )}
@@ -429,21 +429,21 @@ export default function EditableDestination({
       )}
 
       {openCandidates.length > 0 && (
-        <div className="mt-4 rounded-xl border border-dashed border-[#d9d3c8] bg-[#f6f4ec] px-4 py-3">
-          <p className="text-[10px] font-semibold tracking-wide text-[#6b665d]">Karteからの候補</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-[#7d776c]">
+        <div className="mt-4 rounded-xl border border-dashed border-[var(--mk-border)] bg-[var(--mk-block)] px-4 py-3">
+          <p className="text-[10px] font-semibold tracking-wide text-[var(--mk-label)]">Karteからの候補</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--mk-sub)]">
             会話やWorksheetから見えている内容
           </p>
           <ul className="mt-2.5 space-y-2">
             {openCandidates.map((c) => (
               <li key={c.key} className="flex items-start justify-between gap-3">
-                <span className="min-w-0 text-sm leading-snug text-[#6f6a64]">{c.label}</span>
+                <span className="min-w-0 text-sm leading-snug text-[var(--mk-sub)]">{c.label}</span>
                 {editingEnabled && (
                   <button
                     type="button"
                     onClick={() => handleAdopt(c)}
                     disabled={disabled}
-                    className="shrink-0 rounded-full border border-[#c9c2b4] bg-white px-2.5 py-1 text-[11px] font-medium text-[#3a4a5f] transition-colors hover:bg-[#efe9db] disabled:opacity-40"
+                    className="shrink-0 rounded-full border border-[var(--mk-border)] bg-white px-2.5 py-1 text-[11px] font-medium text-[#3a4a5f] transition-colors hover:bg-[var(--mk-block)] disabled:opacity-40"
                   >
                     {busy === `adopt:${c.key}` ? "追加中…" : "＋ Planに追加"}
                   </button>
@@ -456,10 +456,10 @@ export default function EditableDestination({
 
       {hints.length > 0 && (
         <div className="mt-3">
-          <p className="text-[10px] font-medium tracking-wide text-[#8a8578]">都市選びのヒント</p>
+          <p className="text-[10px] font-medium tracking-wide text-[var(--mk-sub)]">都市選びのヒント</p>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {hints.map((h) => (
-              <span key={h.key} className="text-xs text-[#6b665d]">
+              <span key={h.key} className="text-xs text-[var(--mk-label)]">
                 {h.label}
               </span>
             ))}

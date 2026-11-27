@@ -25,6 +25,7 @@ import {
   interpretPlanDeleteResult,
   planLocalStorageKeys,
 } from "@/lib/planDelete";
+import { saveComparisonBoard } from "@/lib/comparisonBoardStorage";
 import { savePendingConsultationChange } from "@/lib/consultationSheetSync";
 import { savePendingWorksheetChange, saveWorksheetState } from "@/lib/worksheetStorage";
 
@@ -116,7 +117,7 @@ console.log("Test 1: 削除結果の判定（エラーが無いことを成功�
 console.log("Test 2: localStorage は、この Plan に属すると確認できるキーだけ消す");
 {
   const keys = planLocalStorageKeys(PLAN_ID);
-  assert(keys.length === 3, `対象キーは 3 件（実際: ${keys.length}）`);
+  assert(keys.length === 4, `対象キーは 4 件（実際: ${keys.length}）`);
   assert(
     keys.every((k) => k.includes(PLAN_ID)),
     "すべてのキーに planId が含まれている（前方一致で広く消さない）",
@@ -124,6 +125,7 @@ console.log("Test 2: localStorage は、この Plan に属すると確認でき�
   assert(keys.includes(`ryugaku-worksheet-answers:plan:${PLAN_ID}`), "Plan のワークシート回答のキー");
   assert(keys.includes(`ryugaku-worksheet-pending:plan:${PLAN_ID}`), "Plan のワークシート未保存控えのキー");
   assert(keys.includes(`ryugaku-consultation-pending:plan:${PLAN_ID}`), "Plan の相談シート未保存控えのキー");
+  assert(keys.includes(`ryugaku-comparison-board:plan:${PLAN_ID}`), "Plan の比較ボードのキー");
   assert(planLocalStorageKeys("  ").length === 0, "planId が空なら 1 件も対象にしない");
 
   // 列挙したキーが、実際に各モジュールが書き込むキーと一致していること（列挙漏れ・ずれの検出）
@@ -152,6 +154,7 @@ console.log("Test 2: localStorage は、この Plan に属すると確認でき�
       base: { topics: [], todos: [], findings: [], nextActions: [], handledCandidateKeys: [] },
       local: { topics: [], todos: [], findings: [], nextActions: [], handledCandidateKeys: [] },
     });
+    saveComparisonBoard(PLAN_ID, { options: [{ id: "o1", name: "案1", values: {} }] });
   } finally {
     (globalThis as { window?: unknown }).window = originalWindow;
   }
@@ -168,6 +171,7 @@ console.log("Test 3: 他の Plan・匿名利用・ログイン情報のキーは
     [`ryugaku-worksheet-answers:plan:${PLAN_ID}`]: "1",
     [`ryugaku-worksheet-pending:plan:${PLAN_ID}`]: "1",
     [`ryugaku-consultation-pending:plan:${PLAN_ID}`]: "1",
+    [`ryugaku-comparison-board:plan:${PLAN_ID}`]: "1",
     // 消してはいけないもの
     [`ryugaku-worksheet-answers:plan:${OTHER_PLAN_ID}`]: "keep",
     [`ryugaku-consultation-pending:plan:${OTHER_PLAN_ID}`]: "keep",
@@ -177,7 +181,7 @@ console.log("Test 3: 他の Plan・匿名利用・ログイン情報のキーは
   });
 
   const removed = clearPlanLocalStorage(PLAN_ID, other.api);
-  assert(removed.length === 3, `消したのは 3 件だけ（実際: ${removed.length}）`);
+  assert(removed.length === 4, `消したのは 4 件だけ（実際: ${removed.length}）`);
   assert(other.store.get(`ryugaku-worksheet-answers:plan:${OTHER_PLAN_ID}`) === "keep", "他の Plan の回答は残る");
   assert(other.store.get(`ryugaku-consultation-pending:plan:${OTHER_PLAN_ID}`) === "keep", "他の Plan の控えは残る");
   assert(other.store.get("ryugaku-worksheet-answers") === "keep", "匿名 Worksheet の保存は残る");

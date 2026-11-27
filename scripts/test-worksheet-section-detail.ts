@@ -53,8 +53,8 @@ console.log("Test 1: 質問と回答が別カードに分かれている");
   assert(detail.includes("{q.heading}"), "質問文を表示している");
   assert(detail.includes("{q.supplement}"), "質問の補足説明を表示している");
   assert(
-    detail.includes('<p className="text-[11px] font-semibold tracking-wide text-[var(--ws-ink)]">質問</p>'),
-    "質問カードに「質問」ラベルがある",
+    detail.includes('<p className="mk-eyebrow text-[var(--ws-ink)]">質問</p>'),
+    "質問カードに「質問」ラベルがある（共通の eyebrow クラス + テーマ色）",
   );
   assert(detail.includes("あなたの回答"), "回答カードの見出し「あなたの回答」がある");
   // 質問カードのヘッダー（テーマ色の帯 + 装飾番号）は維持
@@ -93,7 +93,7 @@ console.log("Test 3: 回答の要点は表示しない（正式な生成・保�
   );
   // 回答全文の上マージンもフラグに連動させ、要点が無い状態で余白だけ残らないようにする
   assert(
-    detailCode.includes('className={SHOW_ANSWER_SUMMARY && answered ? "mt-4" : ""}'),
+    detailCode.includes('SHOW_ANSWER_SUMMARY && answered ? "mt-4" : ""'),
     "要点を出さないときは回答全文の上マージンも付けない",
   );
   // クライアント側で回答本文から要約を作っていない（フラグを戻しても作らない）

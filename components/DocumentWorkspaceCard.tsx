@@ -16,6 +16,8 @@ import Link from "next/link";
  * document がある場合だけ「最終更新」と open CTA、無ければ create CTA（判定は呼び出し側）。
  * border / radius / shadow / typography は variant で変えない。variant は淡い背景とアイコンの
  * tone（accent 1 色）だけを切り替える。fake データは扱わない。装飾は aria-hidden。
+ * カード形式そのものは従来どおりで、文字だけ My Karte 共通クラス
+ * （.mk-eyebrow / .mk-card-title / .mk-text / .mk-sub-text）に揃えている。
  * hooks を持たない純粋表示コンポーネント。
  */
 
@@ -33,6 +35,17 @@ export type DocumentWorkspaceCardProps = {
   cta: string;
   /** 親向けのみ true（capability バッジ「共有できる」）。 */
   shareBadge?: boolean;
+  /**
+   * カードの地色を上書きする。既定は variant ごとの淡い tone。
+   * 淡い面（My Karte 下段の「伝える・相談する」）の上に置くときだけ白を渡して、
+   * カードが背景に溶けないようにする（アイコンの accent は variant のまま）。
+   */
+  surface?: string;
+  /**
+   * 右上に差す淡いグラデーションの色。白へ溶け込ませるので全面のベタ塗りにはならない。
+   * 未指定なら何も描かない（従来どおり）。
+   */
+  wash?: string;
   /** grid の col-span 等、配置クラスを呼び出し側から付ける。 */
   className?: string;
 };
@@ -46,8 +59,9 @@ const ACCENT: Record<DocumentWorkspaceVariant, { surface: string; icon: string }
   consult: { surface: "#f7f6f3", icon: "#8e8a97" }, // very light warm gray（5 枚目だけ目立たせない）
 };
 
+/* 角丸・border・影・内余白は My Karte の共通カード（.mk-card / .mk-pad）に合わせる。 */
 const CARD_BASE =
-  "group flex h-full flex-col rounded-[18px] border border-[#e6e1d8] p-5 shadow-card transition-colors duration-150 hover:border-[#cfc8bb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent sm:p-6";
+  "mk-card mk-pad group flex h-full flex-col transition-colors duration-150 hover:border-[#cfc8bb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-worksheet-accent";
 
 function CardIcon({
   variant,
@@ -125,23 +139,28 @@ export default function DocumentWorkspaceCard({
   updatedText,
   cta,
   shareBadge,
+  surface,
+  wash,
   className = "",
 }: DocumentWorkspaceCardProps) {
   const accent = ACCENT[variant];
   return (
     <Link
       href={href}
-      className={`${CARD_BASE} ${className}`}
-      style={{ backgroundColor: accent.surface }}
+      className={`${CARD_BASE} relative overflow-hidden ${className}`}
+      style={{ backgroundColor: surface ?? accent.surface }}
     >
-      <div className="flex items-start justify-between gap-4">
+      {wash && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full"
+          style={{ background: `radial-gradient(circle, ${wash} 0%, rgba(255,255,255,0) 70%)` }}
+        />
+      )}
+      <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium tracking-[0.08em] text-[#8e887e] sm:text-[12px]">
-            {role}
-          </p>
-          <h3 className="mt-1 text-[20px] font-semibold leading-snug tracking-tight text-worksheet-primary sm:text-[22px]">
-            {title}
-          </h3>
+          <p className="mk-eyebrow">{role}</p>
+          <h3 className="mk-card-title mt-1.5 break-words">{title}</h3>
         </div>
         {/* accent はアイコンにだけ乗せる（淡い背景 tone と合わせて 1 色） */}
         <CardIcon
@@ -151,32 +170,30 @@ export default function DocumentWorkspaceCard({
         />
       </div>
 
-      <div className="mt-2.5 min-w-0">
+      <div className="relative mt-3 min-w-0">
         {lines.map((line, i) => (
           <p
             key={i}
-            className={
-              i === 0
-                ? "text-[15px] leading-[1.7] text-[#57534c] sm:text-[15px]"
-                : "mt-1.5 text-[13px] leading-[1.7] text-[#8a857b]"
-            }
+            className={i === 0 ? "mk-text" : "mk-sub-text mt-1.5"}
           >
             {line}
           </p>
         ))}
         {shareBadge && (
-          <p className="mt-2.5 inline-flex rounded-full border border-[#e0dbd0] bg-white/70 px-2 py-0.5 text-[11px] font-medium text-[#6f6a61]">
+          <p className="mk-sub-text mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#e0dbd0] bg-white/70 px-2.5 py-0.5">
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--neon-lime)]" />
             家族と共有できます
           </p>
         )}
       </div>
 
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 pt-5">
-        <span className="inline-flex items-center gap-1 rounded-lg border border-[#d8d2c6] bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#3f3a34] transition-colors duration-150 group-hover:border-[#b6ae9f]">
+      <div className="relative mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 pt-5">
+        {/* hover でだけ蛍光が差す。通常時は白のままで、カード全面は塗らない。 */}
+        <span className="inline-flex items-center gap-1 rounded-full border border-[#d8d2c6] bg-white px-3.5 py-1.5 text-[14px] font-medium text-[var(--mk-ink)] transition-colors duration-150 group-hover:border-[#b7d94a] group-hover:bg-[var(--neon-lime)] group-hover:text-[var(--neon-ink)]">
           {cta}
         </span>
         {updatedText && (
-          <span className="text-[11px] text-[#8e887e]">最終更新: {updatedText}</span>
+          <span className="mk-sub-text">最終更新: {updatedText}</span>
         )}
       </div>
     </Link>

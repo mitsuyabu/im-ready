@@ -19,6 +19,7 @@ import EditableTimeline from "@/components/EditableTimeline";
 import EditablePlanDuration from "@/components/EditablePlanDuration";
 import SavedSchoolMainCard from "@/components/SavedSchoolCard";
 import PlanContextLabel from "@/components/PlanContextLabel";
+import MyPlanOutline from "@/components/MyPlanOutline";
 import { getMyPlanHeroImage } from "@/lib/planCover";
 
 /**
@@ -132,6 +133,44 @@ const SECTION_ACCENT: Record<MyPlanSectionId, string> = {
 const ACCOMMODATION_BAR_COLOR = "#a89abf";
 
 /* ------------------------------------------------------------------ */
+/* タイムラインの蛍光アクセント                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * レーンごとの蛍光色。**役割と色を 1:1 で固定**し、同じ役割に別の色を使わない。
+ *   - DESTINATIONS（都市・移動）   … シアン
+ *   - ACCOMMODATION（滞在先）      … ライム
+ *   - ACTIVITIES（活動・予定）     … イエロー
+ * 見出し横の小さな点・バーの始点・カード上端のアクセントは、すべてこの色で揃える。
+ * 既存のパステル（PHASE_PALETTE / ACCOMMODATION_BAR_COLOR）が持つ
+ * 「都市と活動の対応関係」は変えず、その上に少量だけ重ねる。
+ */
+const LANE_NEON = {
+  destinations: "var(--neon-blue)",
+  accommodation: "var(--neon-lime)",
+  activities: "var(--neon-yellow)",
+} as const;
+
+/**
+ * 期間バーの始点だけを蛍光色にする背景。
+ * px 指定なので **バーの長さ・開始位置・終了位置には一切影響しない**
+ * （1ヶ月の短いバーでも蛍光が占める幅は同じ 10px）。
+ */
+function barWithNeonStart(pastel: string, neon: string): string {
+  return `linear-gradient(90deg, ${neon} 0px, ${neon} 7px, ${pastel} 11px, ${pastel} 100%)`;
+}
+
+/** レーン見出し（DESTINATIONS など）の左に置く小さな点。 */
+function LaneLabel({ children, dot }: { children: React.ReactNode; dot: string }) {
+  return (
+    <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--mk-sub)]">
+      <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} />
+      {children}
+    </p>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Monthly summary timeline（YOUR PLAN AT A GLANCE の直下・横図）           */
 /* 役割は「1年の流れをひと目で」。詳細な activities / 理由は下の Timeline が担う。  */
 /* ------------------------------------------------------------------ */
@@ -151,16 +190,16 @@ const PHASE_PALETTE: { node: string; pillBg: string; pillText: string }[] = [
 ];
 
 /** decorative serif number の色（§19 第一候補）。 */
-const SERIF_NUMBER_COLOR = "#d8d1c5";
+const SERIF_NUMBER_COLOR = "#e7e8e4";
 
 /** status badge（小さく・強調しすぎない・§18）。saved=sage / AI=pale blue / considering=sand。 */
 const PHASE_STATUS_BADGE: Record<
   MyPlanTimelinePhase["status"],
   { label: string; cls: string }
 > = {
-  saved: { label: "保存済み", cls: "bg-[#edf1e5] text-[#5f7050]" },
-  "ai-suggested": { label: "AI提案", cls: "bg-[#e9f1f5] text-[#567789]" },
-  considering: { label: "検討中", cls: "bg-[#f6eedf] text-[#8a6a3c]" },
+  saved: { label: "保存済み", cls: "bg-[var(--mk-block)] text-[var(--mk-label)]" },
+  "ai-suggested": { label: "AI提案", cls: "bg-[var(--fn-chat)] text-[var(--mk-ink)]" },
+  considering: { label: "検討中", cls: "bg-[var(--fn-plan)] text-[var(--mk-ink)]" },
 };
 
 /** フェーズ内容に応じた小さな line icon の種類（装飾。keyword→なければ index 順）。 */
@@ -194,7 +233,7 @@ function TimelineNode({ color }: { color: string }) {
   return (
     <span
       aria-hidden
-      className="block h-[18px] w-[18px] rounded-full ring-4 ring-[#fcfbf8]"
+      className="block h-[18px] w-[18px] rounded-full ring-4 ring-[var(--mk-card)]"
       style={{ backgroundColor: color, boxShadow: "0 0 0 1px rgba(30,28,24,0.06)" }}
     />
   );
@@ -215,13 +254,17 @@ function PhaseCard({
   const badge = PHASE_STATUS_BADGE[phase.status];
   return (
     <div
-      className={`relative w-full max-w-[248px] overflow-hidden rounded-[16px] border border-[#e8e2d8] bg-white p-4 shadow-[0_1px_2px_rgba(30,28,24,0.04)] ${className}`}
+      className={`mk-card mk-card-sm relative w-full max-w-[248px] overflow-hidden p-4 ${className}`}
     >
-      {/* phase 色は上辺 accent だけ（カードはベタ塗りにしない・§13/§14） */}
+      {/* phase 色は上辺 accent だけ（カードはベタ塗りにしない・§13/§14）。
+          右端だけ蛍光イエローへ抜けるのは ACTIVITIES カードと同じルール。 */}
       <span
         aria-hidden
         className="absolute inset-x-0 top-0 h-[3px]"
-        style={{ backgroundColor: palette.node }}
+        style={{
+          backgroundColor: palette.node,
+          backgroundImage: `linear-gradient(90deg, ${palette.node} 0%, ${palette.node} 55%, ${LANE_NEON.activities} 100%)`,
+        }}
       />
       {/* decorative serif number（背景・低コントラスト・§19） */}
       <span
@@ -245,11 +288,11 @@ function PhaseCard({
           </span>
         </div>
 
-        <p className="mt-2 text-[17px] font-semibold leading-snug text-[#2f2c26] sm:text-[18px]">
+        <p className="mt-2 text-[17px] font-semibold leading-snug text-[var(--mk-ink)] sm:text-[18px]">
           {phase.title}
         </p>
         {phase.note && (
-          <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-[#746e64]">{phase.note}</p>
+          <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-[var(--mk-sub)]">{phase.note}</p>
         )}
 
         <span
@@ -288,23 +331,37 @@ function TimelineBarCard({
   const badge = PHASE_STATUS_BADGE[status];
   const showNote = note != null && durationMonths >= 2;
   return (
-    <div className="relative w-full min-w-[100px] overflow-hidden rounded-[11px] border border-[#e8e2d8] bg-white px-2.5 py-2 shadow-[0_1px_2px_rgba(30,28,24,0.04)]">
-      <span aria-hidden className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: color }} />
+    <div className="relative w-full min-w-[100px] overflow-hidden rounded-[11px] border border-[var(--mk-border)] bg-white px-2.5 py-2">
+      {/* カード上端の色帯。既存のパステルから、右端だけ蛍光イエローへ抜けるようにした
+          （活動＝イエローの対応は LANE_NEON で固定）。帯の位置・太さは従来どおり。 */}
+      <span
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-[3px]"
+        style={{
+          backgroundColor: color,
+          backgroundImage: `linear-gradient(90deg, ${color} 0%, ${color} 55%, ${LANE_NEON.activities} 100%)`,
+        }}
+      />
       <div className="flex flex-wrap items-center gap-1">
         <span
-          className="inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
-          style={{ backgroundColor: color + "22", color: "#4a4640" }}
+          className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+          style={{ backgroundColor: color + "22", color: "var(--mk-body)" }}
         >
+          <span
+            aria-hidden
+            className="h-1 w-1 shrink-0 rounded-full"
+            style={{ backgroundColor: LANE_NEON.activities }}
+          />
           {rangeLabel}
         </span>
         <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-medium ${badge.cls}`}>
           {badge.label}
         </span>
       </div>
-      <p className="mt-1 text-[12px] font-semibold leading-snug text-[#2f2c26] sm:text-[13px]">
+      <p className="mt-1 text-[12px] font-semibold leading-snug text-[var(--mk-ink)] sm:text-[13px]">
         {title}
       </p>
-      {showNote && <p className="mt-0.5 line-clamp-1 text-[10px] text-[#8a8578]">{note}</p>}
+      {showNote && <p className="mt-0.5 line-clamp-1 text-[10px] text-[var(--mk-sub)]">{note}</p>}
     </div>
   );
 }
@@ -466,16 +523,14 @@ function MonthScaleTimeline({
         {/* 到着アンカー（Month 0・§30 / §56）＋ DESTINATIONS lane（§26 / §27） */}
         {(arrival || destinationPhases.length > 0) && (
           <div className="mb-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7c8a6b]">
-              DESTINATIONS
-            </p>
+            <LaneLabel dot={LANE_NEON.destinations}>DESTINATIONS</LaneLabel>
             {arrival && (
               <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="rounded-full bg-[#e9f1f5] px-1.5 py-0.5 text-[10px] font-semibold text-[#567789]">
+                <span className="rounded-full bg-[var(--neon-blue)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--neon-ink)]">
                   到着
                 </span>
-                <span className="text-[13px] font-semibold text-[#2f3a4a]">{arrival.city}</span>
-                <span className="text-[10px] text-[#8a949c]">最初の滞在都市</span>
+                <span className="text-[13px] font-semibold text-[var(--mk-ink)]">{arrival.city}</span>
+                <span className="text-[10px] text-[var(--mk-sub)]">最初の滞在都市</span>
               </div>
             )}
             {/* 各行: [都市名] [range] を1段目、bar を2段目（重ねない）。時間が重ならない stay は
@@ -487,14 +542,14 @@ function MonthScaleTimeline({
                     {lane.map((it) => (
                       <p
                         key={`${it.phase.key}-label`}
-                        className="absolute top-0 truncate text-[13px] font-medium leading-5 text-[#45413a] sm:text-[14px]"
+                        className="absolute top-0 truncate text-[13px] font-medium leading-5 text-[var(--mk-body)] sm:text-[14px]"
                         style={{
                           left: `${it.labelLeftPercent}%`,
                           maxWidth: `${it.labelMaxPercent}%`,
                         }}
                       >
                         {it.phase.city}
-                        <span className="ml-1.5 text-[11px] font-normal text-[#8a8578] sm:text-[12px]">
+                        <span className="ml-1.5 text-[11px] font-normal text-[var(--mk-sub)] sm:text-[12px]">
                           {it.phase.rangeLabel}
                         </span>
                       </p>
@@ -514,14 +569,20 @@ function MonthScaleTimeline({
                             left: `${it.leftPercent}%`,
                             width: `${it.widthPercent}%`,
                             backgroundColor: pal.node,
+                            // 始点 7px ぶんだけシアン。px 指定なのでバーの長さ・位置は変わらない。
+                            backgroundImage: barWithNeonStart(pal.node, LANE_NEON.destinations),
                           }}
                         />
                       ) : (
                         <span
                           key={`${it.phase.key}-dot`}
                           aria-hidden
-                          className="absolute top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full ring-2 ring-[#fcfbf8]"
-                          style={{ left: `${it.leftPercent}%`, backgroundColor: pal.node }}
+                          className="absolute top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full ring-2 ring-[var(--mk-card)]"
+                          style={{
+                            left: `${it.leftPercent}%`,
+                            backgroundColor: pal.node,
+                            boxShadow: `0 0 0 3px color-mix(in srgb, ${LANE_NEON.destinations} 45%, transparent)`,
+                          }}
                         />
                       );
                     })}
@@ -535,9 +596,7 @@ function MonthScaleTimeline({
         {/* ACCOMMODATION lane（滞在方法・§25 / §27）。soft lavender bar。 */}
         {accommodationPhases.length > 0 && (
           <div className="mb-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7c6f8a]">
-              ACCOMMODATION
-            </p>
+            <LaneLabel dot={LANE_NEON.accommodation}>ACCOMMODATION</LaneLabel>
             {/* 各 record: [滞在方法] [range] を1段目、bar を2段目（重ねない・§14）。 */}
             <div className="mt-1.5 space-y-2.5">
               {accommodationPhases.map((a) => {
@@ -545,11 +604,11 @@ function MonthScaleTimeline({
                 return (
                   <div key={a.key}>
                     <p
-                      className="whitespace-nowrap text-[13px] font-medium text-[#45413a] sm:text-[14px]"
+                      className="whitespace-nowrap text-[13px] font-medium text-[var(--mk-body)] sm:text-[14px]"
                       style={{ marginLeft: `min(${left}%, calc(100% - 180px))` }}
                     >
                       {a.label}
-                      <span className="ml-1.5 text-[11px] font-normal text-[#8a8578] sm:text-[12px]">
+                      <span className="ml-1.5 text-[11px] font-normal text-[var(--mk-sub)] sm:text-[12px]">
                         {a.rangeLabel}
                       </span>
                     </p>
@@ -561,13 +620,22 @@ function MonthScaleTimeline({
                             left: `${left}%`,
                             width: `${barWidthPercent(a.durationMonths, totalMonths)}%`,
                             backgroundColor: ACCOMMODATION_BAR_COLOR,
+                            // 始点 7px ぶんだけライム。px 指定なのでバーの長さ・位置は変わらない。
+                            backgroundImage: barWithNeonStart(
+                              ACCOMMODATION_BAR_COLOR,
+                              LANE_NEON.accommodation,
+                            ),
                           }}
                         />
                       ) : (
                         <span
                           aria-hidden
-                          className="absolute top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full ring-2 ring-[#fcfbf8]"
-                          style={{ left: `${left}%`, backgroundColor: ACCOMMODATION_BAR_COLOR }}
+                          className="absolute top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full ring-2 ring-[var(--mk-card)]"
+                          style={{
+                            left: `${left}%`,
+                            backgroundColor: ACCOMMODATION_BAR_COLOR,
+                            boxShadow: `0 0 0 3px color-mix(in srgb, ${LANE_NEON.accommodation} 45%, transparent)`,
+                          }}
                         />
                       )}
                     </div>
@@ -580,17 +648,34 @@ function MonthScaleTimeline({
 
         {/* month axis: 細い warm-gray line ＋ 各 boundary に small tick（§4）。左端 = 到着 / 0 */}
         <div className="relative h-8">
-          <span aria-hidden className="absolute inset-x-0 bottom-1 h-px bg-[#d8d3ca]" />
+          <span aria-hidden className="absolute inset-x-0 bottom-1 h-px bg-[var(--mk-border)]" />
+          {/* 軸の始点（= 到着）だけ、短い蛍光ラインとドットで視線の起点を示す。
+              実データ（到着 = Month 0）に基づく位置で、現在地や進捗の表示ではない。 */}
+          <span
+            aria-hidden
+            className="absolute bottom-1 h-[2px] rounded-full"
+            style={{
+              left: 0,
+              width: "9%",
+              background:
+                "linear-gradient(90deg, var(--neon-lime) 0%, rgba(216,251,87,0) 100%)",
+            }}
+          />
+          <span
+            aria-hidden
+            className="absolute h-[7px] w-[7px] rounded-full bg-[var(--neon-lime)] ring-2 ring-[var(--mk-card)]"
+            style={{ left: 0, bottom: "1px" }}
+          />
           {Array.from({ length: totalMonths + 1 }, (_, b) => b).map((b) => (
             <span
               key={`t${b}`}
               aria-hidden
-              className="absolute bottom-1 h-2 w-px bg-[#d8d3ca]"
+              className="absolute bottom-1 h-2 w-px bg-[var(--mk-border)]"
               style={{ left: `${boundaryPercent(b, totalMonths)}%` }}
             />
           ))}
           <span
-            className="absolute bottom-3 text-[10px] font-semibold text-[#7c8a6b]"
+            className="absolute bottom-3 text-[10px] font-semibold text-[var(--mk-ink)]"
             style={{ left: "0%" }}
           >
             到着
@@ -598,7 +683,7 @@ function MonthScaleTimeline({
           {labels.map((m) => (
             <span
               key={`l${m}`}
-              className="absolute bottom-3 -translate-x-1/2 text-[10px] font-medium text-[#8a8578]"
+              className="absolute bottom-3 -translate-x-1/2 text-[10px] font-medium text-[var(--mk-label)]"
               style={{ left: `${boundaryPercent(m, totalMonths)}%` }}
             >
               {m}
@@ -611,9 +696,7 @@ function MonthScaleTimeline({
             自然につながる（§4 / §5 / §22-§25）。card 上辺の色帯が duration bar（§28）。 */}
         {(activityLanes.length > 0 || pointPhases.length > 0) && (
           <div className="mt-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8a8578]">
-              ACTIVITIES
-            </p>
+            <LaneLabel dot={LANE_NEON.activities}>ACTIVITIES</LaneLabel>
 
             <div className="mt-1.5 space-y-2">
               {activityLanes.map((lane, laneIdx) => (
@@ -663,11 +746,11 @@ function MonthScaleTimeline({
                       <div className="relative h-3">
                         <span
                           aria-hidden
-                          className="absolute h-3 w-3 -translate-x-1/2 rounded-full ring-4 ring-[#fcfbf8]"
+                          className="absolute h-3 w-3 -translate-x-1/2 rounded-full ring-4 ring-[var(--mk-card)]"
                           style={{
                             left: `${left}%`,
                             backgroundColor: pal.node,
-                            boxShadow: "0 0 0 1px rgba(30,28,24,0.06)",
+                            boxShadow: `0 0 0 1px rgba(30,28,24,0.06), 0 0 0 7px color-mix(in srgb, ${LANE_NEON.activities} 28%, transparent)`,
                           }}
                         />
                       </div>
@@ -678,9 +761,9 @@ function MonthScaleTimeline({
                           maxWidth: 184,
                         }}
                       >
-                        <p className="text-[12px] font-semibold text-[#2f2c26]">{p.title}</p>
-                        {p.note && <p className="text-[10px] text-[#8a8578]">{p.note}</p>}
-                        <p className="mt-0.5 text-[10px] text-[#8a8578]">
+                        <p className="text-[12px] font-semibold text-[var(--mk-ink)]">{p.title}</p>
+                        {p.note && <p className="text-[10px] text-[var(--mk-sub)]">{p.note}</p>}
+                        <p className="mt-0.5 text-[10px] text-[var(--mk-sub)]">
                           {p.label}・期間未定
                         </p>
                       </div>
@@ -703,7 +786,7 @@ function SummaryPhases({ phases }: { phases: MyPlanTimelinePhase[] }) {
     <div className="relative mt-6">
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-1/2 hidden h-px -translate-y-1/2 bg-[#d8d3ca] sm:block"
+        className="pointer-events-none absolute inset-x-0 top-1/2 hidden h-px -translate-y-1/2 bg-[var(--mk-border)] sm:block"
       />
       <ol
         className={`relative flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:thin] ${
@@ -761,19 +844,30 @@ function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline 
   return (
     <section
       id="myplan-yearly"
-      className="mt-6 scroll-mt-6 rounded-[18px] border border-[#e7e1d7] bg-[#fcfbf8] p-5 shadow-card sm:p-6 lg:p-7"
+      className="mk-card mt-6 scroll-mt-6 p-5 sm:p-6 lg:p-7"
     >
       <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
         <div>
-          <p className="text-[11px] font-semibold tracking-[0.18em] text-[#5f7050]">
-            YOUR PLAN TIMELINE
-          </p>
-          <h2 className="mt-1 text-[24px] font-semibold leading-tight tracking-tight text-[#172033] sm:text-[30px]">
+          {/* 見出しの上の短いライン（ライム → イエロー）。My Plan の各セクションカードと
+              同じ「見出しの上に 3px のアクセント」の形で、ここだけグラデーションにしている。 */}
+          <span
+            aria-hidden
+            className="block h-[3px] w-7 rounded-full"
+            style={{
+              background: "linear-gradient(90deg, var(--neon-lime) 0%, var(--neon-yellow) 100%)",
+            }}
+          />
+          <p className="mk-eyebrow mt-2">YOUR PLAN TIMELINE</p>
+          <h2 className="mk-section-title mt-1.5">
             {isScale ? "留学プランの大まかな流れ" : "Plan全体の流れ"}
           </h2>
         </div>
+        {/* Plan 全体の期間（実データ）。淡いライムの小さな面＋ライムの点で軽く強調する。 */}
         {durationLabel && (
-          <span className="text-xs font-medium text-[#8a8578]">{durationLabel}</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--neon-lime-soft)] px-2.5 py-1 text-[12px] font-semibold text-[var(--neon-ink)]">
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--neon-lime)]" />
+            {durationLabel}
+          </span>
         )}
       </div>
 
@@ -791,13 +885,9 @@ function MonthlyTimelineSection({ timeline }: { timeline: MyPlanMonthlyTimeline 
       )}
 
       {isScale && (
-        <p className="mt-3 text-[11px] leading-relaxed text-[#7d776c] sm:hidden">
-          横にスクロールすると、全期間を確認できます。
-        </p>
+        <p className="mk-sub-text mt-3 sm:hidden">横にスクロールすると、全期間を確認できます。</p>
       )}
-      <p className="mt-2 text-[11px] leading-relaxed text-[#7d776c] sm:mt-4">
-        {YEARLY_CAPTION[source]}
-      </p>
+      <p className="mk-sub-text mt-2 sm:mt-4">{YEARLY_CAPTION[source]}</p>
     </section>
   );
 }
@@ -826,21 +916,23 @@ function MyPlanCard({
   return (
     <section
       id={`myplan-${id}`}
-      className={`relative scroll-mt-6 overflow-hidden rounded-[18px] border border-[#e5dfd6] bg-white p-5 shadow-card sm:p-6 lg:p-7 ${span}`}
+      className={`mk-card relative scroll-mt-6 overflow-hidden p-5 sm:p-6 lg:p-7 ${span}`}
     >
       <span
         aria-hidden
-        className="pointer-events-none absolute right-3 top-1 select-none font-serif text-[46px] font-semibold leading-none text-[#efece3] sm:text-[62px]"
+        className="pointer-events-none absolute right-3 top-1 select-none font-serif text-[46px] font-semibold leading-none text-[#eff0ec] sm:text-[62px]"
       >
         {num}
       </span>
-      <h2
-        className="relative text-[26px] font-semibold leading-tight tracking-tight sm:text-[30px]"
-        style={{ color: accent }}
-      >
-        {enName}
-      </h2>
-      <p className="relative mt-1 text-[15px] leading-relaxed text-[#7e786d] sm:text-base">{subtitle}</p>
+      {/* セクションごとの個性は「見出しの上の短いライン」だけに残し、見出し自体は黒にする
+          （以前はセクション色で見出しを塗っていた）。 */}
+      <span
+        aria-hidden
+        className="relative block h-[3px] w-6 rounded-full"
+        style={{ backgroundColor: accent }}
+      />
+      <h2 className="mk-section-title relative mt-2.5">{enName}</h2>
+      <p className="mk-text relative mt-1 text-[var(--mk-sub)]">{subtitle}</p>
       <div className="relative">{children}</div>
     </section>
   );
@@ -867,8 +959,8 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
     <>
       {hasSaved ? (
         <>
-          <p className="mt-4 text-[15px] font-medium text-[#6b665d]">このプランで考えている学校</p>
-          <p className="mt-0.5 text-[13px] leading-6 text-[#7d776c]">
+          <p className="mt-4 text-[15px] font-medium text-[var(--mk-label)]">このプランで考えている学校</p>
+          <p className="mt-0.5 text-[13px] leading-6 text-[var(--mk-sub)]">
             School Comparison で比べて保存した学校です。
           </p>
           {/* 保存済みが 1 校でもカードは拡大しない。School Comparison の 3 列グリッドと
@@ -879,7 +971,7 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
             </div>
           )}
           <div className="mt-3">
-            <p className="text-[11px] font-medium tracking-wide text-[#6b665d]">保存した学校の状態</p>
+            <p className="text-[11px] font-medium tracking-wide text-[var(--mk-label)]">保存した学校の状態</p>
             <EditableSchools
               planId={planId}
               initialSchools={savedSchools}
@@ -890,19 +982,19 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
         </>
       ) : (
         <div className="mt-4">
-          <p className="text-[15px] leading-7 text-[#3f3c37]">まだ学校は保存していません。</p>
-          <p className="mt-1 text-[13px] leading-6 text-[#7d776c]">
+          <p className="text-[15px] leading-7 text-[var(--mk-body)]">まだ学校は保存していません。</p>
+          <p className="mt-1 text-[13px] leading-6 text-[var(--mk-sub)]">
             School Comparison で比べた学校を、ここに残せます。
           </p>
         </div>
       )}
 
       {englishRef.length > 0 && (
-        <div className="mt-4 rounded-xl bg-[#f2f4ee] px-4 py-3">
-          <p className="text-[11px] font-medium tracking-wide text-[#6b665d]">英語について</p>
+        <div className="mt-4 rounded-[14px] bg-[var(--mk-block)] px-4 py-3">
+          <p className="text-[11px] font-medium tracking-wide text-[var(--mk-label)]">英語について</p>
           <ul className="mt-1.5 space-y-1">
             {englishRef.map((e) => (
-              <li key={e.key} className="text-[13px] leading-6 text-[#4f4b44]">
+              <li key={e.key} className="text-[13px] leading-6 text-[var(--mk-label)]">
                 {e.label}
               </li>
             ))}
@@ -912,7 +1004,7 @@ function SchoolBody({ view, planId }: { view: MyPlanView; planId: string }) {
 
       <Link
         href={comparisonHref}
-        className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#bcb4a5] px-4 py-2 text-sm font-medium text-[#3f3a34] transition-colors hover:bg-[#f2efe7]"
+        className="btn-quiet mt-5 px-4 py-2"
       >
         {hasSaved ? "School Comparison を見る" : "学校を比較する"}
         <ArrowRightIcon className="h-4 w-4" />
@@ -1014,7 +1106,7 @@ function renderSectionBody(id: MyPlanSectionId, view: MyPlanView, planId: string
           editingEnabled={editingEnabled}
           extraFooter={
             view.milestones.showVisaDisclaimer ? (
-              <p className="mt-4 rounded-xl bg-[#f6efe4] px-4 py-3 text-[11px] leading-relaxed text-[#8a8578]">
+              <p className="mt-4 rounded-xl bg-[var(--mk-block)] px-4 py-3 text-[11px] leading-relaxed text-[var(--mk-sub)]">
                 ビザや制度の条件は最新の公式情報をご確認ください。
               </p>
             ) : undefined
@@ -1056,13 +1148,13 @@ export default function MyPlan({
       <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 sm:py-24">
         <Link
           href={`/plans/${planId}`}
-          className="inline-flex items-center gap-1 text-sm text-[#6f6a64] transition-colors hover:text-[#1c1c1c]"
+          className="inline-flex items-center gap-1 text-sm text-[var(--mk-sub)] transition-colors hover:text-[var(--mk-ink)]"
         >
           <span aria-hidden>←</span> Plan Homeに戻る
         </Link>
-        <h1 className="mt-8 text-[28px] font-bold text-[#151515] sm:text-3xl">My Plan</h1>
-        <p className="mt-6 text-base font-medium text-[#3f3a34]">まだMy Planは空です。</p>
-        <p className="mt-3 text-[15px] leading-[1.75] text-[#6f6a64]">
+        <h1 className="mk-page-title mt-8">My Plan</h1>
+        <p className="mk-text-lead mt-6">まだMy Planは空です。</p>
+        <p className="mk-text mt-3 text-[var(--mk-sub)]">
           ChatやWorksheetで考えを整理すると、
           <br className="hidden sm:block" />
           ここにPlanの候補が見えてきます。
@@ -1070,13 +1162,13 @@ export default function MyPlan({
         <div className="mt-7 flex flex-wrap justify-center gap-3">
           <Link
             href={`/plans/${planId}/chat`}
-            className="inline-flex items-center rounded-full bg-[#161616] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#000]"
+            className="btn-primary px-5 py-2.5"
           >
             AIに相談する
           </Link>
           <Link
             href={`/plans/${planId}/worksheet`}
-            className="inline-flex items-center rounded-full border border-[#d9d3c8] px-5 py-2.5 text-sm font-medium text-[#3f3a34] transition-colors hover:bg-[#f2efe7]"
+            className="btn-quiet px-5 py-2.5"
           >
             Worksheetで整理する
           </Link>
@@ -1093,7 +1185,7 @@ export default function MyPlan({
     <div className="mx-auto max-w-6xl px-4 pt-8 pb-24 sm:px-6 sm:py-14 lg:px-8">
       <Link
         href={`/plans/${planId}`}
-        className="inline-flex items-center gap-1 text-sm text-[#6f6a64] transition-colors hover:text-[#1c1c1c]"
+        className="inline-flex items-center gap-1 text-sm text-[var(--mk-sub)] transition-colors hover:text-[var(--mk-ink)]"
       >
         <span aria-hidden>←</span> Plan Homeに戻る
       </Link>
@@ -1102,34 +1194,31 @@ export default function MyPlan({
         <div>
           {/* いま見ている Plan 名。desktop は sidebar が同じ役割を持つため PlanContextLabel 側で lg:hidden。 */}
           <PlanContextLabel planTitle={planTitle} />
-          <h1 className="text-[28px] font-bold leading-[1.18] tracking-tight text-[#151515] sm:text-[42px]">
-            My Plan
-          </h1>
-          <p className="mt-1 text-[15px] text-[#6f6a64]">留学・ワーホリの実行プラン</p>
+          <h1 className="mk-page-title">My Plan</h1>
+          <p className="mk-text mt-1 text-[var(--mk-sub)]">留学・ワーホリの実行プラン</p>
         </div>
-        {lastUpdated && (
-          <p className="shrink-0 text-[13px] text-[#8a8578] sm:mt-3">最終更新 {lastUpdated}</p>
-        )}
+        {lastUpdated && <p className="mk-sub-text shrink-0 sm:mt-3">最終更新 {lastUpdated}</p>}
       </div>
 
       {!view.blueprintAvailable && (
-        <p className="mt-5 rounded-xl border border-[#e4d8c4] bg-[#faf4e8] px-4 py-3 text-[13px] leading-relaxed text-[#7a6a4e]">
+        <p className="mk-sub-text mt-5 rounded-[14px] border border-[var(--mk-border)] bg-[var(--mk-block)] px-4 py-3 text-[var(--mk-label)]">
           保存したMy Planの情報を読み込めませんでした。編集は一時的にできませんが、下の「Karteからの候補」は表示できます。
         </p>
       )}
 
       {/* ヒーローサマリー。行き先の都市画像があればカード全面の背景に敷き（左は明るい余白・右に景観）、
           無ければ従来の淡いグリーン地 ＋ CSS グラデーションへ fallback（§6）。 */}
+      {/* 地は白いカード。行き先の都市画像があるときだけ背景に敷き、文字側（左）を白でしっかり抜く。
+          画像が無いときは全面のグリーンではなく、右上に淡いイエロー（My Plan の機能色）を
+          部分的に差すだけにする。 */}
       <section
-        className={`relative mt-6 overflow-hidden rounded-[20px] border shadow-card ${
-          heroImage ? "border-[#e2e6e0] bg-[#eef1ec]" : "border-[#dfe6e3] bg-[#e8eee9]"
-        }`}
+        className="mk-card relative mt-6 overflow-hidden"
         style={
           heroImage
             ? undefined
             : {
                 backgroundImage:
-                  "radial-gradient(120% 80% at 92% 6%, rgba(150,178,155,0.30), transparent 58%), radial-gradient(90% 70% at 4% 98%, rgba(255,255,255,0.92), transparent 55%)",
+                  "radial-gradient(120% 80% at 94% 4%, rgba(255,237,169,0.55), transparent 56%)",
               }
         }
       >
@@ -1146,19 +1235,17 @@ export default function MyPlan({
             {/* 左（テキスト側）を強め・右（景観側）を薄めの生成りグラデーション。mobile は少し強める（§3/§7）。 */}
             <span
               aria-hidden
-              className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#fbfaf6]/95 via-[#fbfaf6]/84 to-[#fbfaf6]/52 sm:from-[#fbfaf6]/92 sm:via-[#fbfaf6]/68 sm:to-[#fbfaf6]/22"
+              className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/96 via-white/88 to-white/60 sm:from-white/95 sm:via-white/78 sm:to-white/45"
             />
           </>
         )}
         <div className="relative z-10 px-5 py-6 sm:px-9 sm:py-8">
-          <p className="text-[11px] font-semibold tracking-[0.18em] text-[#68727c]">
-            YOUR PLAN AT A GLANCE
-          </p>
-          <p className="mt-3 text-[22px] font-bold leading-snug text-[#172033] sm:text-[30px]">
+          <p className="mk-eyebrow">YOUR PLAN AT A GLANCE</p>
+          <p className="mt-2.5 text-[22px] font-bold leading-snug text-[var(--mk-ink)] sm:text-[28px]">
             {hero.headline}
           </p>
           {hero.school && (
-            <p className="mt-2 inline-flex items-center gap-1.5 text-[15px] text-[#4a5560]">
+            <p className="mk-text mt-2 inline-flex items-center gap-1.5 text-[var(--mk-label)]">
               <SchoolIcon className="h-4 w-4" />
               {hero.school}
             </p>
@@ -1192,26 +1279,10 @@ export default function MyPlan({
       {/* メイン: 左アウトライン / 右カードグリッド */}
       <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-[212px_minmax(0,1fr)] lg:gap-8">
         <aside className="lg:sticky lg:top-8 lg:self-start">
-          <div className="rounded-[18px] border border-[#e5dfd6] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-            <p className="px-1 text-[11px] font-semibold tracking-[0.16em] text-[#5f7050]">
-              PLAN OUTLINE
-            </p>
-            <ol className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 lg:block lg:space-y-0.5">
-              {MY_PLAN_SECTIONS.map((s, i) => (
-                <li key={s.id}>
-                  <a
-                    href={`#myplan-${s.id}`}
-                    className="flex items-baseline gap-2 rounded-lg px-2 py-2 text-sm text-[#3f3a34] transition-colors hover:bg-[#f2efe7] lg:gap-2.5 lg:py-1.5"
-                  >
-                    <span className="font-serif text-xs text-[#a39d92]">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    {s.enName}
-                  </a>
-                </li>
-              ))}
-            </ol>
-          </div>
+          {/* 見出しの一覧と選択状態だけを持つ client island。遷移先（#myplan-<id>）は従来のまま。 */}
+          <MyPlanOutline
+            sections={MY_PLAN_SECTIONS.map((s) => ({ id: s.id, enName: s.enName }))}
+          />
         </aside>
 
         <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
@@ -1246,17 +1317,23 @@ function HeroItem({
   note?: string | null;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-white/80 bg-white/85 px-4 py-3">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/80 text-[#5b6b63]">
+    <div className="flex items-center gap-3 rounded-[14px] border border-[var(--mk-border)] bg-white px-4 py-3">
+      <span
+        aria-hidden
+        className="fn-icon h-9 w-9 rounded-[12px]"
+        style={{ backgroundColor: "var(--fn-plan)" }}
+      >
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="text-[10px] font-medium tracking-wide text-[#68727c]">
+        <p className="mk-item-label-sm">
           {label}
-          {note && <span className="ml-1 text-[#8a949c]">／{note}</span>}
+          {note && <span className="ml-1 font-normal text-[var(--mk-sub)]">／{note}</span>}
         </p>
         <p
-          className={`mt-0.5 truncate text-sm font-semibold ${value ? "text-[#172033]" : "text-[#98a1a8]"}`}
+          className={`mt-0.5 truncate text-[15px] font-semibold ${
+            value ? "text-[var(--mk-ink)]" : "text-[var(--mk-sub)]"
+          }`}
         >
           {value ?? "これから整理"}
         </p>

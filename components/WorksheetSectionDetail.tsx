@@ -124,13 +124,19 @@ function CandidateCard({
   onAdopt: () => void;
 }) {
   return (
-    <div className="mt-3 rounded-[14px] border border-dashed border-[#c7d3dd] bg-[#f3f6f8] p-3.5">
-      <p className="text-[11px] font-semibold tracking-wide text-[#5a7186]">AI相談からの候補</p>
-      <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-[#3f3a34]">{text}</p>
+    <div className="mt-3 rounded-[var(--mk-radius-sm)] border border-dashed border-[var(--mk-border)] bg-white p-4">
+      {/* 「AI相談から来た情報」であることは、面ではなく小さなタグで示す（機能別カラー）。 */}
+      <span
+        className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold text-[var(--mk-ink)]"
+        style={{ backgroundColor: "var(--fn-chat)" }}
+      >
+        AI相談からの候補
+      </span>
+      <p className="mk-text mt-2 whitespace-pre-line">{text}</p>
       <button
         type="button"
         onClick={onAdopt}
-        className="mt-2.5 inline-flex min-h-[36px] w-full items-center justify-center gap-1.5 rounded-full bg-[#3f5a72] px-4 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[#334a5e] sm:w-auto"
+        className="btn-quiet mt-3 min-h-[36px] w-full px-4 py-1.5 text-[13px] sm:w-auto"
       >
         この内容を使う
       </button>
@@ -279,19 +285,31 @@ export default function WorksheetSectionDetail({
         <div>
           <PlanContextLabel planTitle={planTitle} />
           <p className="text-sm font-medium tracking-wide text-[var(--ws-ink)]">
-            {categoryNum} <span className="text-[#b7b1a6]">/</span> {meta.enName}
+            {categoryNum} <span className="text-[var(--mk-sub)]">/</span> {meta.enName}
           </p>
-          <h1 className="mt-1.5 text-[27px] font-bold leading-[1.2] tracking-tight text-[#151515] sm:text-[42px]">
-            {category.title}
-          </h1>
+          <h1 className="mk-page-title mt-1.5">{category.title}</h1>
         </div>
-        <span className="shrink-0 whitespace-nowrap rounded-full bg-[var(--ws-tint)] px-3 py-1 text-[13px] font-medium text-[var(--ws-ink)] sm:mt-2">
-          {answeredCount} / {total} 回答済み
-        </span>
+        {/* 回答済みの件数と、同じ内容を示す細い進捗ライン（色だけに頼らない）。
+            すべて答え終わったときだけラインが蛍光ライムになる。 */}
+        <div className="shrink-0 sm:mt-2 sm:w-[168px]">
+          <span className="inline-flex whitespace-nowrap rounded-full bg-[var(--ws-tint)] px-3 py-1 text-[13px] font-medium text-[var(--ws-ink)]">
+            {answeredCount} / {total} 回答済み
+          </span>
+          <span aria-hidden className="mt-2 block h-[3px] w-full overflow-hidden rounded-full bg-[var(--mk-border)]">
+            <span
+              className="block h-full rounded-full"
+              style={{
+                width: `${total > 0 ? Math.round((answeredCount / total) * 100) : 0}%`,
+                backgroundColor:
+                  total > 0 && answeredCount === total ? "var(--neon-lime)" : "var(--ws-ink)",
+              }}
+            />
+          </span>
+        </div>
       </div>
 
       {/* 自動保存の状態 + AI相談導線（カテゴリ内で1回だけ） */}
-      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#8a8578]">
+      <div className="mk-sub-text mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
         <span className="inline-flex items-center gap-1.5">
           <CheckIcon className="h-3.5 w-3.5 text-[var(--ws-ink)]" />
           {saveStatus === "saving"
@@ -307,9 +325,9 @@ export default function WorksheetSectionDetail({
         )}
         <Link
           href="/widget"
-          className="inline-flex items-center gap-1.5 text-[#3f3a34] transition-colors hover:text-[#111]"
+          className="inline-flex items-center gap-1.5 text-[var(--mk-label)] transition-colors hover:text-[var(--mk-ink)]"
         >
-          <ChatIcon className="h-4 w-4 text-[#6f6a64]" />
+          <ChatIcon className="h-4 w-4 text-[var(--ws-ink)]" />
           AIと話しながら整理する
         </Link>
       </div>
@@ -329,9 +347,7 @@ export default function WorksheetSectionDetail({
             return (
               <div key={q.id} className="space-y-3 sm:space-y-4">
               {/* ① 質問（深緑カード。質問であることが一目で分かるようにする） */}
-              <article
-                className="overflow-hidden rounded-[22px] border border-[#e5dfd6] bg-white shadow-card"
-              >
+              <article className="mk-card overflow-hidden">
                 {/* header 帯。地色は一覧カードのフッター帯と同じテーマ色（--ws-tint）。
                     大きな番号・曲線・点という装飾の構成と alpha の考え方はそのままで、
                     地色が淡くなったぶん白→同系の濃色（--ws-ink-*）に反転させている。 */}
@@ -353,8 +369,8 @@ export default function WorksheetSectionDetail({
                       {num}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-[11px] font-semibold tracking-wide text-[var(--ws-ink)]">質問</p>
-                      <h2 className="mt-0.5 text-[18px] font-bold leading-snug text-[#1c1c1c] sm:text-xl">
+                      <p className="mk-eyebrow text-[var(--ws-ink)]">質問</p>
+                      <h2 className="mt-1 text-[18px] font-bold leading-snug text-[var(--mk-ink)] sm:text-[20px]">
                         {q.heading}
                       </h2>
                     </div>
@@ -363,7 +379,8 @@ export default function WorksheetSectionDetail({
 
                 {/* 質問の補足説明 ＋ 記入例（記入例は「質問の補足情報」なので回答カードには入れない） */}
                 <div className="px-5 py-5 sm:px-7 sm:py-6">
-                  <p className="whitespace-pre-line text-[17px] leading-[1.75] text-[#6f6a64]">
+                  {/* 質問の補足説明。見出しより大きく見えていたので、共通の本文サイズに揃えた。 */}
+                  <p className="mk-text whitespace-pre-line text-[var(--mk-muted)]">
                     {q.supplement}
                   </p>
                   {q.kind === "freeText" && (
@@ -377,16 +394,20 @@ export default function WorksheetSectionDetail({
               </article>
 
               {/* ②③④ 回答カード（質問とは別の視覚ブロック。白系・同じ角丸と枠） */}
-              <section className="overflow-hidden rounded-[22px] border border-[#e5dfd6] bg-white shadow-card">
-                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-[#efeae1] px-5 py-3.5 sm:px-7">
-                  <p className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#1c1c1c]">
-                    <PencilIcon className="h-4 w-4 text-[var(--ws-ink)]" />
+              <section className="mk-card overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-[var(--mk-border)] px-5 py-3.5 sm:px-7">
+                  <p className="mk-card-title inline-flex items-center gap-2">
+                    {/* 小さなアイコン背景にだけテーマ色を置く（カードは白のまま）。 */}
+                    <span aria-hidden className="fn-icon h-7 w-7 rounded-[10px] bg-[var(--ws-tint)]">
+                      <PencilIcon className="h-4 w-4 text-[var(--ws-ink)]" />
+                    </span>
                     あなたの回答
                   </p>
                   {/* 既存の AI 相談導線（/widget）と同じ action・同じ route。新しい API は作らない。 */}
+                  {/* テーマ色は維持したまま、角丸・focus だけ他画面と揃える。 */}
                   <Link
                     href="/widget"
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--ws-tint)] px-3 py-1.5 text-xs font-medium text-[var(--ws-ink)] transition-colors hover:bg-[var(--ws-tint-hover)]"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--ws-tint)] px-3 py-1.5 text-xs font-medium text-[var(--ws-ink)] transition-colors hover:bg-[var(--ws-tint-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--neon-lime)]"
                   >
                     <ChatIcon className="h-3.5 w-3.5" />
                     AIと整理する
@@ -407,10 +428,15 @@ export default function WorksheetSectionDetail({
                   )}
 
                   {/* ③ 回答全文（既存の回答UI。1文字ごとの自動保存をそのまま使う） */}
-                  <div className={SHOW_ANSWER_SUMMARY && answered ? "mt-4" : ""}>
-                    {hasWrittenAnswer && (
-                      <p className="text-[11px] font-semibold tracking-wide text-[#8a8578]">回答全文</p>
-                    )}
+                  {/* 回答入力欄の見え方だけをこの画面に限って整える（匿名 Worksheet /worksheet の
+                      QuestionCard 自体は変更しない）。文字サイズは 16px のまま、行間と内余白を広げ、
+                      枠線・角丸を他画面と揃える。 */}
+                  <div
+                    className={`[&_textarea]:rounded-[14px] [&_textarea]:border-[var(--mk-border)] [&_textarea]:px-4 [&_textarea]:py-3 [&_textarea]:leading-[1.75] [&_textarea]:text-[var(--mk-body)] ${
+                      SHOW_ANSWER_SUMMARY && answered ? "mt-4" : ""
+                    }`}
+                  >
+                    {hasWrittenAnswer && <p className="mk-eyebrow">回答全文</p>}
                     <QuestionCard
                       layout="bare"
                       showExamples={false}
@@ -452,21 +478,21 @@ export default function WorksheetSectionDetail({
 
           {/* priorities 専用「判断軸を確認する」（ロジック不変・全設問の下） */}
           {category.id === "priorities" && (
-            <div className="rounded-[18px] border border-[#e5dfd6] bg-white p-5 sm:p-6">
+            <div className="mk-card p-5 sm:p-6">
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={handleGenerateAxisSummary}
                   disabled={!canGenerateAxisSummary || axisLoading}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#161616] px-4 py-2 text-xs font-medium text-white transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+                  className="btn-quiet px-4 py-2 text-[13px] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {axisSummary ? "もう一度整理する" : "判断軸を確認する"}
                 </button>
-                {axisLoading && <span className="text-xs text-[#8a8578]">整理しています…</span>}
+                {axisLoading && <span className="mk-sub-text">整理しています…</span>}
               </div>
 
               {!canGenerateAxisSummary && (
-                <p className="mt-2 text-xs text-[#8a8578]">
+                <p className="mk-sub-text mt-2">
                   「特に大事にしたいものを3つ選ぶ」で1つ以上順位をつけると、判断軸を整理できます。
                 </p>
               )}
@@ -474,7 +500,7 @@ export default function WorksheetSectionDetail({
               {axisError && <p className="mt-3 text-xs text-red-600">{axisError}</p>}
 
               {axisSummary && (
-                <div className="mt-4 whitespace-pre-wrap rounded-[16px] border border-[#e5dfd6] bg-[#fcfbf8] p-5 text-[16px] leading-[1.75] text-[#3f3a34]">
+                <div className="mk-text mt-4 whitespace-pre-wrap rounded-[var(--mk-radius-sm)] bg-[var(--mk-block)] p-5">
                   {axisSummary}
                 </div>
               )}
@@ -486,24 +512,24 @@ export default function WorksheetSectionDetail({
         {/* 右サマリーカード（カテゴリ内すべての回答から機械的に抽出）。
             mobile は設問群 → このカード → CTA の順。desktop は左カラム下に CTA・右に sticky サマリー。 */}
         <aside className="lg:sticky lg:top-8 lg:self-start">
-          <div className="rounded-[18px] border border-[#e5dfd6] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+          <div className="mk-card p-5">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--ws-tint)]">
+              <span aria-hidden className="fn-icon h-8 w-8 rounded-full bg-[var(--ws-tint)]">
                 <LightbulbIcon className="h-4 w-4 text-[var(--ws-ink)]" />
               </span>
-              <p className="text-[15px] font-semibold text-[#1c1c1c]">このテーマで見えてきたこと</p>
+              <p className="mk-card-title">このテーマで見えてきたこと</p>
             </div>
 
-            <div className="mt-3 border-t border-[#e5dfd6]" />
+            <div className="mt-3 border-t border-[var(--mk-border)]" />
 
             {writtenChips.length > 0 ? (
               <>
-                <p className="mt-3 text-xs font-medium text-[#8a8578]">あなたが書いたこと</p>
+                <p className="mk-eyebrow mt-3">あなたが書いたこと</p>
                 <ul className="mt-2 flex flex-col gap-2">
                   {writtenChips.map((chip) => (
                     <li
                       key={chip}
-                      className="rounded-lg bg-[var(--ws-tint)] px-3 py-1.5 text-[13px] leading-snug text-[#3f3a34]"
+                      className="rounded-lg bg-[var(--ws-tint)] px-3 py-1.5 text-[13px] leading-snug text-[var(--mk-body)]"
                     >
                       {chip}
                     </li>
@@ -511,7 +537,7 @@ export default function WorksheetSectionDetail({
                 </ul>
               </>
             ) : (
-              <p className="mt-3 text-[13px] leading-6 text-[#8a8578]">
+              <p className="mk-sub-text mt-3">
                 書き進めると、ここにあなたの言葉が整理されていきます。
               </p>
             )}
@@ -523,7 +549,7 @@ export default function WorksheetSectionDetail({
         <div className="lg:col-start-1">
           <Link
             href={nextCategory ? `/plans/${planId}/worksheet/${nextCategory.id}` : `/plans/${planId}/worksheet`}
-            className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full bg-[#161616] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#000] sm:w-auto"
+            className="btn-primary min-h-[44px] w-full px-5 py-2.5 sm:w-auto"
           >
             {nextCategory ? "次のテーマへ" : "Worksheetを終える"}
             <ArrowRightIcon className="h-4 w-4" />

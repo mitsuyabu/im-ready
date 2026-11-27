@@ -62,10 +62,10 @@ export default async function PlanMyPlanPage({ params }: PlanMyPlanPageProps) {
   const lastUpdated = lastUpdatedIso ? formatLastUpdated(lastUpdatedIso) : null;
 
   return (
-    <div className="min-h-dvh bg-worksheet-surface">
+    <div className="min-h-dvh bg-[var(--mk-canvas)]">
       {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ロゴだけの単独headerは二重表示を避けて隠す
           （戻る導線は MyPlan 本体の左上に移動している） */}
-      <header className="border-b border-[#e5dfd6] px-4 py-4 sm:px-6 lg:hidden">
+      <header className="border-b border-[var(--mk-border)] bg-white px-4 py-4 sm:px-6 lg:hidden">
         <MobileBrandHeader />
       </header>
 

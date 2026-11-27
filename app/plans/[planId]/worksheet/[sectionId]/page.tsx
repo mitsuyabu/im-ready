@@ -62,16 +62,16 @@ export default async function PlanWorksheetSectionPage({ params }: PlanWorksheet
   ]);
 
   return (
-    <div className="min-h-dvh bg-worksheet-surface">
+    <div className="min-h-dvh bg-white">
       {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ロゴだけの単独headerは二重表示を避けて隠す */}
-      <header className="border-b border-[#e5dfd6] px-4 py-4 sm:px-6 lg:hidden">
+      <header className="border-b border-[var(--mk-border)] px-4 py-4 sm:px-6 lg:hidden">
         <MobileBrandHeader />
       </header>
 
       <div className="mx-auto max-w-6xl px-4 pt-8 pb-20 sm:px-6 sm:py-14 lg:px-8">
         <Link
           href={`/plans/${planId}/worksheet`}
-          className="inline-flex items-center gap-1 text-sm text-[#6f6a64] transition-colors hover:text-[#1c1c1c]"
+          className="mk-sub-text inline-flex items-center gap-1 transition-colors hover:text-[var(--mk-ink)]"
         >
           <span aria-hidden>←</span> テーマから整理するに戻る
         </Link>

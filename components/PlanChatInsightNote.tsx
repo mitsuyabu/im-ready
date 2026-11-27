@@ -71,13 +71,13 @@ function PencilDoodleIcon({ className }: { className?: string }) {
  */
 export function PlanChatDivider() {
   return (
-    <div aria-hidden className="flex items-center gap-3 py-1 text-[#b3a98f]">
-      <span className="h-px flex-1 border-t border-dotted border-[#cabfa7]" />
-      <span className="shrink-0 font-serif text-[15px] italic text-[#9a8f75]">
+    <div aria-hidden className="flex items-center gap-3 py-1 text-[var(--mk-sub)]">
+      <span className="h-px flex-1 border-t border-dotted border-[#d5d7d2]" />
+      <span className="shrink-0 font-serif text-[15px] italic text-[var(--mk-sub)]">
         ひとつずつ、言葉にしよう
       </span>
-      <PencilDoodleIcon className="h-4 w-4 shrink-0 text-[#a89e84]" />
-      <span className="h-px flex-1 border-t border-dotted border-[#cabfa7]" />
+      <PencilDoodleIcon className="h-4 w-4 shrink-0 text-[var(--mk-sub)]" />
+      <span className="h-px flex-1 border-t border-dotted border-[#d5d7d2]" />
     </div>
   );
 }
@@ -161,23 +161,30 @@ export default function PlanChatInsightNote({
   if (items.length < 2) return null;
 
   return (
-    <div className="rounded-[16px] border border-[#8f8b84] bg-[#fffdf9] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-      <div className="flex items-center gap-2">
-        <SpeechBubbleIcon className="h-5 w-5 shrink-0 text-[#57544e]" />
-        <p className="text-base font-medium text-[#3c3a36]">いま分かっていること</p>
+    <div className="mk-card relative overflow-hidden p-4">
+      {/* 上端の細いライン。ここは「情報を確認する場所」なので、主操作のライムではなくシアンを使う。 */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute left-0 right-0 top-0 h-[2px]"
+        style={{
+          background:
+            "linear-gradient(90deg, var(--neon-blue) 0%, rgba(111,220,247,0.35) 42%, rgba(111,220,247,0) 72%)",
+        }}
+      />
+      <div className="relative flex items-center gap-2">
+        <SpeechBubbleIcon className="h-[18px] w-[18px] shrink-0 text-[var(--mk-label)]" />
+        <p className="mk-card-title">いま分かっていること</p>
       </div>
-      <p className="mt-1 text-[12px] leading-5 text-[#8a857d]">
-        会話の内容から、今の希望や条件を整理しています。
-      </p>
+      <p className="mk-sub-text relative mt-1">会話の内容から、今の希望や条件を整理しています。</p>
 
-      <div className="mt-3 border-t border-[#cfcac2]" />
-
-      {/* ラベル ＋ 値。大 pill の羅列ではなく、divider 区切りの compact な相談要約（§14 / §15）。 */}
-      <dl className="mt-1 divide-y divide-[#eae4d9]">
+      {/* ラベル ＋ 値。ラベルは My Karte の項目名と同じ扱い（小さく薄いグレーにはしない）。 */}
+      <dl className="relative mt-3 divide-y divide-[#f0f1ee] border-t border-[var(--mk-border)]">
         {items.map((it) => (
           <div key={it.label} className="py-2.5">
-            <dt className="text-[11px] font-medium tracking-wide text-[#8a857d]">{it.label}</dt>
-            <dd className="mt-0.5 text-[15px] font-medium leading-snug text-[#3c3a36]">{it.value}</dd>
+            <dt className="mk-item-label-sm">{it.label}</dt>
+            <dd className="mt-0.5 text-[15px] font-medium leading-snug text-[var(--mk-body)]">
+              {it.value}
+            </dd>
           </div>
         ))}
       </dl>

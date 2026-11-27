@@ -23,30 +23,30 @@ function TimelineView({ timeline }: { timeline: PlanTimeline }) {
   return (
     <div>
       {timeline.summary && (
-        <p className="text-[15px] leading-relaxed text-[#3f3a34]">{timeline.summary}</p>
+        <p className="text-[15px] leading-relaxed text-[var(--mk-body)]">{timeline.summary}</p>
       )}
       {timeline.durationLabel && (
-        <p className="mt-1 text-xs font-medium tracking-wide text-[#8a8578]">
+        <p className="mt-1 text-xs font-medium tracking-wide text-[var(--mk-sub)]">
           {timeline.durationLabel}
         </p>
       )}
 
       <div className="mt-5">
         {timeline.periods.map((p, i) => (
-          <div key={p.id} className={`py-5 ${i > 0 ? "border-t border-[#e6e2d8]" : ""}`}>
+          <div key={p.id} className={`py-5 ${i > 0 ? "border-t border-[var(--mk-border)]" : ""}`}>
             <div className="flex items-baseline gap-3">
               <span
                 aria-hidden
-                className="font-serif text-2xl font-semibold leading-none text-[#c9c2b4] sm:text-[28px]"
+                className="font-serif text-2xl font-semibold leading-none text-[var(--mk-border)] sm:text-[28px]"
               >
                 {String(i + 1).padStart(2, "0")}
               </span>
-              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a8578]">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--mk-sub)]">
                 {p.label}
               </span>
             </div>
 
-            <h3 className="mt-2 text-lg font-bold leading-snug text-[#1f2937] sm:text-[22px]">
+            <h3 className="mt-2 text-lg font-bold leading-snug text-[var(--mk-ink)] sm:text-[22px]">
               {p.title}
             </h3>
 
@@ -74,10 +74,10 @@ function TimelineView({ timeline }: { timeline: PlanTimeline }) {
 
             {p.reason && (
               <div className="mt-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a8578]">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--mk-sub)]">
                   この時期にする理由
                 </p>
-                <p className="mt-0.5 text-[13px] leading-relaxed text-[#6f6a64]">{p.reason}</p>
+                <p className="mt-0.5 text-[13px] leading-relaxed text-[var(--mk-sub)]">{p.reason}</p>
               </div>
             )}
 
@@ -86,7 +86,7 @@ function TimelineView({ timeline }: { timeline: PlanTimeline }) {
                 {p.activities.map((a, j) => (
                   <li
                     key={j}
-                    className="flex gap-2.5 text-[14px] leading-relaxed text-[#3f3a34]"
+                    className="flex gap-2.5 text-[14px] leading-relaxed text-[var(--mk-body)]"
                   >
                     <span
                       aria-hidden
@@ -102,15 +102,15 @@ function TimelineView({ timeline }: { timeline: PlanTimeline }) {
       </div>
 
       {timeline.openQuestions.length > 0 && (
-        <div className="mt-4 rounded-xl bg-[#f6efe4] px-4 py-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a8578]">
+        <div className="mt-4 rounded-xl bg-[var(--mk-block)] px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--mk-sub)]">
             Planをもう少し具体的にするために
           </p>
           <ul className="mt-1.5 space-y-1">
             {timeline.openQuestions.slice(0, 3).map((q, i) => (
               <li
                 key={i}
-                className="flex gap-2 text-[13px] leading-relaxed text-[#6f6a64]"
+                className="flex gap-2 text-[13px] leading-relaxed text-[var(--mk-sub)]"
               >
                 <span aria-hidden className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-[#c9b79a]" />
                 <span>{q}</span>
@@ -121,7 +121,7 @@ function TimelineView({ timeline }: { timeline: PlanTimeline }) {
       )}
 
       {timeline.disclaimer && (
-        <p className="mt-4 text-[11px] leading-relaxed text-[#8a8578]">{timeline.disclaimer}</p>
+        <p className="mt-4 text-[11px] leading-relaxed text-[var(--mk-sub)]">{timeline.disclaimer}</p>
       )}
     </div>
   );
@@ -212,11 +212,11 @@ export default function EditableTimeline({
         </div>
 
         {confirming && (
-          <div className="mt-3 rounded-xl border border-[#e0d9ca] bg-[#faf7f0] p-3">
-            <p className="text-sm text-[#172033]">
+          <div className="mt-3 rounded-xl border border-[var(--mk-border)] bg-[var(--mk-block)] p-3">
+            <p className="text-sm text-[var(--mk-ink)]">
               現在のスケジュールを、この提案に置き換えますか？
             </p>
-            <p className="mt-1 text-xs text-[#8a8578]">前のスケジュールは残りません。</p>
+            <p className="mt-1 text-xs text-[var(--mk-sub)]">前のスケジュールは残りません。</p>
           </div>
         )}
 
@@ -225,7 +225,7 @@ export default function EditableTimeline({
             type="button"
             onClick={adopt}
             disabled={busy !== null}
-            className={`${CTA_BASE} bg-[#1e2b3d] text-white hover:bg-[#172033]`}
+            className={`${CTA_BASE} btn-primary`}
           >
             {busy === "adopt"
               ? "保存しています…"
@@ -238,7 +238,7 @@ export default function EditableTimeline({
               type="button"
               onClick={() => setConfirming(false)}
               disabled={busy !== null}
-              className={`${CTA_BASE} border border-[#c9c2b4] bg-white text-[#3f3a34] hover:bg-[#f2efe7]`}
+              className={`${CTA_BASE} border border-[var(--mk-border)] bg-white text-[var(--mk-body)] hover:bg-[var(--mk-block)]`}
             >
               キャンセル
             </button>
@@ -259,7 +259,7 @@ export default function EditableTimeline({
                   setError(null);
                 }}
                 disabled={busy !== null}
-                className={`${CTA_BASE} text-[#6f6a64] hover:bg-[#f0ece2]`}
+                className={`${CTA_BASE} text-[var(--mk-sub)] hover:bg-[var(--mk-block)]`}
               >
                 提案を閉じる
               </button>
@@ -287,7 +287,7 @@ export default function EditableTimeline({
           </button>
         </div>
         {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
-        {hint && <p className="mt-3 text-xs text-[#8a8578]">{hint}</p>}
+        {hint && <p className="mt-3 text-xs text-[var(--mk-sub)]">{hint}</p>}
       </div>
     );
   }
@@ -295,8 +295,8 @@ export default function EditableTimeline({
   /* -------------------- 空状態 -------------------- */
   return (
     <div className="mt-4">
-      <p className="text-sm font-medium text-[#3f3a34]">まだスケジュールはありません。</p>
-      <p className="mt-2 text-sm leading-relaxed text-[#6f6a64]">
+      <p className="text-sm font-medium text-[var(--mk-body)]">まだスケジュールはありません。</p>
+      <p className="mt-2 text-sm leading-relaxed text-[var(--mk-sub)]">
         今のMy Planをもとに、AIが留学期間全体の過ごし方を提案できます。
       </p>
       <div className="mt-4">
@@ -304,18 +304,18 @@ export default function EditableTimeline({
           type="button"
           onClick={generate}
           disabled={busy !== null || !canGenerate}
-          className={`${CTA_BASE} bg-[#1e2b3d] text-white hover:bg-[#172033]`}
+          className={`${CTA_BASE} btn-primary`}
         >
           {busy === "generate" ? "プランを考えています…" : "AIにプランを提案してもらう"}
         </button>
       </div>
       {!canGenerate && !hint && (
-        <p className="mt-3 text-xs leading-relaxed text-[#8a8578]">
+        <p className="mt-3 text-xs leading-relaxed text-[var(--mk-sub)]">
           まずGoalsや行き先などを少し追加すると、AIがプランを提案できます。
         </p>
       )}
       {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
-      {hint && <p className="mt-3 text-xs text-[#8a8578]">{hint}</p>}
+      {hint && <p className="mt-3 text-xs text-[var(--mk-sub)]">{hint}</p>}
     </div>
   );
 }

@@ -6,8 +6,10 @@
  * 固定したいこと:
  *   1. PC（lg 以上）は 左: AI相談 → Worksheet → My Karte / 右: About This Plan
  *   2. mobile（1 カラム）は従来の DOM 順（AI相談 → Worksheet → About This Plan → My Karte）
- *   3. カードの中身（見出し・説明・アイコン・ボタン・route・見た目）は変えていない
+ *   3. カードの中身（見出し・説明・アイコン・ボタン・route）は変えていない
  *   4. gap は従来と同じ（カード間 16px / 左右 24px）で、左右の高さを無理に揃えない
+ *   5. 新デザイン: カードは白地 + 薄い border + 控えめな影。機能別カラーはアイコン背景だけ、
+ *      主要操作だけが蛍光ライム（パステルの全面塗り・地紋・きらめきレイヤーは廃止）
  *
  * server component のソースを読んで検査する（描画・DB アクセスはしない）。
  */
@@ -44,10 +46,10 @@ const code = stripComments(src);
 
 /** カードごとの目印（見出し or アイコン）の出現位置。 */
 const at = {
-  ai: src.indexOf('<h2 className="text-lg font-bold text-[#2b3a55]">AI相談</h2>'),
-  worksheet: src.indexOf('<h2 className="text-lg font-bold text-[#2b3a55]">Worksheet</h2>'),
-  about: src.indexOf("About This Plan\n"),
-  myKarte: src.indexOf(">My Karte</h2>"),
+  ai: src.indexOf('<h2 className="mk-card-title">AI相談</h2>'),
+  worksheet: src.indexOf('<h2 className="mk-card-title">Worksheet</h2>'),
+  about: src.indexOf("About This Plan<"),
+  myKarte: src.indexOf('<h2 className="mk-card-title">My Karte</h2>'),
 };
 
 console.log("Test 1: mobile（1 カラム）の表示順は従来どおり");
@@ -88,10 +90,8 @@ console.log("Test 3: gap と高さ（既存のデザインのまま・高さを�
   assert(src.includes("lg:gap-x-6 lg:gap-y-4"), "左右 24px / カード間 16px（従来と同じ）");
   assert(!src.includes("lg:gap-6\"") , "列と行をまとめた lg:gap-6 にはしていない（行の間隔が広がらない）");
   assert(src.includes("lg:self-start"), "右カラムは self-start（左の高さに合わせて伸ばさない）");
-  // カードの見た目のトークンは従来のまま
-  assert(src.includes("lg:min-h-[160px]"), "AI相談 / Worksheet の最小高さはそのまま");
-  assert(src.includes("lg:min-h-[220px]"), "About This Plan の最小高さはそのまま");
-  assert(src.includes("lg:min-h-[165px]"), "My Karte の最小高さはそのまま");
+  // 新デザイン: 情報量に対して余白が余らないよう、カードの最小高さは固定しない
+  assert(!code.includes("lg:min-h-["), "カードの最小高さを固定していない（過剰な余白を作らない）");
   assert(src.includes("lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)]"), "カラム幅の比率は従来のまま");
 }
 
@@ -141,101 +141,97 @@ console.log("Test 5: sidebar / bottom nav には手を入れていない");
   assert(nav.includes("planNavItems(planId)\n          .slice(0, 4)"), "mobile bottom nav も従来どおり");
 }
 
-console.log("Test 6: My Karte カード内部は PC だけ 3 列（AI相談 / Worksheet と同じ CTA 配置）");
+console.log("Test 6: 3 枚のカードは同じ 1 行構成（アイコン / テキスト / CTA）");
 {
+  // AI相談 / Worksheet / My Karte は mobile 縦積み → sm 以上で横 1 行、という同じ骨格。
+  assert(
+    (src.match(/\$\{CARD\} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-5 sm:p-6/g) ?? []).length === 3,
+    "3 枚とも同じ card 構造（mobile は縦積み / sm 以上で 1 行）",
+  );
+  // 旧 My Karte 専用の grid 構造は残っていない
+  assert(!code.includes("lg:grid-cols-[auto_minmax(0,1fr)_auto]"), "My Karte カード専用の 3 列 grid は残っていない");
+  assert(!code.includes("col-span-2 col-start-1 row-start-3"), "My Karte カード専用の CTA 配置指定は残っていない");
+
   const cardStart = src.indexOf("{/* My Karte（PC: 左カラム 3 段目");
-  const cardEnd = src.indexOf("</section>", src.indexOf(">My Karte</h2>"));
+  const cardEnd = src.indexOf("</section>", src.indexOf('<h2 className="mk-card-title">My Karte</h2>'));
   assert(cardStart > 0 && cardEnd > cardStart, "My Karte カードの範囲を特定できた（テストの前提）");
   const card = src.slice(cardStart, cardEnd);
 
-  // 列構成: mobile 2 列（アイコン / テキスト）→ PC 3 列（アイコン / テキスト / CTA）
-  assert(card.includes("grid grid-cols-[auto_minmax(0,1fr)]"), "mobile は 2 列 grid（アイコン列 + テキスト列）");
-  assert(card.includes("lg:grid-cols-[auto_minmax(0,1fr)_auto]"), "PC は 3 列 grid（アイコン / テキスト / CTA）");
-  assert(card.includes("gap-x-4") && card.includes("lg:gap-x-6"), "列の間隔は mobile 16px / PC 24px（AI相談 / Worksheet と同じ 24px）");
-  assert(card.includes("lg:content-center"), "PC は min-h の中で縦中央（Worksheet の items-center と同じ見え方）");
-  assert(card.includes("p-5 sm:p-6") && card.includes("lg:p-7"), "card padding は PC で 28px（AI相談 / Worksheet の sm:p-7 と同値）");
-
-  // アイコン: 常に 1 列目。PC では行をまたいで縦中央
-  assert(card.includes("col-start-1 row-start-1 lg:row-span-3 lg:self-center"), "アイコンは 1 列目で、PC では行をまたいで縦中央");
-  assert(card.includes("${CARD_ICON_CLASS}"), "アイコンのサイズ指定は共通の CARD_ICON_CLASS のまま");
-
-  // 見出し: 常に 2 列目（アイコンの右）
-  assert(card.includes('className="col-start-2 row-start-1 min-w-0 text-lg font-bold text-[#2b3a55]">My Karte'), "見出しは常にアイコンの右（2 列目）");
-
-  // 説明文: mobile は 2 列ぶち抜き（カード全幅）、PC は 2 列目（伸縮する列）
-  assert(
-    /col-span-2 col-start-1 row-start-2 mt-2[^"]*lg:col-span-1 lg:col-start-2 lg:mt-1/.test(card),
-    "説明文は mobile ではカード全幅、PC ではアイコンの右（2 列目）",
-  );
-
-  // CTA: mobile は説明文の下、PC は 3 列目の右端・縦中央
-  assert(/col-span-2 col-start-1 row-start-3 mt-3/.test(card), "CTA は mobile では従来どおり説明文の下");
-  assert(card.includes("justify-self-start"), "mobile の CTA は内容幅のまま左寄せ（横に伸びない）");
-  assert(
-    card.includes("lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:row-span-3 lg:mt-0 lg:self-center lg:justify-self-end"),
-    "PC の CTA は 3 列目・行をまたいで縦中央・右端（mt-3 は PC では打ち消す）",
-  );
-  // PC で CTA がテキスト列に残っていない / 下段に落ちていない
-  assert(!/lg:col-start-2[^"]*lg:row-start-3/.test(card), "PC の CTA はテキスト列（2 列目）に残っていない");
-
-  // 旧構造（アイコン＋見出しだけを包む flex 行）は残っていない
-  assert(!card.includes('<div className="flex items-center gap-4">'), "旧構造（アイコン＋見出しの flex 行）は残っていない");
-
-  // 文言 / route / アイコンは不変
+  // 文言 / route / 図版は不変
   assert(card.includes(">My Karte</h2>"), "title は不変");
-  assert(card.includes("考えたことや決めたことを、相談や共有に使いやすい資料にまとめます。自分の考えを振り返るときにも役立ちます。"), "description は不変");
+  assert(
+    card.includes("考えたことや決めたことを、相談や共有に使いやすい資料にまとめます。自分の考えを振り返るときにも役立ちます。"),
+    "description は不変",
+  );
   assert(card.includes("<MyKarteIllustration"), "図版は My Karte 用の SVG イラスト");
   assert(card.includes("資料を見る →"), "button text は不変");
   assert(card.includes("href={`/plans/${typedPlan.id}/documents`}"), "route は不変");
-  // card chrome（border / shadow / radius / 幅）は共通 CARD のまま
-  assert(card.includes("${CARD} overflow-hidden"), "card chrome は共通 CARD のまま（border / shadow / radius 不変）");
-  assert(card.includes("style={CARD_SURFACE.myKarte}"), "地色はグラデーション + 地紋 + きらめきの共通レイヤーから受け取る");
-
-  // AI相談 / Worksheet 側は変更していない
-  assert(
-    (src.match(/\$\{CARD\} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7/g) ?? []).length === 2,
-    "AI相談 / Worksheet のカード構造は変更していない",
-  );
+  assert(card.includes("${CARD}"), "card chrome は共通 CARD（= .mk-card）のまま");
 }
 
-console.log("Test 7: Plan Home の 4 カードだけがグラデーション + 地紋 + きらめき（他ページへ波及しない）");
+console.log("Test 7: 白いカード + 機能別カラーはアイコン背景だけ + 主要操作だけ蛍光ライム");
 {
-  // 表層は CARD_SURFACE に集約し、カード側は style で受け取るだけ
-  for (const key of ["chat", "worksheet", "myKarte", "about"]) {
-    assert(new RegExp(`${key}: cardSurface\\("#[0-9a-f]{6}", "linear-gradient\\(`).test(src), `${key} は きらめき色 + グラデーションを CARD_SURFACE で定義している`);
-    assert(src.includes(`style={CARD_SURFACE.${key}}`), `${key} カードは CARD_SURFACE.${key} を適用している`);
+  // 1) 旧デザイン（全面グラデーション + 地紋 + きらめきレイヤー）は完全に無くなっている
+  for (const gone of ["CARD_SURFACE", "cardSurface(", "decorSvg", "patternSvg", "svgUrl(", "CARD_TINT"]) {
+    assert(!code.includes(gone), `旧デザインの装飾レイヤー（${gone}）は残っていない`);
   }
-  assert((src.match(/style=\{CARD_SURFACE\./g) ?? []).length === 4, "表層を当てているのは 4 カードだけ");
-  assert(!code.includes("CARD_TINT"), "前フェーズのベタ塗り（CARD_TINT）は残っていない");
-  assert(!/\$\{(CARD|ABOUT_CARD)\} bg-/.test(src), "カードに bg-* のベタ塗りクラスは残っていない");
+  assert(!/style=\{CARD_SURFACE\./.test(src), "カードに表層 style を当てていない");
+  assert(!/linear-gradient\(115deg/.test(src), "カード全面のパステルグラデーションは残っていない");
+  assert(!code.includes("repeating-linear-gradient"), "方眼・地紋のリピート背景は残っていない");
 
-  // 3 枚の重ね順と敷き方（きらめき → 地紋 → グラデーション）
-  assert(src.includes("backgroundImage: `${svgUrl(decorSvg(spark))}, ${svgUrl(patternSvg(spark))}, ${gradient}`"), "重ね順は きらめき → 地紋 → グラデーション");
-  assert(src.includes('backgroundRepeat: "no-repeat, repeat, no-repeat"'), "地紋だけリピートし、きらめきとグラデーションは 1 枚");
-  assert(src.includes('backgroundPosition: "right bottom, left top, left top"'), "きらめきはカード右側");
-  assert(src.includes('backgroundSize: "auto 100%, 64px 64px, 100% 100%"'), "地紋は 64px 角、グラデーションはカード全面");
-  // background-image は本文より必ず背面なので、z-index を増やしていない
+  // 2) カードは共通の白いカード（.mk-card）
+  assert(src.includes('const CARD = "mk-card relative overflow-hidden"'), "カードは共通の .mk-card（白地 + 薄い border + 控えめな影）");
+  assert(!/\$\{CARD\} bg-\[/.test(src), "カードに地色のベタ塗りクラスを足していない");
+  assert((src.match(/\$\{CARD\}/g) ?? []).length === 4, "4 枚とも同じカード chrome を使っている");
+
+  // 3) 機能別カラーはアイコン背景だけ（カードの地にしない）
+  const fnColors = ["--fn-chat", "--fn-worksheet", "--fn-karte", "--fn-plan"];
+  for (const token of fnColors) {
+    assert(src.includes(`backgroundColor: "var(${token})"`), `${token} を使っているのは背景色の指定だけ`);
+  }
+  assert(
+    (src.match(/className=\{ICON_TILE\}/g) ?? []).length === 3,
+    "AI相談 / Worksheet / My Karte の 3 枚にだけアイコンタイルを置いている",
+  );
+  assert(src.includes('const ICON_TILE =\n  "fn-icon'), "アイコンタイルは共通クラス（.fn-icon）を使う");
+  for (const token of fnColors) {
+    assert(
+      !new RegExp(`\\$\\{CARD\\}[^"]*${token}`).test(src) && !new RegExp(`bg-\\[var\\(${token}\\)\\]`).test(src),
+      `${token} でカードの面を塗っていない`,
+    );
+  }
+
+  // 4) CTA: 主要操作（AI相談）だけ蛍光ライム、ほかは白地の副次ボタン
+  assert(
+    (src.match(/className="btn-primary shrink-0 self-start sm:self-center"/g) ?? []).length === 1,
+    "蛍光ライムの主要ボタンは 1 枚だけ（AI相談）",
+  );
+  assert(
+    (src.match(/className="btn-quiet shrink-0 self-start sm:self-center"/g) ?? []).length === 2,
+    "Worksheet / My Karte は白地の副次ボタン",
+  );
+  assert(!code.includes("bg-[#e0806a]"), "旧コーラルの CTA は残っていない");
+  assert(!code.includes("border-[#2b3a55]/30"), "旧 outline ボタンの色指定は残っていない");
+
+  // 5) About This Plan: ラベンダーの全面背景を廃止し、項目のアイコン背景だけ色を持つ
+  assert(!code.includes("ABOUT_CARD"), "About This Plan 専用の card chrome は共通化した");
+  assert(
+    (src.match(/className="fn-icon h-9 w-9 rounded-\[12px\]"/g) ?? []).length === 2,
+    "行き先 / 出発の目安の 2 項目に小さなアイコン背景を置いている",
+  );
+  assert(src.includes("My Planを見る →"), "My Plan への導線は維持");
+
+  // 6) 文字は共通タイポグラフィに揃っている（画面ごとに px を決め直さない）
+  assert((src.match(/className="mk-card-title"/g) ?? []).length === 3, "3 枚のカードタイトルは共通クラス");
+  assert(src.includes('className="mk-section-title"'), "About This Plan はセクション見出しクラス");
+  assert((src.match(/mk-item-label-sm/g) ?? []).length === 2, "項目名は共通クラス");
+  assert(!/text-\[#(2b3a55|6b6357|8b857a)\]/.test(code), "旧配色の文字色（navy / warm gray）は残っていない");
+
+  // 7) 装飾のために z-index を足していない
   assert(!/z-\[?\d/.test(src), "装飾のために z-index を足していない");
-  // 角丸で切り取るための overflow-hidden
-  assert(src.includes('"relative overflow-hidden rounded-[18px] border border-[#e7ddc9] shadow-card"'), "CARD は角丸で装飾を切り取る（border / radius / shadow は不変）");
-  assert(src.includes('"relative overflow-hidden rounded-[18px] border border-[#e6e1d8] shadow-card"'), "ABOUT_CARD も同様");
-
-  // きらめきの形（雲は不採用）
-  assert(src.includes("const SPARKLE_D"), "4 点きらめきの形は 1 か所に定義して使い回す");
-  {
-    const decor = src.slice(src.indexOf("const decorSvg"), src.indexOf("const patternSvg"));
-    assert(!decor.includes("#ffffff"), "装飾レイヤーに白い雲は残っていない");
-    assert(!decor.includes("<circle"), "装飾レイヤーに雲の円は残っていない");
-    assert(!decor.includes("<rect"), "装飾レイヤーに雲の角丸は残っていない");
-    assert((decor.match(/d="\$\{SPARKLE_D\}"/g) ?? []).length === 3, "装飾レイヤーはきらめき 3 粒だけ");
-  }
-
-  // CTA は据え置き
-  assert(src.includes("bg-[#e0806a]"), "AI相談のコーラル CTA は不変");
-  assert((src.match(/border border-\[#2b3a55\]\/30 bg-white/g) ?? []).length === 2, "Worksheet / My Karte の outline ボタンは不変");
 }
 
-console.log("Test 8: 3 カードの図版は Mindtrip 参考の SVG イラストで統一");
+console.log("Test 8: 3 カードの図版は既存の SVG イラストを縮小して使う");
 {
   // 既製の 3D アイコンはどれも参照していない
   for (const webp of ["ai-chat", "worksheet", "documents"]) {
@@ -243,13 +239,16 @@ console.log("Test 8: 3 カードの図版は Mindtrip 参考の SVG イラスト
   }
   assert(!code.includes('from "next/image"'), "画像コンポーネントは使わなくなった");
 
-  const illos: [string, string, string][] = [
-    ["AiConsultIllustration", "<AiConsultIllustration className={CARD_ICON_CLASS} />", "#e0806a"],
-    ["WorksheetIllustration", "<WorksheetIllustration className={CARD_ICON_CLASS} />", "#7f9a6a"],
-    ["MyKarteIllustration", "<MyKarteIllustration className={`${CARD_ICON_CLASS} col-start-1 row-start-1 lg:row-span-3 lg:self-center`} />", "#cf9f4c"],
+  const illos: [string, string][] = [
+    ["AiConsultIllustration", "#e0806a"],
+    ["WorksheetIllustration", "#7f9a6a"],
+    ["MyKarteIllustration", "#cf9f4c"],
   ];
-  for (const [name, usage, spark] of illos) {
-    assert(src.includes(usage), `${name} を共通サイズ枠で表示している`);
+  for (const [name, spark] of illos) {
+    assert(
+      src.includes(`<${name} className={CARD_ICON_CLASS} />`),
+      `${name} を共通サイズ枠で表示している`,
+    );
     const start = src.indexOf(`function ${name}`);
     const end = src.indexOf("\n}\n", start);
     assert(start > 0 && end > start, `${name} を特定できた（テストの前提）`);
@@ -259,12 +258,44 @@ console.log("Test 8: 3 カードの図版は Mindtrip 参考の SVG イラスト
     assert(!/<(Image|img)\b/.test(illo), `${name}: 画像ファイルではなくベクター`);
     assert(illo.includes("aria-hidden"), `${name}: 装飾なので支援技術からは隠す`);
     assert(illo.includes('stroke="#2b3a55"'), `${name}: 輪郭は見出しと同じ navy`);
-    assert(illo.includes("feGaussianBlur"), `${name}: 下地のにじみはぼかして水彩に見せる`);
-    assert(illo.includes("d={SPARKLE_D}"), `${name}: きらめきはカード装飾と同じ形を使う`);
-    assert(illo.includes(`fill="${spark}"`), `${name}: きらめきの色はカードの系統色`);
-    assert(!/<rect[^>]*width="96"[^>]*height="96"/.test(illo), `${name}: 背景は塗らない（カードの地が下地）`);
+    // アイコン背景（機能別カラー）と二重になるため、水彩のにじみは外した
+    assert(!illo.includes("feGaussianBlur"), `${name}: ぼかした下地は外してある（パステルの背景と重ねない）`);
+    assert(illo.includes("d={SPARKLE_D}"), `${name}: きらめきは共通の形を使う`);
+    assert(illo.includes(`fill="${spark}"`), `${name}: きらめきの色はこれまでの系統色のまま`);
+    assert(!/<rect[^>]*width="96"[^>]*height="96"/.test(illo), `${name}: 背景は塗らない（アイコン背景が下地）`);
   }
-  assert(src.includes('const CARD_ICON_CLASS = "h-16 w-16 shrink-0 sm:h-20 sm:w-20 lg:h-24 lg:w-24"'), "図版のサイズ枠は 3 カード共通のまま");
+  assert(
+    src.includes('const CARD_ICON_CLASS = "h-11 w-11 shrink-0 sm:h-[52px] sm:w-[52px]"'),
+    "図版は 3 カード共通のサイズ枠で、以前より小さくしている",
+  );
+}
+
+console.log("Test 9: 現在地（ステージ表示）は状態を色だけで示していない");
+{
+  const ribbon = readFileSync("components/PlanJourneyRibbon.tsx", "utf8");
+  const ribbonCode = stripComments(ribbon);
+  assert(
+    ribbon.includes('const STEPS = ["気持ちを整理", "学校を比べる", "出発準備", "現地で暮らす"]'),
+    "4 つのステージとラベルは従来のまま",
+  );
+  assert(
+    ribbon.includes("Math.min(Math.max(Math.trunc(currentIndex), 0), STEPS.length - 1)"),
+    "いまの段階の決め方（呼び出し側の currentIndex）は変えていない",
+  );
+  assert(src.includes("<PlanJourneyRibbon currentIndex={journeyIndex} />"), "Plan Home からの渡し方も不変");
+  assert(
+    src.includes('karte.proposals.presented.some((p) => p.type === "school") ? 1 : 0'),
+    "判定ロジックは不変",
+  );
+  // 状態の示し分け: 完了 = チェック、いまここ = 蛍光ライム + 中の点、未到達 = 白 + 細い枠
+  assert(ribbonCode.includes("<CheckIcon />"), "済んだ段階にはチェックが入る（色だけで示さない）");
+  assert(ribbonCode.includes("bg-[var(--neon-lime)] ring-2"), "いまの段階は蛍光ライムの丸 + リング");
+  assert(ribbonCode.includes("（いまここ）") && ribbonCode.includes("（完了）"), "読み上げ用のラベルも残す");
+  assert(ribbonCode.includes("bg-[var(--neon-lime)]") && ribbonCode.includes("progressRight"), "進捗ラインも「いまここ」までだけ蛍光ライム");
+  // 方眼紙・破れた縁の装飾は廃止
+  assert(!ribbonCode.includes("repeating-linear-gradient"), "方眼紙の地紋は残っていない");
+  assert(!ribbonCode.includes("clipPath"), "破れた縁の clipPath は残っていない");
+  assert(ribbonCode.includes("mk-card"), "白いカードの共通クラスを使っている");
 }
 
 console.log("");

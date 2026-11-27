@@ -13,6 +13,7 @@
  *   - localStorage は、キーを持っているモジュール自身に列挙させる（前方一致で広く消さない）。
  */
 
+import { planComparisonBoardStorageKeys } from "@/lib/comparisonBoardStorage";
 import { planConsultationStorageKeys } from "@/lib/consultationSheetSync";
 import { planWorksheetStorageKeys } from "@/lib/worksheetStorage";
 
@@ -39,6 +40,7 @@ export const PLAN_DELETE_ITEMS = [
   "My Plan の内容",
   "ワークシートの回答",
   "My Karte の資料（My Note・留学計画書・学校比較・親向け説明・相談シート）",
+  "比較ボードで並べた候補案（この端末に保存されている分）",
 ] as const;
 
 /** 取り消せないことの明示。 */
@@ -108,7 +110,12 @@ export function interpretPlanDeleteResult(input: {
 export function planLocalStorageKeys(planId: string): string[] {
   const trimmed = planId.trim();
   if (!trimmed) return [];
-  const keys = [...planWorksheetStorageKeys(trimmed), ...planConsultationStorageKeys(trimmed)];
+  const keys = [
+    ...planWorksheetStorageKeys(trimmed),
+    ...planConsultationStorageKeys(trimmed),
+    // Comparison Board（この端末だけの検討メモ）。Plan を消したら一緒に片付ける。
+    ...planComparisonBoardStorageKeys(trimmed),
+  ];
   // すべてのキーが planId を含むことを最後に確認する（将来キーの形が変わっても、
   // Plan に属さないキーがここへ混ざらないようにする安全弁）。
   return Array.from(new Set(keys.filter((key) => key.includes(trimmed))));

@@ -38,8 +38,9 @@ interface ProposalMessageProps {
   proposals: DisplayProposal[];
   /**
    * "default"（既定・/widget向け）: 既存の固定mx-4・max-w-2xl。見た目は変更していない。
-   * "document"（Plan Chat向け）: 親（Chat.tsx）側で既にmax-w-3xlの本文カラムに収まっているため、
+   * "document"（Plan Chat向け）: 親（Chat.tsx）側で既に本文カラムに収まっているため、
    * 独自のmx-4・max-w-2xlは持たず、会話本文と同じ横幅・区切り方（border-bottom+padding）に揃える。
+   * 文字と罫線は My Karte の共通クラス / トークン（.mk-text / .mk-card-title / --mk-border）を使う。
    */
   variant?: "default" | "document";
   /**
@@ -111,7 +112,7 @@ export function ProposalMessage({ introNote, proposals, variant = "default", com
     <div
       className={
         variant === "document"
-          ? "space-y-4 border-b border-worksheet-border/60 py-5 sm:py-6"
+          ? "space-y-4 border-b border-[var(--mk-border)] py-5 sm:py-6"
           : "mx-4 mb-3 max-w-2xl space-y-4"
       }
     >
@@ -119,7 +120,7 @@ export function ProposalMessage({ introNote, proposals, variant = "default", com
         <p
           className={
             variant === "document"
-              ? "text-sm leading-relaxed text-worksheet-primary"
+              ? "mk-text"
               : "text-sm leading-relaxed text-zinc-700 dark:text-zinc-300"
           }
         >
@@ -134,13 +135,16 @@ export function ProposalMessage({ introNote, proposals, variant = "default", com
           <h3
             className={
               variant === "document"
-                ? "text-sm font-semibold text-worksheet-primary"
+                ? "mk-card-title flex items-center gap-2"
                 : "text-sm font-semibold text-zinc-900 dark:text-zinc-100"
             }
           >
+            {variant === "document" && (
+              <span aria-hidden className="h-[3px] w-5 shrink-0 rounded-full bg-[var(--neon-lime)]" />
+            )}
             ご希望に合う候補
           </h3>
-          <div className={variant === "document" ? "divide-y divide-worksheet-border/60" : "space-y-3"}>
+          <div className={variant === "document" ? "divide-y divide-[#f0f1ee]" : "space-y-3"}>
             {matches.map((p, i) => (
               <div key={p.schoolSlug} className={variant === "document" ? "py-6 sm:py-8" : undefined}>
                 <SchoolCard
@@ -161,13 +165,16 @@ export function ProposalMessage({ introNote, proposals, variant = "default", com
           <h3
             className={
               variant === "document"
-                ? "text-sm font-semibold text-worksheet-primary"
+                ? "mk-card-title flex items-center gap-2"
                 : "text-sm font-semibold text-zinc-900 dark:text-zinc-100"
             }
           >
+            {variant === "document" && (
+              <span aria-hidden className="h-[3px] w-5 shrink-0 rounded-full bg-[var(--neon-blue)]" />
+            )}
             条件を一部外れる参考候補
           </h3>
-          <div className={variant === "document" ? "divide-y divide-worksheet-border/60" : "space-y-3"}>
+          <div className={variant === "document" ? "divide-y divide-[#f0f1ee]" : "space-y-3"}>
             {references.map((p, i) => (
               <div key={p.schoolSlug} className={variant === "document" ? "py-6 sm:py-8" : undefined}>
                 <SchoolCard
@@ -186,7 +193,7 @@ export function ProposalMessage({ introNote, proposals, variant = "default", com
       {comparisonHref && proposals.length >= 2 && (
         <Link
           href={comparisonHref}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-worksheet-primary underline underline-offset-2 transition-colors hover:text-worksheet-accent"
+          className="mk-link inline-flex items-center gap-1.5 underline decoration-[#c9ccc6] underline-offset-[4px] transition-colors hover:decoration-[var(--mk-ink)]"
         >
           School Comparison で比較する
           <span aria-hidden>→</span>

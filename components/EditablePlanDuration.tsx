@@ -98,9 +98,9 @@ export default function EditablePlanDuration({
         <ClockIcon />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-medium tracking-wide text-[#68727c]">
+        <p className="text-[10px] font-medium tracking-wide text-[var(--mk-sub)]">
           期間
-          {source === "karte" && <span className="ml-1 text-[#8a949c]">／Karteから</span>}
+          {source === "karte" && <span className="ml-1 text-[var(--mk-sub)]">／Karteから</span>}
         </p>
 
         {editingEnabled ? (
@@ -113,7 +113,7 @@ export default function EditablePlanDuration({
               value={effective != null ? String(effective) : ""}
               disabled={busy}
               onChange={(e) => save(e.target.value)}
-              className="mt-0.5 w-full rounded-xl border border-white/80 bg-white/65 px-2 py-1 text-base font-semibold text-[#172033] transition-colors hover:bg-white/85 focus:outline-none focus:ring-2 focus:ring-white/80 disabled:opacity-60 sm:text-[13px]"
+              className="mt-0.5 w-full rounded-xl border border-white/80 bg-white/65 px-2 py-1 text-base font-semibold text-[var(--mk-ink)] transition-colors hover:bg-white/85 focus:outline-none focus:ring-2 focus:ring-white/80 disabled:opacity-60 sm:text-[13px]"
             >
               <option value="">未定</option>
               {options.map((m) => (
@@ -129,7 +129,7 @@ export default function EditablePlanDuration({
           </>
         ) : (
           <p
-            className={`mt-0.5 truncate text-sm font-semibold ${effective != null ? "text-[#172033]" : "text-[#98a1a8]"}`}
+            className={`mt-0.5 truncate text-sm font-semibold ${effective != null ? "text-[var(--mk-ink)]" : "text-[var(--mk-sub)]"}`}
           >
             {effective != null ? `${effective}ヶ月` : "これから整理"}
           </p>

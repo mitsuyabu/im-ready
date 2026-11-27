@@ -51,7 +51,10 @@ export default async function PlanChatPage({ params }: PlanChatPageProps) {
   ]);
 
   return (
-    <div className="flex h-dvh flex-1 flex-col bg-worksheet-surface">
+    // AI相談は「読む画面」なので、**この画面だけ地を白**にする。
+    // 会話本文のまわりの明度差をなくし、境界は border とラインで示す。
+    // My Karte の canvas（--mk-canvas）や他画面・/widget には影響しない。
+    <div className="flex h-dvh min-h-0 flex-1 flex-col bg-white">
       <Chat
         planId={planId}
         sessionId={session.id}

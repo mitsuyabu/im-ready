@@ -33,7 +33,7 @@ const STATUS_LABEL: Record<BlueprintSchoolStatus, string> = {
   selected: "決定",
 };
 const STATUS_ACTIVE: Record<BlueprintSchoolStatus, string> = {
-  considering: "border-[#d8cfbe] bg-[#efe9db] text-[#6f6a64]",
+  considering: "border-[var(--mk-border)] bg-[var(--mk-block)] text-[var(--mk-sub)]",
   preferred: "border-[#bcd0e0] bg-[#e3eef5] text-[#33506a]",
   selected: "border-[#c3d6b6] bg-[#e6f0dd] text-[#456037]",
 };
@@ -103,11 +103,11 @@ export default function EditableSchools({
   return (
     <div className="mt-4 grid grid-cols-1 gap-2">
       {schools.map((s) => (
-        <div key={s.id} className="rounded-xl border border-[#e5dfd6] bg-white px-4 py-3">
+        <div key={s.id} className="rounded-xl border border-[var(--mk-border)] bg-white px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-[#2f2c26]">{s.name}</p>
-              {s.city && <p className="mt-0.5 text-xs text-[#6b665d]">{s.city}</p>}
+              <p className="truncate text-sm font-semibold text-[var(--mk-ink)]">{s.name}</p>
+              {s.city && <p className="mt-0.5 text-xs text-[var(--mk-label)]">{s.city}</p>}
             </div>
             {editingEnabled ? (
               <button
@@ -115,7 +115,7 @@ export default function EditableSchools({
                 onClick={() => remove(s.id)}
                 disabled={disabled}
                 aria-label={`「${s.name}」をMy Planから外す`}
-                className="shrink-0 rounded-lg px-2 py-1 text-xs text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
+                className="shrink-0 rounded-lg px-2 py-1 text-xs text-[var(--mk-sub)] transition-colors hover:bg-[var(--mk-block)] hover:text-[var(--mk-label)] disabled:opacity-40"
               >
                 外す
               </button>
@@ -142,7 +142,7 @@ export default function EditableSchools({
                     className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-40 ${
                       active
                         ? STATUS_ACTIVE[st]
-                        : "border-[#e5dfd6] bg-white text-[#6b665d] hover:bg-[#f6f2e8]"
+                        : "border-[var(--mk-border)] bg-white text-[var(--mk-label)] hover:bg-[var(--mk-block)]"
                     }`}
                   >
                     {busy === `status:${s.id}` && active ? "…" : STATUS_LABEL[st]}
@@ -154,8 +154,8 @@ export default function EditableSchools({
 
           {/* 通う期間。実行 Plan に入る selected / preferred のみ（considering は比較候補・§19） */}
           {editingEnabled && (s.status === "selected" || s.status === "preferred") && (
-            <div className="mt-3 border-t border-[#efe9dd] pt-3">
-              <p className="text-[11px] font-medium tracking-wide text-[#7d776c]">通う期間</p>
+            <div className="mt-3 border-t border-[var(--mk-block)] pt-3">
+              <p className="text-[11px] font-medium tracking-wide text-[var(--mk-sub)]">通う期間</p>
               <div className="mt-1.5">
                 <PlanTimingControl
                   startMonth={s.startMonth}

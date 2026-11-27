@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -25,121 +24,44 @@ interface PlanPageProps {
   params: Promise<{ planId: string }>;
 }
 
-/** カード共通の枠・角丸・影（背景色は各カード側で指定する）。 */
-const CARD =
-  "relative overflow-hidden rounded-[18px] border border-[#e7ddc9] shadow-card";
-
 /**
- * About This Plan だけの card chrome。radius は他カードと同じ 18px のまま、
- * border と shadow をさらに静かにして「落ち着いた panel」に見せる。
- * CARD 本体は AI相談 / Worksheet / My Karte が共有しているため変更しない。
+ * カード共通の chrome。
+ * 新しいデザイン方針では **地は白のまま**で、枠・影・角丸だけでカードを立たせる
+ * （パステルの全面塗り・地紋・きらめきレイヤーは廃止した）。
+ * 色・角丸・影は globals.css の共通トークンを参照し、このページで値を決め直さない。
  */
-const ABOUT_CARD =
-  "relative overflow-hidden rounded-[18px] border border-[#e6e1d8] shadow-card";
+const CARD = "mk-card relative overflow-hidden";
 
 /**
- * Mindtrip 参考の 4 点きらめき。直線の星ではなく辺がくぼんだ形にするのが特徴。
- * 中心が原点（-10〜10）なので translate + scale だけで好きな位置・大きさに置ける。
+ * 4 点きらめき。以前はカード全面の装飾レイヤーに使っていたが、いまは
+ * 各カードのイラスト内の小さなアクセントとしてだけ残している。
  */
 const SPARKLE_D =
   "M0-10C1.3-4.2 4.2-1.3 10 0 4.2 1.3 1.3 4.2 0 10-1.3 4.2-4.2 1.3-10 0-4.2-1.3-1.3-4.2 0-10Z";
 
-/** SVG 文字列を background-image で使える data URI にする（サーバー側で 1 回だけ組み立てる）。 */
-function svgUrl(svg: string) {
-  return `url("data:image/svg+xml,${encodeURIComponent(svg.replace(/\s+/g, " ").trim())}")`;
-}
-
 /**
- * カード右側に敷く「きらめき」の装飾レイヤー。
- * 雲（白い円の集合）は不採用。大小・不透明度の違うきらめきだけを散らして奥行きを出す。
+ * 機能別カラー（globals.css の --fn-*）。使うのは**アイコンの背景**だけで、
+ * カード自体の地色にはしない。
  */
-const decorSvg = (spark: string) => `
-<svg xmlns="http://www.w3.org/2000/svg" width="420" height="200" viewBox="0 0 420 200">
-  <g fill="${spark}">
-    <path opacity=".5" transform="translate(245 113) scale(.75)" d="${SPARKLE_D}"/>
-    <path opacity=".32" transform="translate(333 70) scale(1.1)" d="${SPARKLE_D}"/>
-    <path opacity=".26" transform="translate(372 150) scale(.55)" d="${SPARKLE_D}"/>
-  </g>
-</svg>`;
+const ICON_TILE =
+  "fn-icon h-[64px] w-[64px] rounded-[18px] sm:h-[72px] sm:w-[72px]";
 
-/** 地紋（パターン）。ごく薄いきらめきと点を 64px 角でリピートし、紙に散った粒のように見せる。 */
-const patternSvg = (spark: string) => `
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <g fill="${spark}" opacity=".15">
-    <path transform="translate(15 15) scale(.3)" d="${SPARKLE_D}"/>
-    <path transform="translate(47 41) scale(.22)" d="${SPARKLE_D}"/>
-    <circle cx="52" cy="13" r="1.3"/><circle cx="19" cy="48" r="1"/>
-  </g>
-</svg>`;
-
-/**
- * Plan Home の 4 カードだけの表層（グラデーション + 地紋 + きらめき）。
- *
- * - グラデーション: 前フェーズのパステル 1 色をやめ、同系色の 3 段へ。彩度は低いまま
- *   「左上が少し濃く、右下へ抜ける」Mindtrip 的な流れにする。
- * - 地紋 / きらめき: background-image で敷くので必ず本文より背面に入り、カードの角丸で
- *   自動的に切り取られる（z-index も overflow も増やさない）。
- * - 重ね順は先頭が手前: きらめき → 地紋 → グラデーション。
- * 他ページへ波及させないため global token にはせず、このページ内で閉じている。
- */
-function cardSurface(spark: string, gradient: string): CSSProperties {
-  return {
-    backgroundImage: `${svgUrl(decorSvg(spark))}, ${svgUrl(patternSvg(spark))}, ${gradient}`,
-    backgroundRepeat: "no-repeat, repeat, no-repeat",
-    backgroundPosition: "right bottom, left top, left top",
-    backgroundSize: "auto 100%, 64px 64px, 100% 100%",
-  };
-}
-
-const CARD_SURFACE = {
-  /** AI相談: ピーチ。コーラル CTA（#e0806a）を載せても沈まない明度に保つ。 */
-  chat: cardSurface("#e2947a", "linear-gradient(115deg,#ffe0cd 0%,#ffece1 45%,#fff5ef 100%)"),
-  /** Worksheet: セージ。既存の進捗 pill（#eef1ec）と喧嘩しない範囲で。 */
-  worksheet: cardSurface("#8aa875", "linear-gradient(115deg,#e2eed1 0%,#edf5e1 45%,#f6fbef 100%)"),
-  /** My Karte: クリーム。白の outline ボタンが見えるよう黄みは最小限。 */
-  myKarte: cardSurface("#d9b263", "linear-gradient(115deg,#ffeabb 0%,#fff4d8 45%,#fffaec 100%)"),
-  /** About This Plan: ラベンダー。従来の warm ivory の役割（Plan の要約面）を引き継ぐ。 */
-  about: cardSurface("#a68fc8", "linear-gradient(135deg,#e8daf7 0%,#f2ecfa 50%,#faf7fd 100%)"),
-} as const;
-
-/**
- * カード左の図版の共通サイズ。Worksheet / My Karte はまだ提供画像（webp）、
- * AI相談だけ AiConsultIllustration（SVG）に差し替え済み。サイズ枠は 3 枚とも共通にして
- * 横並びのリズムを保つ（次フェーズで残り 2 枚を差し替えてもここは変えない）。
- */
-const CARD_ICON_CLASS = "h-16 w-16 shrink-0 sm:h-20 sm:w-20 lg:h-24 lg:w-24";
+/** アイコンタイルの中に置くイラストのサイズ。 */
+const CARD_ICON_CLASS = "h-11 w-11 shrink-0 sm:h-[52px] sm:w-[52px]";
 
 /**
  * AI相談カードのイラスト（Mindtrip 参考のエディトリアル表現）。
  *
- * 既製の 3D アイコン（/plan-icons/ai-chat.webp）をやめ、カードの地色（ピーチ #fff3ed）と
- * 一体に見える「紙に描いたような」作りにしている:
- *   - 背景に水彩のにじみ（セージ／ピーチ）を薄く重ねてコラージュ感を出す
- *   - 前景は navy outline + pastel fill のシンプルなオブジェクト（吹き出し 2 つ＝対話）
+ * 既製の 3D アイコンをやめ、「紙に描いたような」線画にしてある:
+ *   - navy outline + pastel fill のシンプルなオブジェクト（吹き出し 2 つ＝対話）
  *   - 図形はわざと左右非対称・線端は丸め、幾何学的になりすぎないようにする
- *   - 背景は塗らない（透過）ので、カードの地色がそのまま下地になる
- * ラスター画像ではなく SVG なので 64 / 80 / 96px のどのサイズでも潰れない。
+ *   - 背景は塗らない（透過）ので、機能別カラーのアイコン背景がそのまま下地になる
+ * 以前あった水彩のにじみ（ぼかした楕円）は、パステルのアイコン背景と二重になるので外した。
+ * ラスター画像ではなく SVG なので 44 / 52px のどちらでも潰れない。
  */
 function AiConsultIllustration({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 96 96" className={className} fill="none" aria-hidden>
-      {/* 水彩のにじみ（下地）。輪郭をぼかして「塗り残しのある絵の具」に見せる。
-          id はこのイラスト専用（ページ内で 1 回しか描画されない）。 */}
-      <defs>
-        <filter id="aiIlloWash" x="-25%" y="-25%" width="150%" height="150%">
-          <feGaussianBlur stdDeviation="3.2" />
-        </filter>
-      </defs>
-      <g filter="url(#aiIlloWash)" opacity="0.8">
-        <ellipse cx="37" cy="37" rx="30" ry="27" fill="#e3ede4" opacity="0.75" />
-        <ellipse cx="71" cy="59" rx="22" ry="20" fill="#fbdfd1" opacity="0.8" />
-        <ellipse cx="23" cy="66" rx="12" ry="10" fill="#f3e6d6" opacity="0.7" />
-      </g>
-
-      {/* 紙片のような小さな点（コラージュの余白要素） */}
-      <circle cx="13" cy="70" r="2.4" fill="#cdd9cd" />
-      <circle cx="88" cy="34" r="1.8" fill="#e8b7a4" />
-
       <g transform="rotate(-2 48 48)" stroke="#2b3a55" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         {/* 奥の吹き出し（相手の声）: セージ地 */}
         <path
@@ -167,23 +89,12 @@ function AiConsultIllustration({ className }: { className?: string }) {
 
 /**
  * Worksheet カードのイラスト。AiConsultIllustration と同じ描き方
- * （navy outline + pastel fill / ぼかした水彩の下地 / 透過背景 / 少し傾ける）で揃えている。
+ * （navy outline + pastel fill / 透過背景 / 少し傾ける）で揃えている。
  * モチーフは「チェックを入れていく記入シートと鉛筆」。
  */
 function WorksheetIllustration({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 96 96" className={className} fill="none" aria-hidden>
-      <defs>
-        <filter id="wsIlloWash" x="-25%" y="-25%" width="150%" height="150%">
-          <feGaussianBlur stdDeviation="3.2" />
-        </filter>
-      </defs>
-      <g filter="url(#wsIlloWash)" opacity="0.8">
-        <ellipse cx="42" cy="42" rx="30" ry="29" fill="#dfeccf" opacity="0.8" />
-        <ellipse cx="72" cy="66" rx="20" ry="18" fill="#f1e7d4" opacity="0.7" />
-      </g>
-      <circle cx="12" cy="30" r="2.2" fill="#cdd9cd" />
-
       <g transform="rotate(-3 48 48)" stroke="#2b3a55" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         {/* 記入シート */}
         <path d="M 24 12 h 42 a 6 6 0 0 1 6 6 v 58 a 6 6 0 0 1 -6 6 h -42 a 6 6 0 0 1 -6 -6 v -58 a 6 6 0 0 1 6 -6 z" fill="#ffffff" />
@@ -218,17 +129,6 @@ function WorksheetIllustration({ className }: { className?: string }) {
 function MyKarteIllustration({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 96 96" className={className} fill="none" aria-hidden>
-      <defs>
-        <filter id="mkIlloWash" x="-25%" y="-25%" width="150%" height="150%">
-          <feGaussianBlur stdDeviation="3.2" />
-        </filter>
-      </defs>
-      <g filter="url(#mkIlloWash)" opacity="0.8">
-        <ellipse cx="46" cy="44" rx="31" ry="28" fill="#f6e8c6" opacity="0.8" />
-        <ellipse cx="26" cy="68" rx="18" ry="15" fill="#e4ece2" opacity="0.6" />
-      </g>
-      <circle cx="87" cy="64" r="2.1" fill="#e6d2a3" />
-
       <g stroke="#2b3a55" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         {/* 奥の 1 枚（クリーム） */}
         <g transform="rotate(-11 48 52)">
@@ -284,7 +184,7 @@ function ClockIcon({ className }: { className?: string }) {
 /** boarding pass 風の decorative チケット。generic ラベルのみで、具体値は出さない。 */
 function BoardingPass() {
   return (
-    <svg aria-hidden viewBox="0 0 148 56" className="h-12 w-36 text-[#9a9384]" fill="none" stroke="currentColor" strokeWidth="1.2">
+    <svg aria-hidden viewBox="0 0 148 56" className="h-12 w-36 text-[#b4b7b1]" fill="none" stroke="currentColor" strokeWidth="1.2">
       <rect x="1" y="1" width="146" height="54" rx="4" />
       <line x1="102" y1="1" x2="102" y2="55" strokeDasharray="3 3" />
       <text x="9" y="15" fontSize="7" fontWeight="700" fill="currentColor" stroke="none">BOARDING PASS</text>
@@ -376,16 +276,16 @@ export default async function PlanPage({ params }: PlanPageProps) {
   const cityGuideDescription = getCityGuideDescription(destinationCity);
 
   return (
-    <div className="min-h-dvh bg-worksheet-surface">
+    <div className="min-h-dvh bg-white">
       {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、mobileのみこのheader（ロゴ＋タグライン） */}
-      <header className="border-b border-[#e7ddc9] bg-worksheet-surface px-4 py-4 sm:px-6 lg:hidden">
+      <header className="border-b border-[var(--mk-border)] bg-white px-4 py-4 sm:px-6 lg:hidden">
         <MobileBrandHeader />
       </header>
 
       <div className="mx-auto max-w-7xl px-4 pb-12 pt-5 sm:px-6 sm:pb-16 sm:pt-6">
         <Link
           href="/mypage"
-          className="text-[13px] font-medium text-[#2b2a27] underline decoration-[#2b2a27]/30 underline-offset-2 transition-colors hover:decoration-[#2b2a27]"
+          className="mk-sub-text font-medium text-[var(--mk-label)] underline decoration-[#c9ccc6] underline-offset-2 transition-colors hover:decoration-[var(--mk-ink)]"
         >
           ← マイページに戻る
         </Link>
@@ -408,26 +308,29 @@ export default async function PlanPage({ params }: PlanPageProps) {
         {/* PC（lg 以上）は 2 カラム。左に AI相談 → Worksheet → My Karte、右に About This Plan を置く。
             mobile は従来どおり 1 カラムで DOM 順（AI相談 → Worksheet → About This Plan → My Karte）に並ぶため、
             カードは DOM 順を変えずに lg の grid placement だけで配置している。
-            gap は従来と同じ（カード間 16px / 左右 24px）で、右カラムは self-start で高さを揃えない。 */}
+            4 枚とも白地・薄い border・控えめな影で、機能ごとの色はアイコン背景にだけ出す。
+            高さを固定する min-h は外し、中身のぶんだけの高さにしている（余白を作りすぎない）。 */}
         <div className="mt-6 flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)] lg:gap-x-6 lg:gap-y-4">
             {/* AI相談（PC: 左カラム 1 段目） */}
             <section
-              style={CARD_SURFACE.chat}
-              className={`${CARD} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:col-start-1 lg:row-start-1 lg:min-h-[160px]`}
+              className={`${CARD} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-5 sm:p-6 lg:col-start-1 lg:row-start-1`}
             >
-              <AiConsultIllustration className={CARD_ICON_CLASS} />
+              <span aria-hidden className={ICON_TILE} style={{ backgroundColor: "var(--fn-chat)" }}>
+                <AiConsultIllustration className={CARD_ICON_CLASS} />
+              </span>
               <div className="min-w-0 flex-1">
-                <h2 className="text-lg font-bold text-[#2b3a55]">AI相談</h2>
-                <p className="mt-1 text-[15px] leading-relaxed text-[#6b6357]">
+                <h2 className="mk-card-title">AI相談</h2>
+                <p className="mk-text mt-1 text-[var(--mk-sub)]">
                   AIカウンセラーと話しながら、気持ちや希望を整理し、自分に合う学校や留学の形を見つけます。
                 </p>
                 {lastChatMessageAt && (
-                  <p className="mt-1.5 text-xs text-[#8b857a]">最終相談 {formatLastUpdated(lastChatMessageAt)}</p>
+                  <p className="mk-sub-text mt-1.5">最終相談 {formatLastUpdated(lastChatMessageAt)}</p>
                 )}
               </div>
+              {/* このページの主要操作はここだけ蛍光ライム。他 2 枚は白地の副次ボタンにする。 */}
               <Link
                 href={`/plans/${typedPlan.id}/chat`}
-                className="shrink-0 self-start rounded-full bg-[#e0806a] px-6 py-2.5 text-center text-sm font-semibold text-white transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] sm:self-center"
+                className="btn-primary shrink-0 self-start sm:self-center"
               >
                 相談を続ける →
               </Link>
@@ -435,86 +338,97 @@ export default async function PlanPage({ params }: PlanPageProps) {
 
             {/* Worksheet（PC: 左カラム 2 段目） */}
             <section
-              style={CARD_SURFACE.worksheet}
-              className={`${CARD} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7 lg:col-start-1 lg:row-start-2 lg:min-h-[160px]`}
+              className={`${CARD} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-5 sm:p-6 lg:col-start-1 lg:row-start-2`}
             >
-              <WorksheetIllustration className={CARD_ICON_CLASS} />
+              <span aria-hidden className={ICON_TILE} style={{ backgroundColor: "var(--fn-worksheet)" }}>
+                <WorksheetIllustration className={CARD_ICON_CLASS} />
+              </span>
               <div className="min-w-0 flex-1">
-                <h2 className="text-lg font-bold text-[#2b3a55]">Worksheet</h2>
-                <p className="mt-1 text-[15px] leading-relaxed text-[#6b6357]">
+                <h2 className="mk-card-title">Worksheet</h2>
+                <p className="mk-text mt-1 text-[var(--mk-sub)]">
                   設問に答えながら、留学の目的・条件・優先順位を、自分のペースで整理していきます。
                 </p>
                 {/* 既存 PlanWorksheetProgress はロジック不変。表示される時だけ薄い pill に見せる wrapper。 */}
-                <div className="[&>p]:m-0 [&>p]:mt-2 [&>p]:inline-block [&>p]:rounded-full [&>p]:bg-[#eef1ec] [&>p]:px-2.5 [&>p]:py-0.5 [&>p]:text-[11px] [&>p]:text-[#5b5750]">
+                <div className="[&>p]:m-0 [&>p]:mt-2 [&>p]:inline-block [&>p]:rounded-full [&>p]:bg-[var(--mk-block)] [&>p]:px-2.5 [&>p]:py-1 [&>p]:text-[12px] [&>p]:font-medium [&>p]:text-[var(--mk-label)]">
                   <PlanWorksheetProgress planId={typedPlan.id} karte={karte} serverWorksheet={worksheet} />
                 </div>
               </div>
               <Link
                 href={`/plans/${typedPlan.id}/worksheet`}
-                className="shrink-0 self-start rounded-full border border-[#2b3a55]/30 bg-white px-6 py-2.5 text-center text-sm font-medium text-[#2b3a55] transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] sm:self-center"
+                className="btn-quiet shrink-0 self-start sm:self-center"
               >
                 見直す →
               </Link>
             </section>
 
-            {/* About This Plan（PC: 右カラム。高さは揃えず self-start のまま）。手描き・紙もの装飾（ピン / 星 / 波線下線 / 破れた下辺）は持たず、
-                落ち着いた panel として見せる。他 3 枚（ピーチ / セージ / クリーム）に対しここだけラベンダーで、
-                Plan の要約であることをおだやかに示す（＝残す「特別感」はこの地色だけ）。 */}
+            {/* About This Plan（PC: 右カラム。高さは揃えず self-start のまま）。
+                以前はラベンダーの全面グラデーションだったが、地は白に戻し、
+                各項目の小さなアイコン背景だけ My Plan の機能色（イエロー）にしている。 */}
             <section
-              style={CARD_SURFACE.about}
-              className={`${ABOUT_CARD} p-5 sm:p-6 lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:min-h-[220px] lg:self-start`}
+              className={`${CARD} p-5 sm:p-6 lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:self-start`}
             >
-              <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-[#1f2d43] sm:text-[24px]">
-                About This Plan
-              </h2>
+              <h2 className="mk-section-title">About This Plan</h2>
 
-              <dl className="mt-4 divide-y divide-[#e6e1d8]">
-                <div className="flex items-center justify-between gap-3 py-3.5 first:pt-2">
-                  <dt className="inline-flex shrink-0 items-center gap-2 text-[15px] font-medium text-[#625c54]">
-                    <PinIcon className="h-[18px] w-[18px] text-[#7c766d]" />
-                    行き先
-                  </dt>
-                  <dd className="min-w-0 text-right text-[15px] font-semibold text-[#1f2d43] sm:text-base">
-                    {destinationCity ? toCityChipText(destinationCity) : "これから整理"}
-                  </dd>
+              <dl className="mt-4 divide-y divide-[var(--mk-border)]">
+                <div className="flex items-center gap-3 py-3.5 first:pt-1">
+                  <span
+                    aria-hidden
+                    className="fn-icon h-9 w-9 rounded-[12px]"
+                    style={{ backgroundColor: "var(--fn-plan)" }}
+                  >
+                    <PinIcon className="h-[18px] w-[18px]" />
+                  </span>
+                  <div className="min-w-0">
+                    <dt className="mk-item-label-sm">行き先</dt>
+                    <dd className="mk-value mt-0.5 break-words">
+                      {destinationCity ? toCityChipText(destinationCity) : "これから整理"}
+                    </dd>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between gap-3 py-3.5">
-                  <dt className="inline-flex shrink-0 items-center gap-2 text-[15px] font-medium text-[#625c54]">
-                    <ClockIcon className="h-[18px] w-[18px] text-[#7c766d]" />
-                    出発の目安
-                  </dt>
-                  <dd className="min-w-0 text-right text-[15px] font-semibold text-[#1f2d43] sm:text-base">
-                    {summary.departureTiming ? toDeparturePlanInfoText(summary.departureTiming) : "これから整理"}
-                  </dd>
+                <div className="flex items-center gap-3 py-3.5">
+                  <span
+                    aria-hidden
+                    className="fn-icon h-9 w-9 rounded-[12px]"
+                    style={{ backgroundColor: "var(--fn-plan)" }}
+                  >
+                    <ClockIcon className="h-[18px] w-[18px]" />
+                  </span>
+                  <div className="min-w-0">
+                    <dt className="mk-item-label-sm">出発の目安</dt>
+                    <dd className="mk-value mt-0.5 break-words">
+                      {summary.departureTiming ? toDeparturePlanInfoText(summary.departureTiming) : "これから整理"}
+                    </dd>
+                  </div>
                 </div>
               </dl>
 
               <Link
                 href={`/plans/${typedPlan.id}/my-plan`}
-                className="mt-4 inline-block text-xs font-medium text-[#2b3a55] underline decoration-[#2b3a55]/30 underline-offset-2 transition-colors hover:decoration-[#2b3a55]"
+                className="mk-link mt-4 inline-block underline decoration-[#c9ccc6] underline-offset-[4px] transition-colors hover:decoration-[var(--mk-ink)]"
               >
                 My Planを見る →
               </Link>
             </section>
 
-            {/* My Karte（PC: 左カラム 3 段目 = Worksheet の直下） */}
-            {/* 内部は grid。mobile は従来どおり 2 列で「アイコン＋見出しの行 → カード幅いっぱいの説明文 → ボタン」。
-                PC（lg 以上）だけ 3 列（アイコン / テキスト / CTA）に切り替え、AI相談 / Worksheet と同じ
-                「アイコン左・テキスト中央・CTA が右端」の視覚リズムに揃える。
-                アイコンと CTA は行をまたいで縦中央、テキスト列だけが伸縮する（minmax(0,1fr)）。
-                アイコン幅（CARD_ICON_CLASS）・文言・route・card chrome は変更していない。 */}
+            {/* My Karte（PC: 左カラム 3 段目 = Worksheet の直下）。
+                以前は内部だけ独自の grid だったが、AI相談 / Worksheet と同じ
+                「アイコン左・テキスト中央・CTA 右」の 1 行構成に揃えた
+                （mobile は 3 枚とも縦積み）。文言・route は変更していない。 */}
             <section
-              style={CARD_SURFACE.myKarte}
-              className={`${CARD} overflow-hidden grid grid-cols-[auto_minmax(0,1fr)] content-start items-center gap-x-4 p-5 sm:p-6 lg:col-start-1 lg:row-start-3 lg:min-h-[165px] lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:content-center lg:gap-x-6 lg:p-7`}
+              className={`${CARD} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-5 sm:p-6 lg:col-start-1 lg:row-start-3`}
             >
-              <MyKarteIllustration className={`${CARD_ICON_CLASS} col-start-1 row-start-1 lg:row-span-3 lg:self-center`} />
-              <h2 className="col-start-2 row-start-1 min-w-0 text-lg font-bold text-[#2b3a55]">My Karte</h2>
-              <p className="col-span-2 col-start-1 row-start-2 mt-2 text-[15px] leading-relaxed text-[#6b6357] lg:col-span-1 lg:col-start-2 lg:mt-1">
-                考えたことや決めたことを、相談や共有に使いやすい資料にまとめます。自分の考えを振り返るときにも役立ちます。
-              </p>
+              <span aria-hidden className={ICON_TILE} style={{ backgroundColor: "var(--fn-karte)" }}>
+                <MyKarteIllustration className={CARD_ICON_CLASS} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="mk-card-title">My Karte</h2>
+                <p className="mk-text mt-1 text-[var(--mk-sub)]">
+                  考えたことや決めたことを、相談や共有に使いやすい資料にまとめます。自分の考えを振り返るときにも役立ちます。
+                </p>
+              </div>
               <Link
                 href={`/plans/${typedPlan.id}/documents`}
-                className="col-span-2 col-start-1 row-start-3 mt-3 inline-block justify-self-start rounded-full border border-[#2b3a55]/30 bg-white px-5 py-2 text-sm font-medium text-[#2b3a55] transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:row-span-3 lg:mt-0 lg:self-center lg:justify-self-end"
+                className="btn-quiet shrink-0 self-start sm:self-center"
               >
                 資料を見る →
               </Link>
@@ -522,13 +436,13 @@ export default async function PlanPage({ params }: PlanPageProps) {
         </div>
 
         {/* フッター：実データの最終更新 ＋ 手書き風の一言 ＋ boarding pass 風チケット */}
-        <div className="mt-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-dashed border-[#d8d0be] pt-5">
-          <span className="inline-flex items-center gap-1.5 text-xs text-[#8b857a]">
+        <div className="mt-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-[var(--mk-border)] pt-5">
+          <span className="mk-sub-text inline-flex items-center gap-1.5">
             <CalendarIcon className="h-3.5 w-3.5" />
             最終更新 {formatLastUpdated(lastUpdatedIso)}
           </span>
           <div className="flex items-center gap-3">
-            <span aria-hidden className="font-serif text-sm italic text-[#7a8a76]">Keep going!</span>
+            <span aria-hidden className="font-serif text-sm italic text-[var(--mk-sub)]">Keep going!</span>
             <BoardingPass />
           </div>
           {/* Plan の整理用。確認ダイアログで「消えるもの」を示してから削除する（一覧のカードメニューと同じダイアログ）。 */}

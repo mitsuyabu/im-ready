@@ -159,7 +159,7 @@ export default function EditablePlanItems({
         {items.map((it) => (
           <span
             key={it.id}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[#e5dfd6] bg-white py-1.5 pl-3 pr-1.5 text-[13px] text-[#3f3a34]"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--mk-border)] bg-white py-1.5 pl-3 pr-1.5 text-[13px] text-[var(--mk-body)]"
             title={it.note ?? undefined}
           >
             {it.label}
@@ -169,7 +169,7 @@ export default function EditablePlanItems({
                 onClick={() => handleDelete(it.id)}
                 disabled={disabled}
                 aria-label={`「${it.label}」を削除`}
-                className="rounded-full p-0.5 text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
+                className="rounded-full p-0.5 text-[var(--mk-sub)] transition-colors hover:bg-[var(--mk-block)] hover:text-[var(--mk-label)] disabled:opacity-40"
               >
                 <XIcon className="h-3.5 w-3.5" />
               </button>
@@ -182,13 +182,13 @@ export default function EditablePlanItems({
         {items.map((it) => (
           <li
             key={it.id}
-            className="rounded-xl border border-[#e5dfd6] bg-white px-4 py-3"
+            className="rounded-xl border border-[var(--mk-border)] bg-white px-4 py-3"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-medium leading-snug text-[#2f2c26]">{it.label}</p>
+                <p className="text-sm font-medium leading-snug text-[var(--mk-ink)]">{it.label}</p>
                 {it.note && (
-                  <p className="mt-0.5 text-xs leading-relaxed text-[#6b665d]">{it.note}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-[var(--mk-label)]">{it.note}</p>
                 )}
               </div>
               {editingEnabled && (
@@ -197,7 +197,7 @@ export default function EditablePlanItems({
                   onClick={() => handleDelete(it.id)}
                   disabled={disabled}
                   aria-label={`「${it.label}」を削除`}
-                  className="mt-0.5 shrink-0 rounded-lg px-2 py-1 text-xs text-[#8a8578] transition-colors hover:bg-[#f0ece2] hover:text-[#57534b] disabled:opacity-40"
+                  className="mt-0.5 shrink-0 rounded-lg px-2 py-1 text-xs text-[var(--mk-sub)] transition-colors hover:bg-[var(--mk-block)] hover:text-[var(--mk-label)] disabled:opacity-40"
                 >
                   削除
                 </button>
@@ -205,7 +205,7 @@ export default function EditablePlanItems({
             </div>
 
             {showTiming && itemTiming && (
-              <div className="mt-3 border-t border-[#efe9dd] pt-3">
+              <div className="mt-3 border-t border-[var(--mk-block)] pt-3">
                 <PlanTimingControl
                   startMonth={it.startMonth}
                   durationMonths={it.durationMonths}
@@ -226,8 +226,8 @@ export default function EditablePlanItems({
     <div>
       {items.length === 0 && openCandidates.length === 0 && hints.length === 0 && (
         <div className="mt-4">
-          <p className="text-sm text-[#7d776c]">{emptyLine}</p>
-          <p className="mt-1 text-xs leading-relaxed text-[#8a8578]">{emptyHelper}</p>
+          <p className="text-sm text-[var(--mk-sub)]">{emptyLine}</p>
+          <p className="mt-1 text-xs leading-relaxed text-[var(--mk-sub)]">{emptyHelper}</p>
         </div>
       )}
 
@@ -237,7 +237,7 @@ export default function EditablePlanItems({
       {editingEnabled && (
         <div className="mt-3">
           {adding ? (
-            <div className="rounded-xl border border-[#e0d9ca] bg-[#faf8f2] p-3">
+            <div className="rounded-xl border border-[var(--mk-border)] bg-[var(--mk-block)] p-3">
               <label htmlFor={inputId} className="sr-only">
                 {addLabel}
               </label>
@@ -256,14 +256,14 @@ export default function EditablePlanItems({
                 maxLength={120}
                 autoFocus
                 disabled={disabled}
-                className="w-full rounded-lg border border-[#e6e2d8] bg-white px-3 py-2 text-sm text-[#172033] placeholder:text-[#a7a08f] focus:outline-none focus:ring-2 focus:ring-worksheet-accent/30 disabled:opacity-60"
+                className="w-full rounded-lg border border-[var(--mk-border)] bg-white px-3 py-2 text-sm text-[var(--mk-ink)] placeholder:text-[var(--mk-sub)] focus:outline-none focus:ring-2 focus:ring-worksheet-accent/30 disabled:opacity-60"
               />
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
                   onClick={handleAdd}
                   disabled={disabled}
-                  className="inline-flex min-h-[36px] items-center rounded-full bg-[#1e2b3d] px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#172033] disabled:opacity-40"
+                  className="btn-primary min-h-[36px] px-4 py-1.5 disabled:opacity-40"
                 >
                   {busy === "add" ? "追加中…" : "追加"}
                 </button>
@@ -275,7 +275,7 @@ export default function EditablePlanItems({
                     setError(null);
                   }}
                   disabled={disabled}
-                  className="inline-flex min-h-[36px] items-center rounded-full px-3 py-1.5 text-sm text-[#6f6a64] transition-colors hover:bg-[#f0ece2] disabled:opacity-40"
+                  className="inline-flex min-h-[36px] items-center rounded-full px-3 py-1.5 text-sm text-[var(--mk-sub)] transition-colors hover:bg-[var(--mk-block)] disabled:opacity-40"
                 >
                   キャンセル
                 </button>
@@ -289,7 +289,7 @@ export default function EditablePlanItems({
                 setSaved(false);
                 setError(null);
               }}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#e0d9ca] bg-[#f6f2e8] px-3.5 py-1.5 text-[13px] font-medium text-[#3a4a5f] transition-colors hover:bg-[#efe9db]"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--mk-border)] bg-[var(--mk-block)] px-3.5 py-1.5 text-[13px] font-medium text-[#3a4a5f] transition-colors hover:bg-[var(--mk-block)]"
             >
               <span aria-hidden>＋</span>
               {addLabel}
@@ -300,21 +300,21 @@ export default function EditablePlanItems({
 
       {/* Karte 候補（採用可） */}
       {openCandidates.length > 0 && (
-        <div className="mt-4 rounded-xl border border-dashed border-[#d9d3c8] bg-[#f6f4ec] px-4 py-3">
-          <p className="text-[10px] font-semibold tracking-wide text-[#6b665d]">Karteからの候補</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-[#7d776c]">
+        <div className="mt-4 rounded-xl border border-dashed border-[var(--mk-border)] bg-[var(--mk-block)] px-4 py-3">
+          <p className="text-[10px] font-semibold tracking-wide text-[var(--mk-label)]">Karteからの候補</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--mk-sub)]">
             会話やWorksheetから見えている内容
           </p>
           <ul className="mt-2.5 space-y-2">
             {openCandidates.map((c) => (
               <li key={c.key} className="flex items-start justify-between gap-3">
-                <span className="min-w-0 text-sm leading-snug text-[#6f6a64]">{c.label}</span>
+                <span className="min-w-0 text-sm leading-snug text-[var(--mk-sub)]">{c.label}</span>
                 {editingEnabled && (
                   <button
                     type="button"
                     onClick={() => handleAdopt(c)}
                     disabled={disabled}
-                    className="shrink-0 rounded-full border border-[#c9c2b4] bg-white px-2.5 py-1 text-[11px] font-medium text-[#3a4a5f] transition-colors hover:bg-[#efe9db] disabled:opacity-40"
+                    className="shrink-0 rounded-full border border-[var(--mk-border)] bg-white px-2.5 py-1 text-[11px] font-medium text-[#3a4a5f] transition-colors hover:bg-[var(--mk-block)] disabled:opacity-40"
                   >
                     {busy === `adopt:${c.key}` ? "追加中…" : "＋ Planに追加"}
                   </button>
@@ -327,11 +327,11 @@ export default function EditablePlanItems({
 
       {/* Karte ヒント（read-only） */}
       {hints.length > 0 && (
-        <div className="mt-4 rounded-xl bg-[#f2f4ee] px-4 py-3">
-          <p className="text-[10px] font-medium tracking-wide text-[#6b665d]">Karteからのヒント</p>
+        <div className="mt-4 rounded-xl bg-[var(--mk-block)] px-4 py-3">
+          <p className="text-[10px] font-medium tracking-wide text-[var(--mk-label)]">Karteからのヒント</p>
           <ul className="mt-1 space-y-1">
             {hints.map((h) => (
-              <li key={h.key} className="text-xs leading-relaxed text-[#6f6a64]">
+              <li key={h.key} className="text-xs leading-relaxed text-[var(--mk-sub)]">
                 {h.label}
               </li>
             ))}

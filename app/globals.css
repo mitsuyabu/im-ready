@@ -53,6 +53,76 @@
   --ws-ink: var(--worksheet-primary);
 
   /*
+   * 蛍光アクセント（My Karte ダッシュボードの差し色）。
+   *
+   * 使い方のルール（**面ではなくアクセント**）:
+   *   - 小さな pill・タグ・3px の線・アイコン背景・アクティブ状態・focus・hover にだけ使う
+   *   - カードやセクションの地色としては使わない（1 枚を単色で塗らない）
+   *   - 本文の文字色には使わない。蛍光の上に載せる文字は near-black にする
+   *
+   * コントラスト（実測）: near-black #1c1c1c を載せたとき lime 14.5 / yellow 14.6 /
+   * blue 10.8 でいずれも AAA。白地に対しては 1.17〜1.58 と輝度差が小さいので、
+   * 面として広く使うと「ぼんやり明るいだけ」になる＝小さく使うほど効く色。
+   */
+  --neon-lime: #d8fb57;
+  --neon-lime-soft: #effdc0;
+  --neon-yellow: #fdf25a;
+  --neon-blue: #6fdcf7;
+  /** 蛍光面に載せる文字・アイコンの色（AAA を満たす near-black）。 */
+  --neon-ink: #1c1c1c;
+
+  /*
+   * My Karte ダッシュボード専用のトークン（接頭辞 --mk-）。
+   *
+   * **この画面の中だけ**で使う。アプリ全体の背景（--background）や
+   * Worksheet の承認済みテーマ（--worksheet-* / lib/worksheetSectionTheme.ts）には
+   * 一切影響させない。My Karte は「白いカードを淡いグレーの面に並べる」構成にするため、
+   * ページの地だけを canvas 色にして、カードを白で浮かせる。
+   */
+  --mk-canvas: #f4f5f3;
+  --mk-card: #ffffff;
+  --mk-border: #e7e8e4;
+  --mk-ink: #1c1c1c;
+  --mk-muted: #70746f;
+  /** カード内で情報をひとかたまりに見せるときの、ごく薄いグレー面。 */
+  --mk-block: #f7f8f6;
+  /** 面として敷いてよい淡色（全面ベタ塗りではなく、ブロックやチップに使う）。 */
+  --mk-pale-blue: #e8f2f7;
+  --mk-pale-sage: #e8efea;
+  --mk-pale-lavender: #ece9f6;
+
+  /*
+   * 機能別カラー（アプリ共通・接頭辞 --fn-）。
+   *
+   * 「どの機能の話か」を一目で分けるためだけの淡色。使ってよいのは
+   *   - アイコンの丸／角丸の背景
+   *   - 小さなタグ・チップ
+   *   - 短いライン・部分的なグラデーション
+   * に限る。**カードやセクションを 1 枚まるごとこの色で塗らない**（地は白のまま）。
+   * ブランドアクセントの蛍光（--neon-*）とは役割が別で、主要操作・選択状態には使わない。
+   */
+  --fn-chat: #e1efc5;
+  --fn-worksheet: #d5edfc;
+  --fn-karte: #e9e0fa;
+  --fn-plan: #ffeda9;
+
+  /*
+   * My Karte の共通デザイントークン（文字色・角丸）。
+   * 「同じ役割の文字は同じスタイル」を 1 か所で決めるためのもので、
+   * 各コンポーネントが個別に #hex や px を持たないようにする。
+   * 下の @layer components のクラス（.mk-*）がこの値を参照する。
+   */
+  /** 項目名（回答を読み解くための見出し）。薄いグレーにはしない。 */
+  --mk-label: #515650;
+  /** 回答・本文。near-black より少しだけ軽くして長文でも読みやすくする。 */
+  --mk-body: #262626;
+  /** 補足情報（説明文・更新日・注意書きなど）。 */
+  --mk-sub: #737873;
+  /** カードの角丸。大きいカードと小さいカードの 2 段だけ。 */
+  --mk-radius: 20px;
+  --mk-radius-sm: 16px;
+
+  /*
    * カードの elevation（**ここ1か所**で主要カードに効く）。
    * アプリ背景が白になったぶん、カードが背景に溶けないように「やわらかく浮かせる」。
    * 1 層目は輪郭を締める接地影、2 層目は広い blur の拡散影で、どちらも opacity は低め。
@@ -151,5 +221,282 @@ textarea::placeholder {
   textarea,
   select {
     font-size: 16px !important;
+  }
+}
+
+/*
+ * ===== 共通タイポグラフィ / カード（My Karte 由来・アプリ共通） =====
+ *
+ * もともと My Karte（/plans/[planId]/documents）のために作ったクラスだが、
+ * 新しいデザイン方針（白地・黒文字・白いカード・機能別カラーは小さく）に合わせて
+ * **Plan Home / Worksheet 詳細 / My Plan でも同じクラスを使う**。
+ * 同じ役割の文字・角丸・余白を画面ごとに定義し直さないための唯一の基準。
+ *
+ * 使わない画面（承認済みの見た目を保護する）:
+ *   - Worksheet 一覧（/plans/[planId]/worksheet・WorksheetSectionList）
+ *   - AI相談チャット（Chat 系は専用の組み方を既に持っている）
+ *   - 匿名チャット（/widget）・匿名 Worksheet（/worksheet）
+ * **同じ役割の文字には必ず同じクラスを当てる**（セクションごとに px を決め直さない）。
+ * ここを直せば My Karte 全体の文字が一括で変わる。
+ *
+ * @layer components に置いているので、Tailwind の utility（text-[15px] など）を
+ * 併記したときは utility 側が勝つ。例外的な調整はコンポーネント側で上書きできる。
+ *
+ * アプリ全体の font-size や body / Worksheet / Plan Home のスタイルには影響しない
+ * （このファイルの既存ルールは一切変更していない。クラスを新しく足しただけ）。
+ */
+@layer components {
+  /* --- 見出しの階層 --- */
+
+  /** ページタイトル（My Karte）。目安 32px。 */
+  .mk-page-title {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    color: var(--mk-ink);
+  }
+
+  /** セクションタイトル（My Note / Study Plan ...）。目安 24px。 */
+  .mk-section-title {
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: var(--mk-ink);
+  }
+
+  /** カードタイトル（My Note の 4 枚・学校名など）。目安 16px。 */
+  .mk-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: -0.005em;
+    color: var(--mk-ink);
+  }
+
+  /** 役割を示す小さな英字ラベル（NOTE / CONDITIONS ...）。 */
+  .mk-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--mk-sub);
+  }
+
+  /* --- 項目名と本文（My Note と Study Plan で共通） --- */
+
+  /**
+   * 項目名。「留学を考えている理由」「今すぐ決められない理由」など、
+   * 回答を読み解くための見出し。補足情報ではないので小さく薄くしない。
+   */
+  .mk-item-label {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--mk-label);
+  }
+
+  /** 幅の狭い場所（比較表の項目列）用の項目名。色と太さは揃える。 */
+  .mk-item-label-sm {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--mk-label);
+  }
+
+  /** 回答・本文。目安 16px / 行間 1.7（日本語の長文を優先）。 */
+  .mk-text {
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.7;
+    color: var(--mk-body);
+  }
+
+  /** 各カードの 1 件目だけ少し強く組む（カード間で同じルールにする）。 */
+  .mk-text-lead {
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.7;
+    color: var(--mk-body);
+  }
+
+  /** Study Plan の値。項目名より少しだけ大きく、項目ごとには変えない。 */
+  .mk-value {
+    font-size: 17px;
+    font-weight: 500;
+    line-height: 1.45;
+    letter-spacing: -0.01em;
+    color: var(--mk-body);
+  }
+
+  /** 「未定」「未整理」。値と同じ大きさで、太さと色だけ落とす（薄すぎる灰色は使わない）。 */
+  .mk-value-empty {
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 1.45;
+    color: var(--mk-sub);
+  }
+
+  /** 補足情報（説明文・ほか○件・更新日・注意書き）。 */
+  .mk-sub-text {
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--mk-sub);
+  }
+
+  /** 詳細画面への導線。 */
+  .mk-link {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--mk-ink);
+  }
+
+  @media (min-width: 640px) {
+    .mk-page-title {
+      font-size: 32px;
+    }
+    .mk-section-title {
+      font-size: 24px;
+    }
+    .mk-item-label {
+      font-size: 15px;
+    }
+    .mk-text {
+      font-size: 16px;
+    }
+    .mk-text-lead {
+      font-size: 17px;
+    }
+    .mk-value,
+    .mk-value-empty {
+      font-size: 18px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .mk-page-title {
+      font-size: 36px;
+    }
+  }
+
+  /* --- カードの共通シェル（角丸・border・影・内余白を 1 か所に） --- */
+
+  /** 白いカード。地色をベタ塗りで変えたいときだけ呼び出し側で上書きする。 */
+  .mk-card {
+    background-color: var(--mk-card);
+    border: 1px solid var(--mk-border);
+    border-radius: var(--mk-radius);
+    box-shadow: var(--elevation-card);
+  }
+
+  /** 小さいカード（サマリータイルなど）。 */
+  .mk-card-sm {
+    border-radius: var(--mk-radius-sm);
+  }
+
+  /** 中身が空のときの点線カード。見た目の寸法は .mk-card と揃える。 */
+  .mk-card-empty {
+    background-color: var(--mk-card);
+    border: 1px dashed #d9dbd5;
+    border-radius: var(--mk-radius);
+  }
+
+  /** カード内の標準余白。 */
+  .mk-pad {
+    padding: 20px;
+  }
+
+  /** 大きいカード（ヘッダー・Study Plan）の余白。 */
+  .mk-pad-lg {
+    padding: 22px;
+  }
+
+  @media (min-width: 640px) {
+    .mk-pad {
+      padding: 24px;
+    }
+    .mk-pad-lg {
+      padding: 32px;
+    }
+  }
+
+  /* --- ボタン（主要操作 / 副次的な操作）の共通ルール --- */
+
+  /**
+   * 主要操作。通常は蛍光ライムの面＋黒文字、hover で面だけ白に抜ける
+   * （枠線は蛍光ライムのまま＝押せる場所が消えない）。
+   * 1 画面に何個も置かない。副次的な操作は .btn-quiet を使う。
+   */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 9999px;
+    border: 1.5px solid var(--neon-lime);
+    background-color: var(--neon-lime);
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--neon-ink);
+    transition:
+      background-color 180ms ease,
+      border-color 180ms ease,
+      color 180ms ease;
+  }
+
+  .btn-primary:hover {
+    background-color: #ffffff;
+  }
+
+  .btn-primary:disabled {
+    cursor: not-allowed;
+    border-color: var(--mk-border);
+    background-color: var(--mk-block);
+    color: #b4b7b1;
+  }
+
+  /** 副次的な操作。白地＋細い枠。hover のときだけ縁が蛍光ライムになる。 */
+  .btn-quiet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 9999px;
+    border: 1px solid var(--mk-border);
+    background-color: var(--mk-card);
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--mk-ink);
+    transition:
+      background-color 180ms ease,
+      border-color 180ms ease;
+  }
+
+  .btn-quiet:hover {
+    border-color: var(--neon-lime);
+    background-color: var(--mk-block);
+  }
+
+  .btn-primary:focus-visible,
+  .btn-quiet:focus-visible {
+    outline: 2px solid var(--neon-lime);
+    outline-offset: 2px;
+  }
+
+  /** 機能別カラーのアイコン背景（丸／角丸の小さな面だけ）。色は呼び出し側で指定する。 */
+  .fn-icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    color: var(--mk-ink);
   }
 }

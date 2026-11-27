@@ -4,6 +4,15 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatLastUpdated } from "@/lib/planActivity";
 import { loadConsultationSheet } from "@/lib/consultationSheet";
+import { loadPlanKarte } from "@/lib/planChat";
+import { loadPlanWorksheet } from "@/lib/planWorksheet";
+import { buildMyNoteBuckets } from "@/lib/myNoteBuckets";
+import {
+  buildKarteConditionSlots,
+  countFilledConditionSlots,
+} from "@/lib/karteConditionSlots";
+import { buildSchoolComparisonView } from "@/lib/schoolComparisonView";
+import { AUSTRALIA_SCHOOLS } from "@/lib/data/schools";
 import { planDocumentTypeLabel } from "@/lib/planDocuments";
 import {
   DOCUMENT_ROLE_DEFINITIONS,
@@ -14,6 +23,11 @@ import DocumentsWorkspaceHeader from "@/components/DocumentsWorkspaceHeader";
 import DocumentWorkspaceCard, {
   type DocumentWorkspaceVariant,
 } from "@/components/DocumentWorkspaceCard";
+import MyKarteNoteSection from "@/components/MyKarteNoteSection";
+import MyKarteConditionsSection from "@/components/MyKarteConditionsSection";
+import MyKarteSchoolsSection, { type MyKarteSchoolRow } from "@/components/MyKarteSchoolsSection";
+import ComparisonBoard from "@/components/ComparisonBoard";
+import MyKarteSummaryTiles from "@/components/MyKarteSummaryTiles";
 
 export const metadata: Metadata = {
   title: "My Karte",
@@ -39,73 +53,54 @@ const ROLE_ROUTE_SLUG: Record<DocumentRoleKey, string> = {
 };
 
 /**
- * Documents トップ用の presentation 設定（この画面だけの見た目・コピー）。
- * role / title / createLabel は lib/documentRoles.ts をそのまま使い、トップの説明文（lines）と
- * カードの accent variant・open CTA だけをここで持つ。lib/documentRoles.ts 自体は変更しない。
+ * 「伝える・相談する」セクションに残す 2 枚のカードの presentation 設定。
  *
- * カードは同じ共通カードシステム（DocumentWorkspaceCard）で、grid は均等 2 列。資料が増えても
- * 同じ形のカードが 1 枚増えるだけで並ぶ（col-span の作り分けや、4 枚前提のレイアウトを持たない）。
- *
- * 説明文は「この画面で自分が書く」ではなく「AI相談やワークシートで整理した内容をもとに資料化される」
- * ことが伝わる書き方にする（〜しよう / 書き出そう のような作業を促す言い回しは使わない）。
+ * My Note / Study Plan / School Comparison は**ダッシュボード型のセクション**に変わったが、
+ * この 2 つ（親向け説明資料・Consultation Sheet）は**既存のカード形式を維持する**。
+ * 相手に渡す成果物であり、「読んで確認する」ダッシュボードとは性質が違うため。
+ * 遷移先・生成機能・編集機能・共有機能は一切変更していない。
  */
-const CARD_PRESENTATION: Record<
-  DocumentRoleKey,
-  { variant: DocumentWorkspaceVariant; lines: string[]; openCta: string; shareBadge?: boolean }
-> = {
-  my_note: {
-    variant: "note",
-    lines: [
-      "今の気持ちや考えを整理します。",
-      "AI相談やワークシートで話した内容をもとにまとめます。",
-    ],
-    openCta: "ひらく →",
-  },
-  study_plan: {
-    variant: "plan",
-    lines: [
-      "希望や条件をプランとしてまとめます。",
-      "これまで整理した内容をもとに、留学計画を見やすくまとめます。",
-    ],
-    openCta: "ひらく →",
-  },
-  school_comparison: {
-    variant: "compare",
-    lines: [
-      "候補の学校を比較しやすく整理します。",
-      "提案された学校の違いを、同じ項目で見比べられます。",
-    ],
-    openCta: "ひらく →",
-  },
-  parent_explanation: {
-    variant: "parent",
-    // 親向けだけは下に「家族と共有できます」バッジが出るため、補足文は置かず1行に留める。
-    lines: ["家族に伝えやすい資料にまとめます。"],
-    openCta: "内容をみる →",
-    shareBadge: true,
-  },
+const SHARE_CARD_PRESENTATION: {
+  variant: DocumentWorkspaceVariant;
+  lines: string[];
+  openCta: string;
+  shareBadge?: boolean;
+} = {
+  variant: "parent",
+  lines: ["家族に伝えやすい資料にまとめます。"],
+  openCta: "内容をみる →",
+  shareBadge: true,
 };
 
-/** カードの並び順（考える → 整理する → 比べる → 伝える の流れ）。資料が増えたらここに足す。 */
-const DOCUMENT_ORDER: DocumentRoleKey[] = [
-  "my_note",
-  "study_plan",
-  "school_comparison",
-  "parent_explanation",
-];
-
 /**
- * Documents（＝画面上は "My Karte"）トップ。所有者確認 → plan_documents を読むだけで
- * 一切書き込まない。構成は「ヘッダー → CURRENT PLAN → 資料カードの一覧」だけにする。
- * 以前は上部に「考える → 整理する → 比べる → 伝える」の 4 ステップ帯を置いていたが、直後に同じ役割の
- * 資料カードが並び説明が重複していたため外した（各カードの役割は、カード内の小さな role ラベルが示す）。
+ * My Karte（route は /plans/[planId]/documents）トップ。
  *
- * DB 行の有無に関係なく資料カードを常設し（未生成でも detail route へ入って作成できる）、
- * document がある type だけ「更新日」と open CTA を、無ければ createLabel を出す。生成ロジック・
- * 詳細画面・API・DB・role metadata（lib/documentRoles.ts）は変更しない。fake データは出さない。
+ * 位置づけ:
+ *   My Karte = AI相談や Worksheet で考えてきたことを **ひとつの場所で確認・整理・比較する**
+ *   パーソナルダッシュボード（自分の考え・希望・条件・判断軸を把握する場所）。
+ *   My Plan = 決めた内容を具体的な行動やスケジュールにする場所。
+ *   この役割の違いを保つため、このページは plan_blueprint（My Plan の確定値）を読まない。
  *
- * その他の type（agent_summary）は DB 行が実在する場合のみ「その他の資料」に一覧表示する。
- * plan_documents の error 時は常設カードを出さず error 表示のみ。
+ * 構成:
+ *   ヘッダー（タイトル・説明・Current Plan）
+ *     → My Note（考えてきたこと）
+ *     → Study Plan（希望・条件のグリッド）
+ *     → Comparison Board（候補案の比較。同一ページ内で開閉）
+ *     → School Comparison（候補校の概要）
+ *     → 伝える・相談する（親向け説明資料 / Consultation Sheet のカード）
+ *   セクションは余白と見出しで区切り、全体を 1 枚の大きなカードで囲わない。
+ *
+ * データの扱い（最重要）:
+ *   - **ページ表示時に AI 生成を一切行わない**（Anthropic を呼ばない）。
+ *     出すのは既存の Karte / Worksheet / plan_documents / 候補校を pure な変換層に通した値だけ。
+ *   - inferred（AI の仮説）は値として出さない。stated / 未定 / 未整理 を区別して出す。
+ *   - 未回答を推測で埋めない。架空のユーザーデータ（国名・金額・学校名）を出さない。
+ *   - 既存の詳細画面・資料生成機能・共有機能は削除していない（各セクションから遷移できる）。
+ *
+ * エラー時:
+ *   plan_documents が読めないときは、資料の更新日に依存する表示を出さず error 表示のみにする
+ *   （Karte / Worksheet 側は別のクエリなので、ダッシュボードの中身は出せるが、
+ *   「資料が無いのか読めていないのか」を取り違えさせないため従来どおり error を優先する）。
  */
 export default async function PlanDocumentsPage({ params }: PlanDocumentsPageProps) {
   const { planId } = await params;
@@ -119,6 +114,7 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
     redirect("/login");
   }
 
+  // 所有者確認。ここを通らない planId のデータは一切読まない（別 Plan の情報が混ざらない）。
   const { data: plan } = await supabase
     .from("plans")
     .select("id, title")
@@ -152,9 +148,32 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
       doc.type !== "parent_explanation",
   );
 
+  // ダッシュボードの中身。すべて既存の pure な変換層を通すだけで、AI も新しい API も使わない。
+  const [karte, worksheet] = await Promise.all([
+    loadPlanKarte(supabase, planId),
+    loadPlanWorksheet(supabase, planId),
+  ]);
+  const worksheetState = worksheet.available ? (worksheet.row?.state ?? null) : null;
+
+  const noteBuckets = buildMyNoteBuckets(karte, worksheetState);
+  const conditionSlots = buildKarteConditionSlots(karte, worksheetState);
+  const schoolRows: MyKarteSchoolRow[] = buildSchoolComparisonView(
+    karte,
+    AUSTRALIA_SCHOOLS,
+  ).schools.map((school) => ({
+    slug: school.slug,
+    name: school.nameJa?.trim() ? school.nameJa : school.name,
+    city: school.city,
+  }));
+
+  const parentDef = DOCUMENT_ROLE_DEFINITIONS.parent_explanation;
+  const parentDoc = docByType("parent_explanation");
+
   return (
-    <div className="min-h-dvh bg-worksheet-surface">
-      <header className="flex items-center justify-between border-b border-black/[0.06] bg-worksheet-surface px-4 py-3 sm:px-6">
+    // My Karte だけ、ページの地を淡いグレーの canvas にして白いカードを浮かせる。
+    // アプリ全体の背景（--background）や他画面には影響させない。
+    <div className="min-h-dvh bg-[var(--mk-canvas)]">
+      <header className="flex items-center justify-between border-b border-black/[0.06] bg-[var(--mk-canvas)] px-4 py-3 sm:px-6">
         {/* lg以上ではAppNavの左sidebarに同じロゴがあるため、ここでは隠す（戻る導線は残す） */}
         <div className="lg:hidden">
           <MobileBrandHeader />
@@ -172,73 +191,95 @@ export default async function PlanDocumentsPage({ params }: PlanDocumentsPagePro
         <DocumentsWorkspaceHeader
           planTitle={plan.title}
           lastUpdatedText={rows.length > 0 ? formatLastUpdated(rows[0].updated_at) : null}
+          summary={
+            /* 出すのは実データを数えた件数だけ。達成率・スコア・グラフは置かない。 */
+            <MyKarteSummaryTiles
+              planId={planId}
+              conditionsFilled={countFilledConditionSlots(conditionSlots)}
+              conditionsTotal={conditionSlots.length}
+              schoolCount={schoolRows.length}
+            />
+          }
         />
 
         {documentsError ? (
-          <div className="mt-8 rounded-[18px] border border-[#e6e1d8] bg-white p-6 sm:p-8">
-            <p className="text-base font-medium text-worksheet-primary">資料を読み込めませんでした。</p>
-            <p className="mt-3 text-sm leading-relaxed text-worksheet-secondary">
-              しばらくしてから再度お試しください。
-            </p>
+          <div className="mk-card mk-pad-lg mt-8">
+            <p className="mk-card-title">資料を読み込めませんでした。</p>
+            <p className="mk-sub-text mt-2">しばらくしてから再度お試しください。</p>
           </div>
         ) : (
-          <>
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5">
-              {DOCUMENT_ORDER.map((key) => {
-                const def = DOCUMENT_ROLE_DEFINITIONS[key];
-                const presentation = CARD_PRESENTATION[key];
-                const doc = docByType(key);
-                return (
-                  <DocumentWorkspaceCard
-                    key={key}
-                    href={`/plans/${planId}/documents/${ROLE_ROUTE_SLUG[key]}`}
-                    role={def.role}
-                    title={def.title}
-                    lines={presentation.lines}
-                    variant={presentation.variant}
-                    updatedText={doc ? formatLastUpdated(doc.updated_at) : null}
-                    cta={doc ? presentation.openCta : `${def.createLabel} →`}
-                    shareBadge={presentation.shareBadge}
-                  />
-                );
-              })}
+          <div className="mt-10 space-y-12 sm:mt-12 sm:space-y-16">
+            <MyKarteNoteSection planId={planId} buckets={noteBuckets} />
 
-              {/* 5 枚目: Consultation Sheet（自動生成の資料ではなく、下書き候補＋自分で編集する相談シート） */}
-              <DocumentWorkspaceCard
-                href={`/plans/${planId}/documents/consultation-sheet`}
-                role="相談する"
-                title="Consultation Sheet"
-                lines={[
-                  "相談したいことや確認事項を整理します。",
-                  "AI相談やワークシートをもとに下書きを作り、自分でも追加・編集できます。",
-                ]}
-                variant="consult"
-                updatedText={consultationUpdatedAt ? formatLastUpdated(consultationUpdatedAt) : null}
-                cta={consultationUpdatedAt ? "ひらく →" : "相談シートをひらく →"}
-              />
-            </div>
+            <MyKarteConditionsSection planId={planId} slots={conditionSlots} />
+
+            {/*
+              Comparison Board。別ページへ遷移せず、この位置で開閉する。
+              Karte の希望・条件は「今の条件からコピー」のときだけ使われ、
+              自動で候補案に確定されることはない。
+            */}
+            <ComparisonBoard planId={planId} conditionSlots={conditionSlots} />
+
+            <MyKarteSchoolsSection planId={planId} schools={schoolRows} />
+
+            {/*
+              伝える・相談する。ページ最下段の「行動」エリアなので、淡い面に載せて
+              上の「読む・整理する」セクション群と役割を分ける。
+              カード自体は既存の DocumentWorkspaceCard のまま（遷移先・生成・共有は不変）。
+            */}
+            <section>
+              <p className="mk-eyebrow">Share</p>
+              <h2 className="mk-section-title mt-1.5">伝える・相談する</h2>
+              <p className="mk-sub-text mt-1">整理した内容を、相手に合わせた資料に。</p>
+
+              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+                <DocumentWorkspaceCard
+                  href={`/plans/${planId}/documents/${ROLE_ROUTE_SLUG.parent_explanation}`}
+                  role={parentDef.role}
+                  title={parentDef.title}
+                  lines={SHARE_CARD_PRESENTATION.lines}
+                  variant={SHARE_CARD_PRESENTATION.variant}
+                  updatedText={parentDoc ? formatLastUpdated(parentDoc.updated_at) : null}
+                  cta={parentDoc ? SHARE_CARD_PRESENTATION.openCta : `${parentDef.createLabel} →`}
+                  shareBadge={SHARE_CARD_PRESENTATION.shareBadge}
+                  surface="#ffffff"
+                  wash="rgba(232,242,247,0.9)"
+                />
+
+                <DocumentWorkspaceCard
+                  href={`/plans/${planId}/documents/consultation-sheet`}
+                  role="相談する"
+                  title="Consultation Sheet"
+                  lines={[
+                    "相談したいことや確認事項を整理します。",
+                    "AI相談やワークシートをもとに下書きを作り、自分でも追加・編集できます。",
+                  ]}
+                  variant="consult"
+                  updatedText={consultationUpdatedAt ? formatLastUpdated(consultationUpdatedAt) : null}
+                  cta={consultationUpdatedAt ? "ひらく →" : "相談シートをひらく →"}
+                  surface="#ffffff"
+                  wash="rgba(232,239,234,0.9)"
+                />
+              </div>
+            </section>
 
             {otherRows.length > 0 && (
-              <div className="mt-12">
-                <h2 className="text-[13px] font-medium text-[#8e887e]">その他の資料</h2>
-                <div className="mt-4 divide-y divide-[#eeeae2] rounded-[18px] border border-[#e6e1d8] bg-white">
+              <section>
+                <h2 className="mk-eyebrow">その他の資料</h2>
+                <div className="mk-card mt-4 divide-y divide-[#f0f1ee]">
                   {otherRows.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between gap-4 px-4 py-4">
-                      <div>
-                        <p className="text-sm font-medium text-worksheet-primary">{doc.title}</p>
-                        <p className="mt-0.5 text-xs text-worksheet-secondary">
-                          {planDocumentTypeLabel(doc.type)}
-                        </p>
+                    <div key={doc.id} className="flex items-center justify-between gap-4 px-5 py-4">
+                      <div className="min-w-0">
+                        <p className="mk-card-title break-words">{doc.title}</p>
+                        <p className="mk-sub-text mt-0.5">{planDocumentTypeLabel(doc.type)}</p>
                       </div>
-                      <p className="shrink-0 text-xs text-worksheet-secondary">
-                        {formatLastUpdated(doc.updated_at)}
-                      </p>
+                      <p className="mk-sub-text shrink-0">{formatLastUpdated(doc.updated_at)}</p>
                     </div>
                   ))}
                 </div>
-              </div>
+              </section>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>
